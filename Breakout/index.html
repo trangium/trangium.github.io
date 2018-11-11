@@ -93,6 +93,13 @@
                 }
             }
         }
+        
+        function drawScore() {
+            ctx.font = "16px Arial";
+            ctx.fillStyle = "#0095DD";
+            ctx.fillText("Destroyed: "+(brickColumnCount*brickRowCount-bricksLeft), 8, 20);
+            ctx.fillText("Score: "+Math.round(10000000/(score+100)), 375, 20);
+        }
 
         function keyDownHandler(e) {
             if (e.keyCode == 39) {
@@ -109,7 +116,11 @@
                 leftPressed = false;
             }
         }
-
+        
+        function mouseMoveHandler(e) {
+            let relativeX = e.clientX - canvas.offsetLeft;
+            paddleX = Math.min(canvas.width-paddleWidth,Math.max(0,relativeX - paddleWidth/2));
+        }
         function collisionDetection() {
             for (let c = 0; c < brickColumnCount; c++) {
                 for (let r = 0; r < brickRowCount; r++) {
@@ -118,7 +129,7 @@
                         if (x > b.x && x < b.x + brickWidth && y > b.y && y < b.y + brickHeight) {
                             dy = -dy;
                             b.status = 0;
-                            bricksLeft--;
+                            bricksLeft--; 
                         }
                     }
                 }
@@ -129,6 +140,7 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             drawBall();
             drawBricks();
+            drawScore();
             score++;
             if (y + dy < ballRadius) {
                 dy = -dy;
@@ -175,6 +187,7 @@
                 paddleX -= 7;
             }
         }
+        document.addEventListener("mousemove", mouseMoveHandler, false);
         document.addEventListener("keydown", keyDownHandler, false);
         document.addEventListener("keyup", keyUpHandler, false);
         setInterval(draw, 10);
