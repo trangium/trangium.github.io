@@ -28,8 +28,8 @@
 
         var x = canvas.width / 2;
         var y = canvas.height - 30;
-        var dx = 2;
-        var dy = -2;
+        var dx = 3;
+        var dy = -3;
 
         var ballRadius = 10;
         var paddleHeight = 10;
@@ -49,8 +49,8 @@
 
         var score = 0;
         var bricksLeft = brickColumnCount*brickRowCount;
-
-        var extraSpeed = 1;
+        var lives = 3;
+        var extraSpeed = 2.5;
 
         var bricks = [];
         for (let c = 0; c < brickColumnCount; c++) {
@@ -99,6 +99,7 @@
             ctx.fillStyle = "#0095DD";
             ctx.fillText("Destroyed: "+(brickColumnCount*brickRowCount-bricksLeft), 8, 20);
             ctx.fillText("Score: "+Math.round(10000000/(score+100)), 375, 20);
+            ctx.fillText("Lives: "+lives, 190, 20);
         }
 
         function keyDownHandler(e) {
@@ -151,22 +152,30 @@
                     collisionDevPct = collisionDev/(paddleWidth/2);
                     dy = -dy;
                     if (dx > 0) {
-                        dx = 2 + (extraSpeed*collisionDevPct);
+                        dx = 3 + (extraSpeed*collisionDevPct);
                     }
                     if (dx < 0) {
-                        dx = -2 - (extraSpeed*collisionDevPct);
+                        dx = -3 - (extraSpeed*collisionDevPct);
                     }
                 }
             }
             if (y + dy > canvas.height - ballRadius) {
-                if (bricksLeft == 1) {
-                    alert("GAME OVER! You had "+bricksLeft+" brick left.");
+                lives--;
+                if (!lives) {
+                    if (bricksLeft == 1) {
+                        alert("GAME OVER! You had "+bricksLeft+" brick left.");
+                    } else {
+                        alert("GAME OVER! You had "+bricksLeft+" bricks left.");                   
+                    }
+                    y = canvas.height - 30;
+                    document.location.reload();
                 } else {
-                    alert("GAME OVER! You had "+bricksLeft+" bricks left.");                   
+                    x = canvas.width/2;
+                    y = canvas.height-30;
+                    dx = 2;
+                    dy = -2;
+                    paddleX = (canvas.width-paddleWidth)/2;
                 }
-
-                y = canvas.height - 30;
-                document.location.reload();
             }
             if (bricksLeft == 0) {
                 drawBricks();
@@ -186,11 +195,12 @@
             } else if (leftPressed && paddleX > 0) {
                 paddleX -= 7;
             }
+            requestAnimationFrame(draw);
         }
         document.addEventListener("mousemove", mouseMoveHandler, false);
         document.addEventListener("keydown", keyDownHandler, false);
         document.addEventListener("keyup", keyUpHandler, false);
-        setInterval(draw, 10);
+        draw();
     </script>
 
 </body>
