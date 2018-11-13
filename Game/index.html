@@ -64,6 +64,17 @@
                [2, 2, 8, 2, 2, 8, 2, 0, 1, 1, 1, 1],
                [2, 2, 0, 4, 2, 2, 2, 0, 1, 1, 1, 1]]
 
+        function createArray(length) {
+            var arr = new Array(length || 0),
+                i = length;
+
+            if (arguments.length > 1) {
+                var args = Array.prototype.slice.call(arguments, 1);
+                while(i--) arr[length-1 - i] = createArray.apply(this, args);
+            }
+
+            return arr;
+        }
         var goal = 180;
         for(let i=0; i<grid.length; i++) {
             grid[i] = [Y].concat(grid[i]).concat([Y]);
@@ -73,7 +84,7 @@
         grid.splice(0,0,ys);
         grid.push(ys);
 
-        var visited = Array(grid[0].length).fill(Array(grid[0].length));
+        var visited = createArray(grid.length,grid[0].length);
 
         var ballx = 2;
         var bally = 2;
@@ -91,9 +102,9 @@
         var dgray = '#222222';
         var brown = '#663300';
         var green = '#00ff00';
-        var red = 'ff0000';
-        var yellow = 'd5d500';
-        var black = '000000';
+        var red = '#ff0000';
+        var yellow = '#ffff00';
+        var black = '#000000';
 
         var weightcol = new Map([[0,red],[1,white],[2,green],[4,yellow],[8,red]]);
         var weightsize = new Map([[0,Math.round(size*.08)],[1,Math.round(size*.08)],[2,Math.round(size*.12)],[4,Math.round(size*.16)],[8,Math.round(size*.2)]]);
@@ -124,14 +135,16 @@
         }
         function slide(direction) {
             while (move(direction)) {
-                sleep(50);
-                if (!visited[ballx-1][bally-1]) {
+                if (!(visited[ballx-1][bally-1])) {
                     score += weights[ballx-1][bally-1];
+                    visited[ballx-1][bally-1] = 1;
                     if (score >= goal && !finished){
                         finished = time();
                     } 
                 }
-                draw();
+                sleep(50);
+                everyFrame();
+                requestAnimationFrame(everyFrame);
             }
         }
         function convert(x) {
@@ -159,7 +172,7 @@
                         col = brown;
                     }
                     rect(col,convert(x),convert(y),size,size);
-                    if (tile == X) {
+                    if (tile == X && (!(visited[x-1][y-1]))) {
                         let s = weightsize.get(weights[y-1][x-1]);
                         let s2 = Math.round(s/2);
                         rect(weightcol.get(weights[y-1][x-1]),convert(x+.5)-s2,convert(y+.5)-s2,s,s);
@@ -169,11 +182,13 @@
             ctx.beginPath();
             ctx.fillStyle = dgray;
             ctx.arc(convert(ballx+.5),convert(bally+.5),ballsize,0,Math.PI*2,true);
+            ctx.fill();
+            ctx.closePath();
             text(white,score,385,25,25,"Arial");
             if (finished) {
-                text(green,(finished-starttime).toFixed(2),385,55,25,"Arial");
+                text(green,((finished-starttime)/1000).toFixed(2),385,55,25,"Arial");
             } else {
-                text(yellow,(finished-starttime).toFixed(2),385,55,25,"Arial");
+                text(yellow,((time()-starttime)/1000).toFixed(2),385,55,25,"Arial");
             }
             text(white,"Race To "+goal,385,105,20,"Arial"); 
         }
@@ -210,6 +225,14 @@
                 rightKey();
             } else if (e.keyCode == 40) {
                 downKey();
+            } else if (e.keycode == 32) {
+                visited = createArray(grid.length,grid[0].length);
+                score = 0;
+                ballx = 2;
+                bally = 2;
+                starttime = time();
+                finished = false;
+                console.log('asdifadio');
             }
         }
 
