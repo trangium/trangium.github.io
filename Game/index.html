@@ -11,7 +11,7 @@
         }
 
         canvas {
-            background: #eee;
+            background: #333;
             display: block;
             margin: 0 auto;
         }
@@ -20,17 +20,201 @@
 
 <body>
 
-    <canvas id="myCanvas" width="480" height="320"></canvas>
+    <canvas id="myCanvas" width="512" height="384"></canvas>
 
     <script>
         var canvas = document.getElementById("myCanvas");
         var ctx = canvas.getContext("2d");
 
-        ctx.beginPath();
-        ctx.fillStyle = "#ff3355";
-        ctx.rect(30,50,70,40);
-        ctx.fill();
-        ctx.closePath();
+        function rect(color,x,y,w,h) {
+            ctx.beginPath();
+            ctx.fillStyle = color;
+            ctx.rect(x,y,w,h);
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        var X = 'X';
+        var Y = 'Y';
+        var Z = 'Z';
+
+        var grid = [[X,X,X,Z,X,X,Z,X,X,Z,X,X],
+            [X,X,X,X,X,X,Z,X,X,X,X,X],
+            [X,X,X,X,X,X,Z,X,X,X,X,X],
+            [Z,X,X,X,X,X,X,Z,X,X,X,X],
+            [X,X,X,X,X,X,X,Z,X,X,X,Z],
+            [X,X,X,X,X,X,X,X,X,X,X,X],
+            [X,X,X,X,X,X,X,X,X,X,X,X],
+            [Z,X,X,X,X,X,X,X,X,X,X,Z],
+            [X,X,X,X,X,Z,Z,X,X,X,X,Z],
+            [X,X,X,X,X,X,X,Z,Z,X,X,X],
+            [X,X,X,X,X,X,X,Z,X,X,X,X],
+            [X,X,Z,X,X,X,X,Z,X,X,X,X]];
+
+        var weights = [[2, 1, 2, 0, 4, 4, 0, 1, 1, 0, 1, 1],
+               [2, 2, 2, 8, 2, 2, 0, 1, 1, 1, 1, 1],
+               [4, 2, 2, 2, 2, 2, 0, 2, 1, 1, 1, 1],
+               [0, 2, 4, 4, 4, 2, 8, 0, 1, 1, 1, 1],
+               [4, 1, 2, 2, 2, 2, 4, 0, 1, 1, 1, 0],
+               [1, 1, 2, 2, 2, 1, 2, 2, 1, 1, 1, 4],
+               [2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2],
+               [0, 2, 2, 2, 2, 2, 4, 2, 1, 1, 1, 0],
+               [2, 1, 2, 2, 2, 0, 0, 2, 1, 1, 1, 0],
+               [1, 2, 2, 2, 2, 8, 4, 0, 0, 1, 1, 1],
+               [2, 2, 8, 2, 2, 8, 2, 0, 1, 1, 1, 1],
+               [2, 2, 0, 4, 2, 2, 2, 0, 1, 1, 1, 1]]
+
+        var goal = 180;
+        for(let i=0; i<grid.length; i++) {
+            grid[i] = [Y].concat(grid[i]).concat([Y]);
+        }
+
+        var ys = Array(grid[0].length).fill(Y);
+        grid.splice(0,0,ys);
+        grid.push(ys);
+
+        var visited = Array(grid[0].length).fill(Array(grid[0].length));
+
+        var ballx = 2;
+        var bally = 2;
+        var score = 0;
+        var finished = false;
+
+        var offset = 0;
+        var size = Math.round(384/grid.length);
+        var half = Math.round(size/2);
+        var ballsize = Math.round(half/2);
+        var fontsize = Math.round(size*.4);
+
+        var white = '#ffffff';
+        var gray = '#888888';
+        var dgray = '#222222';
+        var brown = '#663300';
+        var green = '#00ff00';
+        var red = 'ff0000';
+        var yellow = 'd5d500';
+        var black = '000000';
+
+        var weightcol = new Map([[0,red],[1,white],[2,green],[4,yellow],[8,red]]);
+        var weightsize = new Map([[0,Math.round(size*.08)],[1,Math.round(size*.08)],[2,Math.round(size*.12)],[4,Math.round(size*.16)],[8,Math.round(size*.2)]]);
+
+        function move(direction) {
+            dx = direction[0];
+            dy = direction[1];
+            ballx += dx;
+            bally += dy;
+            if (grid[bally][ballx]!=X) {
+                ballx -= dx;
+                bally -= dy;
+                return false;
+            }
+            return true;
+        }
+        function sleep(milliseconds) {
+            var start = new Date().getTime();
+            for (var i = 0; i < 1e7; i++) {
+                if ((new Date().getTime() - start) > milliseconds){
+                break;
+                }
+            }
+        }
+        function time() {
+            var date = new Date;
+            return date.getTime();
+        }
+        function slide(direction) {
+            while (move(direction)) {
+                sleep(50);
+                if (!visited[ballx-1][bally-1]) {
+                    score += weights[ballx-1][bally-1];
+                    if (score >= goal && !finished){
+                        finished = time();
+                    } 
+                }
+                draw();
+            }
+        }
+        function convert(x) {
+            if (x instanceof Array) {
+                return [convert(x[0]),convert(x[1])];
+            } else {
+                return size*x+offset;
+            }
+        }
+        function text(col,text_to_write,x,y,size,font) {
+            ctx.font = size+"px "+font;
+            ctx.fillStyle = col;
+            ctx.fillText(text_to_write,x,y);
+        }
+        function draw() {
+            for (let y=0; y<grid.length; y++) {
+                for (let x=0; x<grid[0].length; x++) {
+                    var tile = grid[y][x];
+                    var col = null;
+                    if (tile == X) {
+                        col = gray;
+                    } else if (tile == Y) {
+                        col = dgray;
+                    } else {
+                        col = brown;
+                    }
+                    rect(col,convert(x),convert(y),size,size);
+                    if (tile == X) {
+                        let s = weightsize.get(weights[y-1][x-1]);
+                        let s2 = Math.round(s/2);
+                        rect(weightcol.get(weights[y-1][x-1]),convert(x+.5)-s2,convert(y+.5)-s2,s,s);
+                    }
+                }
+            }
+            ctx.beginPath();
+            ctx.fillStyle = dgray;
+            ctx.arc(convert(ballx+.5),convert(bally+.5),ballsize,0,Math.PI*2,true);
+            text(white,score,385,25,25,"Arial");
+            if (finished) {
+                text(green,(finished-starttime).toFixed(2),385,55,25,"Arial");
+            } else {
+                text(yellow,(finished-starttime).toFixed(2),385,55,25,"Arial");
+            }
+            text(white,"Race To "+goal,385,105,20,"Arial"); 
+        }
+
+        var starttime = time();
+        function everyFrame() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            draw();
+            requestAnimationFrame(everyFrame);            
+        }
+        
+        function upKey() {
+            slide([0,-1]);
+        }
+
+        function downKey() {
+            slide([0,1]);
+        }
+
+        function leftKey() {
+            slide([-1,0]);
+        }
+
+        function rightKey() {
+            slide([1,0]);
+        }
+
+        function keyHandler(e) {
+            if (e.keyCode == 37){
+                leftKey();
+            } else if (e.keyCode == 38) {
+                upKey();
+            } else if (e.keyCode == 39) {
+                rightKey();
+            } else if (e.keyCode == 40) {
+                downKey();
+            }
+        }
+
+        document.addEventListener("keydown",keyHandler,false);
+        everyFrame();
 
     </script>
 
