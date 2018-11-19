@@ -89,6 +89,8 @@
         var ballx = 2;
         var bally = 2;
         var score = 0;
+        var moveDirection = [0,0];
+        var moving = false;
         var finished = false;
 
         var offset = 0;
@@ -118,8 +120,16 @@
                 ballx -= dx;
                 bally -= dy;
                 return false;
+            } else {
+                if (!(visited[ballx-1][bally-1])) {
+                    score += weights[bally-1][ballx-1];
+                    visited[ballx-1][bally-1] = 1;
+                    if (score >= goal && !finished){
+                        finished = time();
+                    } 
+                }
             }
-            return true;
+            return (moveDirection[0] != 0 || moveDirection[1] != 0);
         }
 
         function time() {
@@ -128,13 +138,7 @@
         }
         function slide(direction) {
             while (move(direction)) {
-                if (!(visited[ballx-1][bally-1])) {
-                    score += weights[ballx-1][bally-1];
-                    visited[ballx-1][bally-1] = 1;
-                    if (score >= goal && !finished){
-                        finished = time();
-                    } 
-                }
+                null
             }
         }
         function convert(x) {
@@ -186,24 +190,33 @@
         var starttime = time();
         function everyFrame() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            moving = move(moveDirection);
             draw();
             requestAnimationFrame(everyFrame);            
         }
         
         function upKey() {
-            slide([0,-1]);
+            if (!moving) {
+                moveDirection = [0,-1];
+            }
         }
 
         function downKey() {
-            slide([0,1]);
+            if (!moving) {
+                moveDirection = [0,1];
+            }
         }
 
         function leftKey() {
-            slide([-1,0]);
+            if (!moving) {
+                moveDirection = [-1,0];
+            }
         }
 
         function rightKey() {
-            slide([1,0]);
+            if (!moving) {
+                moveDirection = [1,0];
+            }
         }
 
         function keyHandler(e) {
@@ -222,6 +235,7 @@
                 bally = 2;
                 starttime = time();
                 finished = false;
+                moveDirection = [0,0];
             }
         }
 
