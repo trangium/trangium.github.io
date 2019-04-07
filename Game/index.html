@@ -111,6 +111,12 @@
         var weightcol = new Map([[0,red],[1,white],[2,green],[4,yellow],[8,red]]);
         var weightsize = new Map([[0,Math.round(size*.08)],[1,Math.round(size*.08)],[2,Math.round(size*.12)],[4,Math.round(size*.16)],[8,Math.round(size*.2)]]);
 
+        var mousex = null;
+        var mousey = null;
+
+        var clickStatus = 0;
+        var clicked = 0;
+
         function move(direction) {
             dx = direction[0];
             dy = direction[1];
@@ -185,6 +191,7 @@
                 text(yellow,((time()-starttime)/1000).toFixed(2),385,55,25,"Arial");
             }
             text(white,"Race To "+goal,385,105,20,"Arial"); 
+            rect(green,400,200,100,100);
         }
 
         var starttime = time();
@@ -192,6 +199,9 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             moving = move(moveDirection);
             draw();
+            console.log(clicked);
+            console.log(clickStatus);
+            console.log(" ");
             requestAnimationFrame(everyFrame);            
         }
         
@@ -239,7 +249,38 @@
             }
         }
 
+        function mouseMoveHandler(e) {
+            mousex = e.clientX-canvas.offsetLeft;
+            mousey = e.clientY-canvas.offsetTop;
+            console.log(mousex);
+            console.log(mousey);
+            console.log(" ");
+            if (400 < mousex < 500 && 200 < mousey < 300) {
+                clickStatus = 1;
+            } else {
+                clickStatus = 0;
+            }
+        }
+
+        function clickHandler(e) {
+            mousex = e.clientX-canvas.offsetLeft;
+            mousey = e.clientY-canvas.offsetTop;
+            console.log(" ");
+            if (400 < mousex < 500 && 200 < mousey < 300) {
+                clicked = 1;
+            } else {
+                clicked = 0;
+            }
+        }
+
+        function releaseHandler(e) {
+            clicked = 0;
+        }
+
         document.addEventListener("keydown",keyHandler,false);
+        document.addEventListener("mousemove",mouseMoveHandler,false);
+        document.addEventListener("mousedown",clickHandler,false);
+        document.addEventListener("mouseup",releaseHandler,false);
         everyFrame();
 
     </script>
