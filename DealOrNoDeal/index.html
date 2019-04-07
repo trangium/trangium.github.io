@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Gamedev Canvas Workshop</title>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+        }
+
+        canvas {
+            background: #eee;
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="myCanvas" width="480" height="320"></canvas>
+
+    <script>
+        var canvas = document.getElementById("myCanvas");
+        var ctx = canvas.getContext("2d");
+        
+        function rect(color,x,y,w,h) {
+            ctx.beginPath();
+            ctx.fillStyle = color;
+            ctx.rect(x,y,w,h);
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function text(col,text_to_write,x,y,size,font) {
+            ctx.font = size+"px "+font;
+            ctx.fillStyle = col;
+            ctx.fillText(text_to_write,x,y);
+
+        function mouseDownHandler(e) {
+            let relativeX = e.clientX - canvas.offsetLeft;
+            let relativeY = e.clientY - canvas.offsetTop;
+            console.log(relativeX.toString()+" "+relativeY)
+        }
+ 
+        function draw() {
+            ctx.beginPath();
+            ctx.rect(50,50,40,40);
+            ctx.fillStyle = "#"+color.toString(16);
+            ctx.fill();
+            ctx.closePath();
+            requestAnimationFrame(draw);
+        }
+
+        document.addEventListener("mousedown", mouseDownHandler, false);
+        draw();
+    </script>
+
+</body>
+
+</html>

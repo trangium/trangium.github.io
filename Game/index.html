@@ -198,9 +198,6 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             moving = move(moveDirection);
             draw();
-            console.log(clicked);
-            console.log(clickStatus);
-            console.log(" ");
             requestAnimationFrame(everyFrame);            
         }
         
@@ -251,9 +248,6 @@
         function mouseMoveHandler(e) {
             mousex = e.clientX-canvas.offsetLeft;
             mousey = e.clientY-canvas.offsetTop;
-            console.log(mousex);
-            console.log(mousey);
-            console.log(" ");
             if (400 < mousex < 500 && 200 < mousey < 300) {
                 clickStatus = 1;
             } else {
@@ -264,7 +258,6 @@
         function clickHandler(e) {
             mousex = e.clientX-canvas.offsetLeft;
             mousey = e.clientY-canvas.offsetTop;
-            console.log(" ");
             if (400 < mousex < 500 && 200 < mousey < 300) {
                 clicked = 1;
             } else {
