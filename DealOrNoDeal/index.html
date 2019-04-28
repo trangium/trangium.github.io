@@ -155,14 +155,14 @@
                 mean = sumRemaining/numRemaining;
                 deal = autoround(mean*(offertimes.indexOf(usedprices.length)+1)*multStep)
                 if (x == 2) {
-                    alert("DEAL! You made $"+addCommas(deal)+"!");
+                    alert("DEAL! You made $"+addCommas(deal)+"!\nYour case had $"+addCommas(prices[yourcase-1])+"!");
                     reset();
                 } else if (x == 4) {
                     counter = prompt("What to counter at?");
                     if (counter === null) {
                         alert("Well, I guess it's no deal then!");
                     } else if (parseInt(counter.replace(/\D/g,''),10) < autoround(deal)*(Math.random()*.7+1)) {
-                        alert("DEAL! You made $"+addCommas(counter.replace(/\D/g,''))+"!");
+                        alert("DEAL! You made $"+addCommas(counter.replace(/\D/g,''))+"!\nYour case had $"+addCommas(prices[yourcase-1])+"!");
                         reset();
                     } else {
                         alert("NO DEAL!");
