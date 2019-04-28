@@ -177,7 +177,7 @@
         function draw() {
             // See if you've opened all cases
             if (usedprices.length === 25) {
-                alert("Well, since $"+addCommas(pricelist[yourcase])+" was in your case, you win $"+addCommas(pricelist[yourcase])+"!");
+                alert("Your case (Case "+yourcase+") contains $"+addCommas(prices[yourcase-1])+"!");
                 reset();
             } 
 
