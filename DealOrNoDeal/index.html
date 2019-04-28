@@ -11,7 +11,7 @@
         }
 
         canvas {
-            background: #eee;
+            background: #f6f6f6;
             display: block;
             margin: 0 auto;
         }
@@ -20,11 +20,70 @@
 
 <body>
 
-    <canvas id="myCanvas" width="480" height="320"></canvas>
+    <canvas id="myCanvas" width="512" height="384"></canvas>
 
     <script>
         var canvas = document.getElementById("myCanvas");
         var ctx = canvas.getContext("2d");
+        var black = "#000000";
+        var white = "#ffffff";
+        var lgray = "#b9b9b9";
+        var gray = "#a0a0a0";
+        var yellow = "#d8b447";
+        var darkyellow = "#6c5a23";
+        var green = "#00cc00";
+        var red = "#ff3232";
+
+        var xoff = 100;
+        var yoff = 45;
+        var yUp = 25;
+        var size = 52;
+        var casewidth = 35;
+        var caseheight = 25;
+        var waiting = false;
+        var yourcase = null;
+        var noDeal = false;
+
+        var numMap = [[null,23,24,25,26,null],[17,18,19,20,21,22],[11,12,13,14,15,16],[5,6,7,8,9,10],[null,1,2,3,4,null]];
+        var pricelist = [.01,1,5,10,25,50,75,100,200,300,400,500,750,1000,5000,10000,25000,50000,75000,100000,200000,300000,400000,500000,750000,1000000];
+        var pricelist1 = pricelist.slice(0,13);
+        var pricelist2 = pricelist.slice(13,26);
+        var usedprices = [];
+
+        var disp1 = .15;
+        var disp2 = .8;
+        var disp3 = .7;
+        var disp4 = .65;
+        var disp5 = .64;
+        var disp6 = .33;
+        var disp7 = .75;
+
+        function shuffle(array) {
+            for (var i = array.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var temp = array[i];
+                array[i] = array[j];
+                array[j] = temp;
+            }
+            return array;
+        }
+
+        var prices = pricelist.slice();
+        prices = shuffle(prices);
+        var offertimes = [6,11,15,18,20,21,22,23,24];
+        var multStep = .1;
+
+        function gridToPy(x,y) {
+            return [x*size+xoff,y*size+yoff];
+        }
+
+        function pyToGrid(x,y) {
+            return [Math.floor((x-xoff)/size),Math.floor((y-yoff)/size)];
+        }
+        
+        function add(accum,a) {
+            return accum + a;
+        }
         
         function rect(color,x,y,w,h) {
             ctx.beginPath();
@@ -34,28 +93,183 @@
             ctx.closePath();
         }
 
-        function text(col,text_to_write,x,y,size,font) {
+        function centerRect(col,x,y,w,h) {
+            rect(col,x-Math.floor(w/2),y-Math.floor(h/2),w,h);
+        }
+
+        function text(col,text_to_write,x,y,size,font,align="left") {
             ctx.font = size+"px "+font;
             ctx.fillStyle = col;
+            ctx.textAlign = align;
             ctx.fillText(text_to_write,x,y);
+        }
+
+        function addCommas(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+
+        function autoround(x) {
+            sigfigs = Math.round(Math.max(0,Math.min(3,Math.floor(Math.log10(x)-.6))));
+            return Math.floor(10**sigfigs*Math.round(x/10**sigfigs));
+        }
+
+        function contains(array, element) {
+            for (var i=0;i<array.length;i++) {
+                if (array[i] === element) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function reset() {
+            waiting = false;
+            yourcase = null;
+            numMap = [[null,23,24,25,26,null],[17,18,19,20,21,22],[11,12,13,14,15,16],[5,6,7,8,9,10],[null,1,2,3,4,null]];
+            usedprices = [];
+            prices = pricelist.slice();
+            prices = shuffle(prices);
+        }
 
         function mouseDownHandler(e) {
             let relativeX = e.clientX - canvas.offsetLeft;
             let relativeY = e.clientY - canvas.offsetTop;
-            console.log(relativeX.toString()+" "+relativeY)
+            let arr = pyToGrid(relativeX,relativeY);
+            let x = arr[0];
+            let y = arr[1];
+            if (0 <= x && x < numMap[0].length && 0 <= y && y < numMap.length && !waiting) {
+                let casenum = numMap[y][x];
+                if (yourcase === null) {
+                    numMap[y][x] = null;
+                    yourcase = casenum;
+                } else if (casenum !== null) {
+                    numMap[y][x] = null;
+                    waiting = false;
+                    usedprices = usedprices.concat(prices[casenum-1]);
+                    noDeal = false;
+                }
+            } else if (contains(offertimes,usedprices.length) && (2 <= x && x <= 4) && (384-yUp-size < relativeY < 384-yUp)) {
+                waiting = 0;
+                sumRemaining = 3418416.01-usedprices.reduce(add);
+                numRemaining = 26-usedprices.length;
+                mean = sumRemaining/numRemaining;
+                deal = autoround(mean*(offertimes.indexOf(usedprices.length)+1)*multStep)
+                if (x == 2) {
+                    alert("DEAL! You made $"+addCommas(deal)+"!");
+                    reset();
+                } else if (x == 4) {
+                    counter = prompt("What to counter at?");
+                    if (counter === null) {
+                        alert("Well, I guess it's no deal then!")
+                    } else if (parseInt(counter.replace(/\D/g,''),10) < autoround(deal)*(Math.random()*.7+1)) {
+                        alert("DEAL! You made $"+addCommas(counter.replace(/\D/g,''))+"!");
+                        reset();
+                    } else {
+                        alert("NO DEAL!");
+                        noDeal = true;
+                    }
+                } else {
+                    noDeal = true;
+                }
+            }
         }
  
         function draw() {
-            ctx.beginPath();
-            ctx.rect(50,50,40,40);
-            ctx.fillStyle = "#"+color.toString(16);
-            ctx.fill();
-            ctx.closePath();
+            // See if you've opened all cases
+            if (usedprices.length === 25) {
+                alert("Well, since $"+addCommas(pricelist[yourcase])+" was in your case, you win $"+addCommas(pricelist[yourcase])+"!");
+                reset();
+            } 
+
+            // Draw top text
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            text(black,"Deal Or No Deal",256,30,disp5*yoff,"Arial","center");
+            text(black,"Your Case:",452,20,disp6*yoff,'Arial',1,0,"center");
+            text(black,"Cases To Open:",60,20,disp6*yoff,"Arial",'center');
+            if (yourcase !== null) {
+                centerRect(lgray,452,48,casewidth,caseheight);
+                text(black,yourcase.toString(),452,56,20,"Arial","center");
+            }
+            if (waiting === true) {
+                casesLeft = '0';
+            } else {
+                if (usedprices.length < 24) {
+                    let i = 0;
+                    while (offertimes[i] < usedprices.length) {
+                        i++;
+                    }
+                    if (noDeal === true && usedprices.length < 24) {
+                        casesLeft = (offertimes[i+1]-usedprices.length).toString();
+                    } else {
+                        casesLeft = (offertimes[i]-usedprices.length).toString();
+                    }
+                } else {
+                    casesLeft = '1';
+                }
+            }
+            text(black,casesLeft,60,60,disp7*yoff,'Arial','center');
+            // Draw the cases
+            for (var i=0;i<6;i++) {
+                for (var j=0;j<5;j++) {
+                    let num = numMap[j][i];
+                    if (num !== null) {
+                        let co = gridToPy(i+.5,j+.5);
+                        centerRect(lgray,co[0],co[1],casewidth,caseheight);
+                        text(black,num,co[0],co[1]+caseheight/3,20,'Arial','center');
+                    }
+                }
+            }
+            // Draw the prices
+            var start = 80;
+            var step = (384-start)/pricelist1.length;
+            var index = 0;
+            for (var y=0;y<(step*(pricelist1.length)-1);y+=step) {
+                if (contains(usedprices,pricelist1[index])) {
+                    var col = darkyellow;
+                } else {
+                    var col = yellow;
+                }
+                rect(col,xoff*disp1,y+start,xoff*disp3,step*disp2);
+                text(black,addCommas(pricelist1[index]),xoff*disp1+xoff*disp3/2,start+y+(step*disp2)/2+step*disp2/3,step*disp4,'Arial','center');
+                index++;
+            }
+            var index = 0;
+            for (var y=0;y<(step*(pricelist2.length)-1);y+=step) {
+                if (contains(usedprices,pricelist2[index])) {
+                    var col = darkyellow;
+                } else {
+                    var col = yellow;
+                }
+                rect(col,512+xoff*(disp1-1),y+start,xoff*disp3,step*disp2);
+                text(black,addCommas(pricelist2[index]),512+xoff*(disp1-1)+xoff*disp3/2,start+y+(step*disp2)/2+step*disp2/3,step*disp4,'Arial','center');
+                index++;
+            }
+            if (contains(offertimes,usedprices.length)) {
+                if (waiting !== 0) {
+                    waiting = true
+                    sumRemaining = 3418416.01-usedprices.reduce(add);
+                    numRemaining = 26-usedprices.length;
+                    mean = sumRemaining/numRemaining;
+                    text(black,"$"+addCommas(autoround(mean*(offertimes.indexOf(usedprices.length)+1)*multStep)),xoff+(size-casewidth)/2,384-yUp,18,'Arial','left');
+                                       
+                }
+                if (waiting !== 0) {
+                    bCols = [green,red,gray];
+                    words = ['Deal','No Deal','Counter'];
+                    for (var i=0;i<3;i++) {
+                        let x = gridToPy(i+2.5,6)[0];
+                        let y = 384-yUp-caseheight/2;
+                        centerRect(bCols[i],x,y,casewidth,caseheight);
+                        text(black,words[i],x,y+3,9,'Arial','center')
+                    }
+                }
+            }
             requestAnimationFrame(draw);
         }
 
         document.addEventListener("mousedown", mouseDownHandler, false);
         draw();
+        
     </script>
 
 </body>
