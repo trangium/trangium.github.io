@@ -148,7 +148,7 @@
                     usedprices = usedprices.concat(prices[casenum-1]);
                     noDeal = false;
                 }
-            } else if (contains(offertimes,usedprices.length) && (2 <= x && x <= 4) && (384-yUp-size < relativeY < 384-yUp)) {
+            } else if (contains(offertimes,usedprices.length) && (2 <= x && x <= 4) && (y >= 5) && (384-yUp-size < relativeY < 384-yUp)) {
                 waiting = 0;
                 sumRemaining = 3418416.01-usedprices.reduce(add);
                 numRemaining = 26-usedprices.length;
@@ -160,7 +160,7 @@
                 } else if (x == 4) {
                     counter = prompt("What to counter at?");
                     if (counter === null) {
-                        alert("Well, I guess it's no deal then!")
+                        alert("Well, I guess it's no deal then!");
                     } else if (parseInt(counter.replace(/\D/g,''),10) < autoround(deal)*(Math.random()*.7+1)) {
                         alert("DEAL! You made $"+addCommas(counter.replace(/\D/g,''))+"!");
                         reset();
