@@ -38,31 +38,18 @@
         var Y = 'Y';
         var Z = 'Z';
 
-        var grid = [[X,X,X,Z,X,X,Z,X,X,Z,X,X],
-            [X,X,X,X,X,X,Z,X,X,X,X,X],
-            [X,X,X,X,X,X,Z,X,X,X,X,X],
-            [Z,X,X,X,X,X,X,Z,X,X,X,X],
-            [X,X,X,X,X,X,X,Z,X,X,X,Z],
-            [X,X,X,X,X,X,X,X,X,X,X,X],
-            [X,X,X,X,X,X,X,X,X,X,X,X],
-            [Z,X,X,X,X,X,X,X,X,X,X,Z],
-            [X,X,X,X,X,Z,Z,X,X,X,X,Z],
-            [X,X,X,X,X,X,X,Z,Z,X,X,X],
-            [X,X,X,X,X,X,X,Z,X,X,X,X],
-            [X,X,Z,X,X,X,X,Z,X,X,X,X]];
-
-        var weights = [[2, 1, 2, 0, 4, 4, 0, 1, 1, 0, 1, 1],
-               [2, 2, 2, 8, 2, 2, 0, 1, 1, 1, 1, 1],
-               [4, 2, 2, 2, 2, 2, 0, 2, 1, 1, 1, 1],
-               [0, 2, 4, 4, 4, 2, 8, 0, 1, 1, 1, 1],
-               [4, 1, 2, 2, 2, 2, 4, 0, 1, 1, 1, 0],
-               [1, 1, 2, 2, 2, 1, 2, 2, 1, 1, 1, 4],
-               [2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 2],
-               [0, 2, 2, 2, 2, 2, 4, 2, 1, 1, 1, 0],
-               [2, 1, 2, 2, 2, 0, 0, 2, 1, 1, 1, 0],
-               [1, 2, 2, 2, 2, 8, 4, 0, 0, 1, 1, 1],
-               [2, 2, 8, 2, 2, 8, 2, 0, 1, 1, 1, 1],
-               [2, 2, 0, 4, 2, 2, 2, 0, 1, 1, 1, 1]]
+        var weights = [[1, 1, 2, 0, 2, 1, 2, 0, 2, 1, 1, 2], [1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2], [2, 2, 1, 2, 2, 1, 1, 1, 1, 2, 2, 0], [0, 4, 2, 2, 2, 1, 1, 2, 2, 2, 2, 2], [2, 2, 1, 2, 2, 1, 1, 2, 2, 2, 2, 1], [2, 2, 2, 2, 1, 1, 1, 2, 0, 4, 4, 2], [0, 0, 0, 4, 4, 2, 1, 2, 0, 2, 2, 2], [1, 1, 1, 0, 0, 2, 1, 2, 2, 0, 0, 0], [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1], [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 0, 2, 2, 0, 0, 1, 1, 1]];
+        
+        function initGrid() {
+            var g = createArray(weights.length,weights[0].length);
+            for(let i=0; i<weights.length; i++) {
+                for(let j=0; j<weights[0].length; j++) {
+                    g[i][j] = (weights[i][j] == 0 ? Z : X);
+                }
+            }
+            return g;
+        }
+        var grid = initGrid();
 
         function createArray(length) {
             var arr = new Array(length || 0),
@@ -75,7 +62,8 @@
 
             return arr;
         }
-        var goal = 180;
+
+        var goal = 248;
         for(let i=0; i<grid.length; i++) {
             grid[i] = [Y].concat(grid[i]).concat([Y]);
         }
