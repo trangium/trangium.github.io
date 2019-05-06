@@ -38,9 +38,11 @@
         var Y = 'Y';
         var Z = 'Z';
 
-        var weights = [[1, 1, 2, 0, 2, 1, 2, 0, 2, 1, 1, 2], [1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2], [2, 2, 1, 2, 2, 1, 1, 1, 1, 2, 2, 0], [0, 4, 2, 2, 2, 1, 1, 2, 2, 2, 2, 2], [2, 2, 1, 2, 2, 1, 1, 2, 2, 2, 2, 1], [2, 2, 2, 2, 1, 1, 1, 2, 0, 4, 4, 2], [0, 0, 0, 4, 4, 2, 1, 2, 0, 2, 2, 2], [1, 1, 1, 0, 0, 2, 1, 2, 2, 0, 0, 0], [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1], [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 0, 2, 2, 0, 0, 1, 1, 1]];
+        var weights1 = [[1, 1, 1, 1, 1, 1, 0, 2, 2, 2, 2, 0, 1, 1], [1, 1, 0, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2], [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0], [1, 1, 1, 0, 1, 1, 1, 0, 2, 1, 1, 2, 1, 1], [1, 1, 1, 1, 1, 0, 1, 2, 2, 2, 2, 2, 1, 1], [1, 1, 1, 1, 1, 2, 1, 2, 0, 4, 2, 0, 1, 1], [1, 1, 1, 1, 0, 2, 1, 2, 2, 2, 2, 1, 1, 1], [1, 1, 1, 1, 0, 2, 1, 2, 2, 2, 2, 1, 1, 1], [1, 0, 1, 1, 2, 2, 1, 2, 2, 2, 0, 1, 1, 1], [1, 1, 1, 1, 2, 0, 1, 2, 2, 2, 2, 1, 0, 0], [1, 1, 1, 1, 2, 4, 1, 0, 2, 4, 2, 2, 4, 0], [1, 1, 1, 1, 0, 4, 1, 4, 2, 4, 2, 1, 4, 0], [1, 1, 1, 1, 2, 2, 1, 2, 2, 0, 1, 1, 1, 1], [1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]]
+        var weights2 = [[1, 1, 2, 0, 2, 1, 2, 0, 2, 1, 1, 2], [1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2], [2, 2, 1, 2, 2, 1, 1, 1, 1, 2, 2, 0], [0, 4, 2, 2, 2, 1, 1, 2, 2, 2, 2, 2], [2, 2, 1, 2, 2, 1, 1, 2, 2, 2, 2, 1], [2, 2, 2, 2, 1, 1, 1, 2, 0, 4, 4, 2], [0, 0, 0, 4, 4, 2, 1, 2, 0, 2, 2, 2], [1, 1, 1, 0, 0, 2, 1, 2, 2, 0, 0, 0], [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1], [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 0, 2, 2, 0, 0, 1, 1, 1]];
+        var weightslist = [weights1,weights2];
 
-        function initGrid() {
+        function initGrid(weights) {
             var g = createArray(weights.length,weights[0].length);
             for(let i=0; i<weights.length; i++) {
                 for(let j=0; j<weights[0].length; j++) {
@@ -49,7 +51,6 @@
             }
             return g;
         }
-        var grid = initGrid();
 
         function createArray(length) {
             var arr = new Array(length || 0),
@@ -62,15 +63,28 @@
 
             return arr;
         }
-
-        var goal = 185;
-        for(let i=0; i<grid.length; i++) {
-            grid[i] = [Y].concat(grid[i]).concat([Y]);
+        function sum(lst) {
+            return lst.reduce((acc, curr) => acc.concat(curr.reduce((memo, number) => memo + number, 0)),[]).reduce((a,b) => a+b, 0);
         }
+        function useList(num) {
+            weights = weightslist[num]
+            grid = initGrid(weights);
+            goal = sum(weights);
+            for(let i=0; i<grid.length; i++) {
+                grid[i] = [Y].concat(grid[i]).concat([Y]);
+            }
 
-        var ys = Array(grid[0].length).fill(Y);
-        grid.splice(0,0,ys);
-        grid.push(ys);
+            var ys = Array(grid[0].length).fill(Y);
+            grid.splice(0,0,ys);
+            grid.push(ys);
+            size = Math.round(384/grid.length);
+            half = Math.round(size/2);
+            ballsize = Math.round(half/2);
+            fontsize = Math.round(size*.4);
+            gridNum = num;
+            }
+
+        useList(1);
 
         var visited = createArray(grid.length,grid[0].length);
 
@@ -82,10 +96,6 @@
         var finished = false;
 
         var offset = 0;
-        var size = Math.round(384/grid.length);
-        var half = Math.round(size/2);
-        var ballsize = Math.round(half/2);
-        var fontsize = Math.round(size*.4);
 
         var white = '#ffffff';
         var gray = '#888888';
@@ -222,6 +232,13 @@
                 rightKey();
             } else if (e.keyCode == 40 || e.keyCode == 83) {
                 downKey();
+            } else if (e.keyCode == 187) {
+                useList((gridNum == weightslist.length-1) ? 0 : gridNum+1);
+                console.log(gridNum);
+                score = 0;
+                starttime = time();
+                finished = false;
+                moveDirection = [0,0];
             } else {
                 visited = createArray(grid.length,grid[0].length);
                 score = 0;
