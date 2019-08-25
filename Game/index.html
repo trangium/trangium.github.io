@@ -235,6 +235,9 @@
             } else if (e.keyCode == 187) {
                 useList((gridNum == weightslist.length-1) ? 0 : gridNum+1);
                 console.log(gridNum);
+                visited = createArray(grid.length,grid[0].length);
+                ballx = 2;
+                bally = 2;
                 score = 0;
                 starttime = time();
                 finished = false;
@@ -283,7 +286,7 @@
     </script>
 <p style="font-family: 'Century Gothic', 'MS Sans Serif', arial; font-size: 24px; text-align:left; line-height:150%; margin:0px; color:#000000; clear:both;"><center>
     <br>
-    Press the arrow keys to move in that direction. <br>
+    Press the arrow keys or WASD to move in that direction. <br>
     The ball will keep sliding until it hits a wall. <br>
     The ball can't change direction while it's moving. <br>
     White orbs are worth 1 point, greens and worth 2, and yellows are worth 4. <br>
