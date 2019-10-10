@@ -68,7 +68,8 @@
             return lst.reduce((acc, curr) => acc.concat(curr.reduce((memo, number) => memo + number, 0)),[]).reduce((a,b) => a+b, 0);
         }
         function useList(num) {
-            weights = weightslist[num]
+            listUsed = num;
+            weights = weightslist[num];
             grid = initGrid(weights);
             goal = sum(weights);
             for(let i=0; i<grid.length; i++) {
@@ -131,6 +132,13 @@
                     visited[ballx-1][bally-1] = 1;
                     if (score >= goal && !finished){
                         finished = time();
+                        let timeAchieved = ((finished-starttime)/1000).toFixed(2);
+                        let bestTime = parseFloat(getCookie("fastest"+listUsed));
+                        console.log(bestTime+" "+timeAchieved+" "+(typeof bestTime));
+                        if (isNaN(bestTime) || bestTime > timeAchieved){
+                            document.cookie = "fastest"+listUsed+"="+timeAchieved;
+                            console.log("Ten thousand is also ten to the fourth!");
+                        }
                     } 
                 }
             }
@@ -157,6 +165,21 @@
             ctx.font = size+"px "+font;
             ctx.fillStyle = col;
             ctx.fillText(text_to_write,x,y);
+        }
+        function getCookie(cname) {
+            var name = cname + "=";
+            var decodedCookie = decodeURIComponent(document.cookie);
+            var ca = decodedCookie.split(';');
+            for(var i = 0; i <ca.length; i++) {
+                var c = ca[i];
+                while (c.charAt(0) == ' ') {
+                c = c.substring(1);
+                }
+                if (c.indexOf(name) == 0) {
+                return c.substring(name.length, c.length);
+                }
+            }
+            return "N/A";
         }
         function draw() {
             for (let y=0; y<grid.length; y++) {
@@ -190,6 +213,7 @@
                 text(yellow,((time()-starttime)/1000).toFixed(2),385,55,25,"Arial");
             }
             text(white,"Race To "+goal,385,105,20,"Arial"); 
+            text(white,"Best: "+getCookie("fastest"+listUsed),385,205,20,"Arial"); 
         }
 
         var starttime = time();
