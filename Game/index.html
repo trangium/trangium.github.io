@@ -134,10 +134,8 @@
                         finished = time();
                         let timeAchieved = ((finished-starttime)/1000).toFixed(2);
                         let bestTime = parseFloat(getCookie("fastest"+listUsed));
-                        console.log(bestTime+" "+timeAchieved+" "+(typeof bestTime));
                         if (isNaN(bestTime) || bestTime > timeAchieved){
                             document.cookie = "fastest"+listUsed+"="+timeAchieved;
-                            console.log("Ten thousand is also ten to the fourth!");
                         }
                     } 
                 }
