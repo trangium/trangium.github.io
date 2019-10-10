@@ -135,7 +135,7 @@
                         let timeAchieved = ((finished-starttime)/1000).toFixed(2);
                         let bestTime = parseFloat(getCookie("fastest"+listUsed));
                         if (isNaN(bestTime) || bestTime > timeAchieved){
-                            document.cookie = "fastest"+listUsed+"="+timeAchieved;
+                            document.cookie = "fastest"+listUsed+"="+timeAchieved+";expires=26 Mar 9999 17:04:51 UTC";
                         }
                     } 
                 }
