@@ -261,7 +261,6 @@
                 downKey();
             } else if (e.keyCode == 187) {
                 useList((gridNum == weightslist.length-1) ? 0 : gridNum+1);
-                console.log(gridNum);
                 visited = createArray(grid.length,grid[0].length);
                 weightsize = new Map([[0,Math.round(size*.08)],[1,Math.round(size*.08)],[2,Math.round(size*.12)],[4,Math.round(size*.16)],[8,Math.round(size*.2)]]);
                 score = 0;
@@ -271,6 +270,9 @@
             } else {
                 visited = createArray(grid.length,grid[0].length);
                 score = 0;
+                ballx = misclist[listUsed][0];
+                bally = misclist[listUsed][1];
+                console.log(ballx + " " + bally);
                 starttime = time();
                 finished = false;
                 moveDirection = [0,0];
