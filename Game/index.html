@@ -42,6 +42,10 @@
         var weights2 = [[1, 1, 2, 0, 2, 1, 2, 0, 2, 1, 1, 2], [1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2], [2, 2, 1, 2, 2, 1, 1, 1, 1, 2, 2, 0], [0, 4, 2, 2, 2, 1, 1, 2, 2, 2, 2, 2], [2, 2, 1, 2, 2, 1, 1, 2, 2, 2, 2, 1], [2, 2, 2, 2, 1, 1, 1, 2, 0, 4, 4, 2], [0, 0, 0, 4, 4, 2, 1, 2, 0, 2, 2, 2], [1, 1, 1, 0, 0, 2, 1, 2, 2, 0, 0, 0], [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1], [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 0, 2, 2, 0, 0, 1, 1, 1]];        
         var weights3 = [[1, 1, 1, 1, 1, 1, 0, 2, 2, 2, 2, 0, 1, 1], [1, 1, 0, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2], [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0], [1, 1, 1, 0, 1, 1, 1, 0, 2, 1, 1, 2, 1, 1], [1, 1, 1, 1, 1, 0, 1, 2, 2, 2, 2, 2, 1, 1], [1, 1, 1, 1, 1, 2, 1, 2, 0, 4, 2, 0, 1, 1], [1, 1, 1, 1, 0, 2, 1, 2, 2, 2, 2, 1, 1, 1], [1, 1, 1, 1, 0, 2, 1, 2, 2, 2, 2, 1, 1, 1], [1, 0, 1, 1, 2, 2, 1, 2, 2, 2, 0, 1, 1, 1], [1, 1, 1, 1, 2, 0, 1, 2, 2, 2, 2, 1, 0, 0], [1, 1, 1, 1, 2, 4, 1, 0, 2, 4, 2, 2, 4, 0], [1, 1, 1, 1, 0, 4, 1, 4, 2, 4, 2, 1, 4, 0], [1, 1, 1, 1, 2, 2, 1, 2, 2, 0, 1, 1, 1, 1], [1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]];
         var weightslist = [weights1,weights2,weights3];
+        var misc1 = [2,2,139];
+        var misc2 = [2,2,185];
+        var misc3 = [2,2,244];
+        var misclist = [misc1,misc2,misc3];
 
         function initGrid(weights) {
             var g = createArray(weights.length,weights[0].length);
@@ -71,7 +75,9 @@
             listUsed = num;
             weights = weightslist[num];
             grid = initGrid(weights);
-            goal = sum(weights);
+            goal = misclist[num][2];
+            ballx = misclist[num][0];
+            bally = misclist[num][1];
             for(let i=0; i<grid.length; i++) {
                 grid[i] = [Y].concat(grid[i]).concat([Y]);
             }
@@ -90,8 +96,6 @@
 
         var visited = createArray(grid.length,grid[0].length);
 
-        var ballx = 2;
-        var bally = 2;
         var score = 0;
         var moveDirection = [0,0];
         var moving = false;
@@ -260,8 +264,6 @@
                 console.log(gridNum);
                 visited = createArray(grid.length,grid[0].length);
                 weightsize = new Map([[0,Math.round(size*.08)],[1,Math.round(size*.08)],[2,Math.round(size*.12)],[4,Math.round(size*.16)],[8,Math.round(size*.2)]]);
-                ballx = 2;
-                bally = 2;
                 score = 0;
                 starttime = time();
                 finished = false;
@@ -269,8 +271,6 @@
             } else {
                 visited = createArray(grid.length,grid[0].length);
                 score = 0;
-                ballx = 2;
-                bally = 2;
                 starttime = time();
                 finished = false;
                 moveDirection = [0,0];
