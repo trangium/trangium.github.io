@@ -150,6 +150,10 @@
             return (moveDirection[0] != 0 || moveDirection[1] != 0);
         }
 
+        function reset(level) {
+            document.cookie = "fastest"+(level-1)+"=0"+";expires=26 Mar 1881 17:04:51 UTC";
+        }
+
         function time() {
             var date = new Date;
             return date.getTime();
