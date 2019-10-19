@@ -1,0 +1,507 @@
+<!doctype html>
+ 
+<!-- Copyright Davis Zetlan,
+     October 17-2019          -->
+<html>
+ 
+  <head>
+    <title>Protein Parsing</title>
+ 
+    <style>
+      #canvas {
+        margin: auto;
+        border-style: double;
+        border-color: slateblue;
+        display: block;
+       
+      }
+    </style>
+ 
+ 
+    <script type="text/javascript">
+      window.addEventListener("keydown", keyPress, false);
+     
+      //I store all my global variables at the start of my code so I know where to find them
+      var canvas;
+      var ctx;
+      var timer;
+     
+      var backgroundColor = "#FFFF88";
+      var blobColor = "#008800";
+      var blueColor = "#AAAAFF";
+      var boxColor = "#8888FF";
+      var textColor = "#222266";
+      var receiverColor = "#33FF33";
+      var select1Color = "#FF8800";
+      var select2Color = "#FF8888";
+      var font = "Times New Roman"
+      var gamePhase = -1;
+     
+      var posit = [50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50];
+      var phase = [00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00];
+      var prob = 1999.9;
+     
+      var maxConnectors = posit.length;
+      var initNumOfConnectors = 3;
+      var numOfConnectors = 3;
+      var numOfReceivers = 3;
+      var hasSelected = 0;
+     
+      var possibleSelections = ["§","Ω","≈","∞","•", "«", " ", "start - beginner", "how to play", "start - normal", "Welcome to Package Parsing!", "Ok", "Use the left and right arrow keys to navigate the menu,", "and the up arrow to select options."];
+     
+      var explanText = ["Welcome to Package Parsing version 1.01!",
+                                        "You run a package delivery service,",
+                        "and must deliver the packages that the nameless, faceless,",
+                        "limbless package carriers deliver to you.",
+                        " ",
+                        " If their trust with you drops below zero, you lose.",
+                        "Use the left and right arrow keys to switch which package slot",
+                        "you have selected. Press the down arrow key to highlight a package,",
+                        "and while a different package is selected, press z to swap them.",
+                        "Press up to send the selected package to the correct destination box.",
+                        "The box being sent to is indicated with the lines,",
+                        "and the correct packages for that box are labeled on the box.",
+                        "While playing, press escape at any time to go to the main menu.",
+                        " ",
+                        "Press up to go back."];
+      var posSelectionDestns = [1, 1, 2, 2, 3, 3];
+      var selectionsPerBin = 2;
+      var selection = [7, 8, 9];
+      var selectBuffer = 0;
+      var select1 = 1;
+      var select2 = 0;
+      var timer = 10;
+      var countdown = 100;
+      var score = 5;
+      var higheScore = 0;
+      var framesRunning = 0;
+      var menuFrames = 0;
+      var howToPlay = 0;
+     
+     
+      var centralWidth = 120;
+      var centerX;
+      var centerY;
+     
+      var connectorDist;
+      var connectorX;
+      var connectorAngle;
+     
+     
+      window.onload = setup;
+     
+      //the initializing function.
+      function setup() {
+       
+        canvas = document.getElementById("canvas");
+        ctx = canvas.getContext("2d");
+        centerX = canvas.width / 2;
+        centerY = canvas.height / 2;
+        window.setInterval(draw, timer);
+       
+      }
+     
+      function keyPress(hn) {
+        switch (hn.keyCode) {
+                case 37:
+                select1 = select1 - 1;
+                break;
+            case 38:
+            parse(select1 - 1);
+            select2 = 0;
+                break;
+            case 39:
+                select1 = select1 + 1;
+                break;
+            case 40:
+            select2 = select1;
+                break;
+          case 90:
+            if (gamePhase > -1) {
+                swap();
+            }
+            break;
+            
+          case 27:
+            reset();
+             break; 
+        }
+        if (select1 > 3) {
+            select1 = 1;
+        }
+        if (select1 < 1) {
+            select1 = 3;
+        }
+       
+      }
+      //this function swaps the two selected packages.
+      function swap() {
+        if (select2 != 0) {
+            //this code always makes me slightly concerned that it won't work. It does because that's just how javascript works
+            [selection[select1 - 1], selection[select2 - 1]] = [selection[select2 - 1], selection[select1 - 1]];
+        }
+      }
+     
+      //this checks to see if the packages are in the right spots and adds score accordingly. This was extremely annoying to put in, because it was hard to keep track of what the code I was writing actually did.
+      function parse(binNum) {
+        if (gamePhase == 0 || gamePhase == 1) {
+            if (Math.floor(selection[binNum] / 2) == binNum) {
+            score = score + 1;
+            selection[binNum] = 6;
+            }
+        } else {
+            switch (selection[binNum]) {
+            case 7:
+                gamePhase = 0;
+              menuFrames = 0;
+              selection[0] = 6;
+              selection[1] = 6;
+              selection[2] = 6;
+                break;
+            case 8:
+                howToPlay = 1;
+              menuFrames = 0;
+              selection[0] = 6;
+              selection[1] = 11;
+              selection[2] = 6;
+                break;
+            case 9:
+                gamePhase = 1;
+              menuFrames = 0;
+              score = 15;
+              prob = 999.9;
+              selection[0] = 6;
+              selection[1] = 6;
+              selection[2] = 6;
+                break;
+            case 11:
+                reset();
+                break;
+          }
+        }
+      }
+     
+      function receive() {
+        //I skipped m because it looked similar to n
+        var n = 0;
+        var o = 0;
+        var p = Math.floor(Math.random() * 2.9);
+       
+        while (n <= 2) {
+            if (selection[p] == 6) {
+                selection[p] = Math.floor(Math.random() * 5.9);
+            n = n + 1000;
+            o = 1;
+            }
+            n = n + 1;
+          p = p + 1;
+          if (p > 2) {
+            p = 0;
+          }
+        }
+        if (o == 0) {
+            if (gamePhase == 0) {
+            score = score - 1;
+          } else {
+            score = score - 5;
+          }
+        }
+      }
+     
+      /*this function is the main function that repeats every time the timer goes off. It clears the screen and then draws everything.  */
+      function draw() {
+        //the background
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = backgroundColor;
+        ctx.fillRect(0, 40, canvas.width, canvas.height);
+        ctx.fillStyle = blueColor;
+        ctx.fillRect(0, 0, canvas.width, 40);
+        //after the background is drawn, it checks to see whether the game is in a menu state or a game state.
+        //in a game state, the code below activates.
+        if (gamePhase == 0 || gamePhase == 1) {
+            //this is the code for the central blob
+            ctx.fillStyle = blobColor;
+            ctx.beginPath();
+            ctx.ellipse(centerX, centerY, centralWidth, 60, Math.PI, 0, Math.PI * 4);
+            ctx.fill();
+         
+            //This part draws the various other interesting things to the screen. Connectors are drawn first so that they are the lowest when compared to other things needed.
+            drawConnectors();
+            drawSelectionBoxes();
+            drawReceivers();
+            //this function displays things like trust and time running.
+                scoring();
+            //keeping track of time, as well as changing the gamePhase.
+          if (gamePhase == 1) {
+            framesRunning = framesRunning + 1;
+          }
+            if (gamePhase == 0) {
+                if (score >= 15) {
+                gamePhase = 1;
+                prob = 999.9;
+            }
+            }
+        }
+        //if the game is not in a game state, it will either be in an end state or a menu state, so an end state is checked for next.
+        else if (gamePhase == 2) {
+            scoring();
+        }
+        //the only other option is for the game to be in a menu state, so it draws menu things.
+        else {
+            ctx.fillStyle = boxColor;
+            ctx.fillRect(0, 40, canvas.width, canvas.height);
+          drawMenu();
+        }
+        //scoring is outside of that because
+      }
+     
+      function drawConnectors() {
+     
+        //this part draws the connectors
+        connectorDist = canvas.width / numOfConnectors;
+        connectorWidth = 120 / numOfConnectors;
+       
+        for(a = 1; a <= Math.round(numOfConnectors); a++) {
+            var decimal = numOfConnectors - Math.floor(numOfConnectors);
+            connectorX = connectorDist * a - (connectorDist / 2);
+          var h = a - 1;
+         
+          /*theta here is equal to the arctangent of b over a, where a is the x distance between the center of the connector blob and the center of the main blob, and b is the y distance between the center of the connector blob and the center of the main blob.
+          What all this means is that the blobs point towards the center main blob.*/
+          connectorAngle = Math.atan(((canvas.height / 2) - canvas.height) / (centerX - connectorX));
+          //this next part caclulates the hypotenuse so that the blobs extend to the right length.
+          connectorLength = Math.sqrt(Math.pow(Math.abs(canvas.height - centerY), 2) + Math.pow(Math.abs(centerX - connectorX), 2));
+         
+          /*This is the part that chooses when to send a package. It works by choosing a number between 1 and whatever prob is (1000 in normal mode), and if the number is 5, sending the package.
+         
+          It is also important that only one maximum blob extends at a time in beginner mode, so th player is not overwhelmed. This is measured with hasSelected.*/
+         
+          //for normal mode
+          if (gamePhase == 1) {
+            if (phase[h] == 0) {
+                if (Math.floor(Math.random() * prob) == 5) {
+                    phase[h] = 1;
+                }
+            }
+          }
+          //for beginner mode
+          if (gamePhase == 0) {
+            if (phase[h] == 0 && hasSelected == 0) {
+                if ((selection[0] + selection[1] + selection[2]) == 18) {
+                    phase[h] = 1;
+                hasSelected = 1;
+                }
+              if (Math.floor(Math.random() * prob) == 5) {
+                    phase[h] = 1;
+                hasSelected = 1;
+                }
+            }
+          }
+         
+          if (phase[h] != 0) {
+            //updates position
+            posit[h] = posit[h] + phase[h];
+            //updates animation phase
+            if (posit[h] > connectorLength) {
+                receive();
+                phase[h] = -1;
+              hasSelected = 0;
+            }
+            if (posit[h] < 50) {
+                phase[h] = 0;
+              posit[h] = 50;
+            }
+          }
+         
+          //this part below draws the blobs, while the part above sets the parameters for the blobs
+            ctx.fillStyle = blobColor;
+            ctx.beginPath();
+            ctx.ellipse(connectorX, canvas.height, posit[a - 1], connectorWidth, connectorAngle, 0, Math.PI * 4);
+            ctx.fill();
+        }
+      }
+     
+      function drawSelectionBoxes() {
+        if (gamePhase == 0 || gamePhase == 1) {
+            var sizeX = 40;
+            var sizeY = 50;
+          var offset = 0;
+        } else {
+            var sizeX = 150;
+          var sizeY = 40;
+          var offset = 55;
+        }
+       
+        var textSelection = 0;
+        //these first for loops draw the different packages.
+        ctx.fillStyle = textColor;
+        ctx.font = "20px Ariel";
+                ctx.textAlign = "center";
+            for (a = 0; a < selection.length; a++) {
+            ctx.fillText(possibleSelections[selection[a]], centerX - (sizeX * 2.5) + ((a+1) * (sizeX + 10)) + offset, centerY);
+            }
+       
+     
+        /* this is a little complicated to look at, but the two switch statements are responsible for drawing the two selection boxes in the right spots with the right spacings. Everything else in the function is just getting the styling right and control variables. */
+     
+           
+        ctx.strokeStyle = select1Color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        switch (select1) {
+                case 1:
+                ctx.rect(centerX - (sizeX * 1.5) - 10, centerY - (sizeY / 2), sizeX, sizeY);
+                break;
+            case 2:
+                ctx.rect(centerX - (sizeX / 2), centerY - (sizeY / 2), sizeX, sizeY);
+                break;
+            case 3:
+                ctx.rect(centerX + (sizeX / 2) + 10, centerY - (sizeY / 2), sizeX, sizeY);
+                break;
+            }
+        ctx.stroke();
+        if (select2 != 0) {
+            ctx.strokeStyle = select2Color;
+          ctx.beginPath();
+          switch (select2) {
+                case 1:
+                ctx.rect(centerX - (sizeX * 1.5) - 7.5, centerY - (sizeY / 2) + 2.5, sizeX - 5, sizeY - 5);
+                break;
+            case 2:
+                ctx.rect(centerX - (sizeX / 2) + 2.5, centerY - (sizeY / 2) + 2.5, sizeX - 5, sizeY - 5);
+                break;
+            case 3:
+                ctx.rect(centerX + (sizeX / 2) + 12.5, centerY - (sizeY / 2) + 2.5, sizeX - 5, sizeY - 5);
+                break;
+            }
+            ctx.stroke();
+        }      
+      }
+     
+      function drawReceivers() {
+        var b = 0;
+        for (a = 1; a <= 3; a++) {
+            var goodX = (canvas.width / 3)*a - (canvas.width / 6) - 20;
+          var c = 1;
+            ctx.fillStyle = receiverColor;
+            ctx.fillRect(goodX, 0, 40, 40);
+          ctx.fillStyle = textColor;
+            ctx.font = "13px Ariel";
+                    ctx.textAlign = "center";
+          while (a == posSelectionDestns[b]) {
+            ctx.fillText(possibleSelections[b], goodX + (c * 11), 15);
+            b = b + 1;
+            c = c + 1;
+          }
+         
+        }
+      }
+     
+      function drawMenu() {
+      //Title text
+        ctx.fillStyle = textColor;
+        ctx.font = "20px Times New Roman";
+        ctx.textAlign = "center";
+        ctx.fillText(possibleSelections[10], centerX, 25);
+       
+      //if the player is not in the how to play submenu, draw the main menu.
+        if (howToPlay != 1) {
+            drawSelectionBoxes();
+          menuFrames = menuFrames + 1;
+        }
+      //if they're not in the main menu, then they must be in the sub menu
+        else {
+            ctx.font = "15px Times New Roman";
+          ctx.textAlign = "center";
+            for (a = 0; a < explanText.length; a++) {
+            ctx.fillText(explanText[a], centerX, 55 + (a * 15));
+          }
+          select1 = 2;
+        }
+       
+        if (menuFrames > 3000) {
+            ctx.font = "15px Times New Roman";
+            ctx.fillText(possibleSelections[12], centerX, canvas.height - 25);
+          ctx.fillText(possibleSelections[13], centerX, canvas.height - 10);
+        }
+      }      
+     
+      function scoring() {
+        //drawing the score box
+        var countAdjustX = (100 - countdown) * 3.65;
+        var countAdjustY = (100 - countdown) * 2.95;
+        var trustText = " ";
+        ctx.fillStyle = boxColor;
+        ctx.fillRect(canvas.width - 150 - countAdjustX, canvas.height - 50 - countAdjustY, canvas.width + 10, canvas.height)
+        //this draws the display for the game score and trust.
+        ctx.fillStyle = textColor;
+        ctx.font = "20px Ariel";
+                ctx.textAlign = "center";
+       
+        if (gamePhase == 0 || gamePhase == 1) {
+            trustText = "trust: " + score;
+        }
+        else {
+            trustText = "Highest trust: " + higheScore;
+        }
+        ctx.fillText(trustText, canvas.width - 80 - (countAdjustX / 2), canvas.height - 30 - (countAdjustY / 2));
+       
+        ctx.fillText("time: " + (framesRunning / 100), canvas.width - 80 - (countAdjustX / 2), canvas.height - 10 - (countAdjustY / 2));
+       
+        if (numOfConnectors < maxConnectors && gamePhase == 1) {
+            numOfConnectors = numOfConnectors + (0.0005 / (numOfConnectors / 4));
+        }
+        if (gamePhase == 1 && score < 0) {
+            gamePhase = 2;
+          countdown = 99;
+        }
+        if (gamePhase == 2) {
+            if (countdown > 0) {
+                countdown = countdown - 1;
+          }
+          select1 = 2;
+          if (countdown == 0) {
+            ctx.fillText("Press up to continue", centerX, centerY + 55);
+            selection[0] = 6;
+            selection[1] = 11;
+            selection[2] = 6;
+          }
+        }
+        if (higheScore < score) {
+            higheScore = score;
+        }
+      }
+     
+      function reset() {
+        gamePhase = -1;
+        howToPlay = 0;
+        score = 5;
+        higheScore = score;
+        framesRunning = 0;
+        prob = 1999.9;
+        countdown = 100;
+        numOfConnectors = initNumOfConnectors;
+        selection[0] = 7;
+        selection[1] = 8;
+        selection[2] = 9;
+        hasSelected = 0;
+       
+        //resets the package deliverer positions
+        for (a = 0; a < posit.length; a++) {
+            posit[a] = 50;
+          phase[a] = 0;
+                }
+      }
+     
+    </script>
+  </head>
+ 
+  <body>
+    <div>
+      <canvas id="canvas" width="512" height="384">
+      </canvas>
+ 
+    </div>
+  </body>
+ 
+</html>
