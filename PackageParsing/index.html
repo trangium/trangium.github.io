@@ -1,7 +1,8 @@
+  
 <!doctype html>
 
 <!-- Copyright Davis Zetlan,
-     October 17-2019          -->
+     October-17-2019          -->
 <html>
 
   <head>
@@ -40,9 +41,7 @@
       
       var posit = [50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50];
       var phase = [00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00, 00];
-      var normprob = 999.9;
-      var expeprob = 899.9;
-      var prob = normprob
+      var prob = 1999.9;
       
       var maxConnectors = posit.length;
       var initNumOfConnectors = 3;
@@ -52,7 +51,7 @@
       
       var possibleSelections = ["§","Ω","≈","∞","•", "«", " ", "X", "start - beginner", "start - normal", "start - expert", "Welcome to Package Parsing!", "Ok", "Use the left and right arrow keys to navigate the menu,", "and the up arrow to select options."];
       
-      var explanText = ["Welcome to Package Parsing version 1.12.2!", 
+      var explanText = ["Welcome to Package Parsing version 1.13!", 
       									"You run a package delivery service,", 
                         "and must deliver the packages that the nameless, faceless,", 
                         "and limbless package carriers deliver to you.",
@@ -84,8 +83,8 @@
       var select2 = 0;
       var timer = 10;
       var countdown = 100;
-      var score = 5;
-      var higheScore = 0;
+      var trust = 5;
+      var higheTrust = 0;
       var framesRunning = 0;
       var tFramesRunning = [0, 0];
       var menuFrames = 0;
@@ -156,7 +155,7 @@
       function parse(binNum) {
       	if (gamePhase == 0 || gamePhase == 1) {
       		if (Math.floor(selection[binNum] / 2) == binNum) {
-          	score = score + 1;
+          	trust = trust + 1;
           	selection[binNum] = 6;
         	}
         } else {
@@ -171,8 +170,8 @@
             case 9:
             	gamePhase = 1;
               menuFrames = 0;
-              score = 15;
-              prob = normprob;
+              trust = 15;
+              prob = 999.9;
               selection[0] = 6;
               selection[1] = 6;
               selection[2] = 6;
@@ -180,8 +179,8 @@
             case 10:
             	gamePhase = 1;
               menuFrames = 0;
-              score = 15;
-              prob = expeprob;
+              trust = 15;
+              prob = 899.9;
               selection[0] = 6;
               selection[1] = 7;
               selection[2] = 6;
@@ -194,14 +193,23 @@
       }
       
       function receive() {
-      	//I skipped m because it looked similar to n
+      	//I skipped m because it looked similar to n, but n and o are loop control variables and p is the bin that the package is going into.
       	var n = 0;
         var o = 0;
         var p = Math.floor(Math.random() * 2.9);
         
+        var packageID = Math.floor(Math.random() * 5.9);
+        
+        //in beginner mode for the first 5 packages, it makes sure that the package is never in the right spot. This is so the player is forced to learn how to move packages.
+        if (trust < 11 && Math.floor(packageID / 2) == p) {
+        	p = p + 1;
+          if (p > 2) {
+            p = 0;
+          }
+        }
       	while (n <= 2) {
         	if (selection[p] == 6) {
-        		selection[p] = Math.floor(Math.random() * 5.9);
+        		selection[p] = packageID;
           	n = n + 1000;
             o = 1;
         	}
@@ -213,9 +221,9 @@
         }
         if (o == 0) {
         	if (gamePhase == 0) {
-          	score = score - 1;
+          	trust = trust - 1;
           } else {
-          	score = score - 5;
+          	trust = trust - 5;
           }
         }
       }
@@ -253,7 +261,7 @@
           //this bit changes from the tutorial mode to regular mode and displays the tutorial bits.
         	if (gamePhase == 0) {
           	tutorial();
-        		if (score >= 15) {
+        		if (trust >= 15) {
           		gamePhase = 1;
             	prob = 999.9;
           	}
@@ -284,7 +292,7 @@
           var h = a - 1;
           
           /*theta here is equal to the arctangent of b over a, where a is the x distance between the center of the connector blob and the center of the main blob, and b is the y distance between the center of the connector blob and the center of the main blob.
-          What all this means is that the blobs point towards the center main blob.*/
+          What all this means is that the blobs point towards the main center blob.*/
           connectorAngle = Math.atan(((canvas.height / 2) - canvas.height) / (centerX - connectorX));
           //this next part caclulates the hypotenuse so that the blobs extend to the right length.
           connectorLength = Math.sqrt(Math.pow(Math.abs(canvas.height - centerY), 2) + Math.pow(Math.abs(centerX - connectorX), 2));
@@ -301,7 +309,7 @@
           		}
           	}
           }
-          //for beginner mode
+          //for beginner mode, packages only spawn when there are no packages on the board.
           if (gamePhase == 0) {
           	if (phase[h] == 0 && hasSelected == 0) {
           		if ((selection[0] + selection[1] + selection[2]) == 18 && Math.floor(Math.random() * prob / 100) == 5) {
@@ -436,16 +444,16 @@
         var trustText = " ";
       	ctx.fillStyle = boxColor;
         ctx.fillRect(canvas.width - 150 - countAdjustX, canvas.height - 50 - countAdjustY, canvas.width + 10, canvas.height)
-        //this draws the display for the game score and trust.
+        //this draws the display for the game time and trust.
         ctx.fillStyle = textColor;
         ctx.font = "17px Courier";
 				ctx.textAlign = "center";
         
         if (gamePhase == 0 || gamePhase == 1) {
-        	trustText = "trust: " + score;
+        	trustText = "trust: " + trust;
         } 
         else {
-        	trustText = "Highest trust: " + higheScore;
+        	trustText = "Highest trust: " + higheTrust;
         }
         ctx.fillText(trustText, canvas.width - 80 - (countAdjustX / 2), canvas.height - 30 - (countAdjustY / 2));
         
@@ -454,7 +462,7 @@
         if (numOfConnectors < maxConnectors && gamePhase == 1) {
         	numOfConnectors = numOfConnectors + (0.0005 / (numOfConnectors / 4));
         }
-        if (gamePhase == 1 && score < 0) {
+        if (gamePhase == 1 && trust < 0) {
         	gamePhase = 2;
           countdown = 99;
         }
@@ -470,8 +478,8 @@
           	selection[2] = 6;
           }
         }
-        if (higheScore < score) {
-        	higheScore = score;
+        if (higheTrust < trust) {
+        	higheTrust = trust;
         }
       }
       
@@ -504,15 +512,15 @@
         	a = 13;
           b = 2;
         }
-        if (score == 6) {
+        if (trust == 6) {
         	a = 15;
           b = 4;
         }
-        if (score > 6 && score <= 12) {
+        if (trust > 6 && trust <= 12) {
         	a = 19;
           b = 2;
         }
-        if (score > 12) {
+        if (trust > 12) {
         	a = 21;
           b = 3;
         }
@@ -531,8 +539,8 @@
       function reset() {
       	gamePhase = -1;
         howToPlay = 0;
-        score = 5;
-        higheScore = score; 
+        trust = 5;
+        higheTrust = trust; 
         framesRunning = 0;
         prob = 1999.9;
         countdown = 100;
