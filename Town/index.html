@@ -1,0 +1,255 @@
+<!doctype html>
+<html>
+
+  <head>
+    <title>Town</title>
+
+    <style>
+      #leBox {
+        background-color: black;
+      }
+      #canvas {
+        border-style: double;
+        border-color: slateblue;
+      }
+      #gameStatusReadout {
+        font-size: 18px;
+        
+      }
+    </style>
+
+
+    <script type="text/javascript">
+      window.addEventListener("keydown", keyPress, false);
+      window.addEventListener("keyup", keyNegate, false);
+      //setting up variables for later
+      var canvas;
+      var ctx;
+      var dx = 0;
+      var dy = 0;
+      var x = 200;
+      var y = 200;
+      var centerX;
+      var centerY;
+      var timer;
+      var backgroundColor = "#FFF0FF";
+      var ballColor = "#8800FF";
+      var landColor = "#008800";
+      var grassColor = "#97D984";
+      var roadColor = "#494D5E";
+      var woodColor = "#AB6E05";
+      var waterColor = "#AAAAFF";
+      var endingColor = "#FF00FF";
+      var notMuch = 0;
+      var text = " ";
+      var additive = 1;
+      
+      /*this array determines the layout of the town. It is a 2d array to make drawing the map easier. All of the map data is stored here.
+      0 is water, 1 is land, 2 is grass, 3 is wall, 4 is leaf.
+      Since the map isn't very text friendly, I use a text editing program to edit the text.
+      */
+      var map = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 3, 3, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 3, 2, 2, 2, 2, 2, 3, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 3, 2, 2, 2, 2, 2, 3, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 3, 2, 2, 2, 2, 2, 3, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 3, 2, 2, 2, 2, 2, 3, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 3, 2, 2, 2, 2, 2, 3, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 3, 3, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0],
+	    [0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0],
+	    [0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0],
+	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];           
+      var squareSize = 40;
+      
+      
+      window.onload = setup;            
+      // the initializing function.
+      function setup() {
+        
+        canvas = document.getElementById("canvas");
+        ctx = canvas.getContext("2d");
+        setInterval(draw, 15);
+        
+        centerX = canvas.width / 2;
+        centerY = canvas.height / 2;
+      }
+      
+      function drawEntity() {
+        ctx.fillStyle = ballColor;
+        ctx.beginPath();
+        ctx.ellipse(centerX, centerY, 10, 10, Math.PI, 0, Math.PI * 4);
+        ctx.fill();
+      }
+      
+      function keyPress(h) {
+      	switch (h.keyCode) {
+        	case 16:
+          	additive = 2;
+            break;
+    			case 37:
+        		dx = -2;
+        		break;
+      		case 38:
+        		dy = -2;
+        		break;
+      		case 39:
+        		dx = 2;
+        		break;
+      		case 40:
+          	dy = 2;
+        		break;
+    		}
+      }
+      /*keyNegate makes sure that when you stop pressing a key, the ball stops as well. */
+      function keyNegate(h) {
+      	switch (h.keyCode) {
+        	case 16:
+        		additive = 1;
+    			case 37:
+        		dx = 0;
+        		break;
+      		case 38:
+        		dy = 0;
+        		break;
+      		case 39:
+        		dx = 0;
+        		break;
+      		case 40:
+          	dy = 0;
+        		break;
+    		}
+      }
+      
+      // mapWrite is the function that turns the array above into actual maps that the player can see. 
+      function mapWrite() {
+      	var cornerCoords = [(x - centerX - 5), (y - centerY - 5), (x + centerX + 5), (y + centerY + 5)];
+        var row = Math.floor(cornerCoords[1] / squareSize);
+        var counter = 0;
+        
+        var mapRow = 0;
+        var mapCounter = 0;
+        var loadingMap = map;
+        var theColor;
+        
+        var xOffset = x - (Math.round(x / squareSize) * squareSize) + squareSize/2;
+        var yOffset = y - (Math.floor(y / squareSize) * squareSize);
+
+        if (xOffset == 0) {xOffset = squareSize-2};
+        if (yOffset == squareSize-2) {yOffset = 0};
+
+        console.log([xOffset, yOffset]);
+        
+        /* this function is a meta-function that helps with optimization. It draws all the different map tiles. */
+        function mapSquare(color, offsetX, offsetY) {
+          ctx.fillStyle = color;
+          ctx.fillRect(offsetX, offsetY, squareSize, squareSize);
+        }
+        /*This is the part that draws the map. It uses two while loops, one for y and one for x. */
+        while (row * squareSize < cornerCoords[3]) {    
+        	counter = Math.floor(cornerCoords[0] / squareSize);
+            mapCounter = 0;
+        	while (counter * squareSize < cornerCoords[2]) {
+                switch (loadingMap[Math.abs(row)][counter]) {
+                    case 1:
+                        theColor = grassColor;
+                        break;
+                case 2:
+                    theColor = roadColor;
+                    break;
+                case 3:
+                    theColor = woodColor;
+                    break;
+                    default:
+                        theColor = waterColor;
+                        break;
+                }
+                mapSquare(theColor, mapCounter * squareSize - xOffset, mapRow * squareSize - yOffset);
+                
+                counter = counter + 1;
+                mapCounter = mapCounter + 1;
+                
+                
+          }
+        	row = row + 1;
+          mapRow = mapRow + 1;
+          if (row > map.length - 1) {
+          	row = map.length - 1;
+          }
+        }
+      }
+      
+      /*this function is the main function, that repeats every time the timer goes off. It does a few things. 
+      First, it clears everything, and then draws everything. (the ball, the background, the map.). */
+      function draw() {
+      
+      	//clearing the screen and then drawing background
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = backgroundColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        //handles movement
+        
+        move();
+
+        //draws the map
+        mapWrite();
+        
+        //handles all the entities on screen, by first moving them and then drawing them.
+        drawEntity();
+    
+      }
+      
+      //teleport is a quick way of moving the player
+      function teleport(a, b) {
+        x = a;
+        y = b;
+      }
+      
+      function move() {
+        
+        x = x + (dx * additive);
+        y = y + (dy * additive);
+        
+        if (map[Math.floor((y - 5) / squareSize)][Math.floor((x - 20) / squareSize)] == 0) {
+        	x = x - (dx * additive);
+        	y = y - (dy * additive);
+        }
+      }
+    </script>
+  </head>
+
+  <body>
+    <div>
+      <canvas id="canvas" width="512" height="384">
+      </canvas>
+      <p id="scoreReadout">
+      </p>
+
+    </div>
+  </body>
+
+</html>
