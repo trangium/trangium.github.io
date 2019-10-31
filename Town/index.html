@@ -1,24 +1,13 @@
 <!doctype html>
 <html>
-
   <head>
     <title>Town</title>
-
     <style>
-      #leBox {
-        background-color: black;
-      }
       #canvas {
         border-style: double;
         border-color: slateblue;
       }
-      #gameStatusReadout {
-        font-size: 18px;
-        
-      }
     </style>
-
-
     <script type="text/javascript">
       window.addEventListener("keydown", keyPress, false);
       window.addEventListener("keyup", keyNegate, false);
@@ -27,229 +16,572 @@
       var ctx;
       var dx = 0;
       var dy = 0;
-      var x = 200;
-      var y = 200;
+     
+      var arrayValue;
       var centerX;
       var centerY;
       var timer;
-      var backgroundColor = "#FFF0FF";
-      var ballColor = "#8800FF";
+      var dayLength = 12500;
+      var dayTime = Math.floor(dayLength / 4);
+      var dayPercent = 0;
+     
+      //all the colors used
       var landColor = "#008800";
       var grassColor = "#97D984";
       var roadColor = "#494D5E";
       var woodColor = "#AB6E05";
       var waterColor = "#AAAAFF";
+      var floorColor = "#D1AC6D";
+      var farmColor = "#916B2F";
       var endingColor = "#FF00FF";
+     
+      var menuColor = "#333333";
+      var textColor = "#EEEEEE";
+      var textColor2 = "#00FF88";
+      var ballColor = "#FF00FF";
+      var entityColor = "#8800FF";
+      var nightFilter = "#000044";
+     
+     
       var notMuch = 0;
       var text = " ";
       var additive = 1;
-      
+      var cornerCoords = [0, 0, 0, 0];
+     
+      /*this array determines all the text the entities speak.
+      I tried to make them seem lifelike, but do to storage limitations
+      they will inevitably feel fake after a while. I used a text editor
+      for these also, because it's annoying to edit the text in here when it keeps wrapping. */
+      var numPressed = 0;
+      var conversationPhase = [0, 1];
+      var poetText = ["'egg'", "1. the egg nice", 2, "2. what if bag were egg?", 3, "3. but no", 4,
+                            "thanks!", "1.", 1, "2.", 1, "3.", 1,
+                  "that would be strange!", "1.", 1, "2.", 1, "3.", 1,
+                  "that's mean", "1.", 0, "2.", 0, "3.", 0
+                  ];
+                 
+      var farmerText = ["'I can only eat bricks'", "1. must be a sad life", 2, "2. Surely you have other things!", 3, "3. ok (leave)", 0,
+             "it is. I just have farming.", "1. farming is different from spanish", 1, "2. how is farming?", 4, "3. where did you grow up?", 1,
+             "I have farming, but that's not much.", "1. well that's cool, I wish I could farm", 4, "2. do you like farming?", 4, "3. h", 0,
+             "I don't really like farming.", "1. oh", 0, "2. why not?", 0, "3. sample text", 0
+             ];
+     
       /*this array determines the layout of the town. It is a 2d array to make drawing the map easier. All of the map data is stored here.
       0 is water, 1 is land, 2 is grass, 3 is wall, 4 is leaf.
       Since the map isn't very text friendly, I use a text editing program to edit the text.
       */
-      var map = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 3, 3, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 3, 2, 2, 2, 2, 2, 3, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 3, 2, 2, 2, 2, 2, 3, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 3, 2, 2, 2, 2, 2, 3, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 3, 2, 2, 2, 2, 2, 3, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 3, 2, 2, 2, 2, 2, 3, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 3, 3, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0],
-	    [0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0],
-	    [0, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0],
-	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-	    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];           
+      var map = [ [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 6, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+        [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 1, 1, 0],
+        [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 3, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 4, 3, 1, 1, 1, 0],
+        [0, 1, 1, 1, 1, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 3, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 4, 3, 1, 1, 1, 0],
+        [0, 1, 1, 1, 1, 3, 4, 4, 4, 3, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 3, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 4, 3, 1, 1, 1, 0],
+        [0, 1, 1, 1, 1, 3, 4, 4, 4, 3, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 3, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 4, 3, 1, 1, 1, 0],
+        [0, 1, 1, 1, 1, 3, 4, 4, 4, 3, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 3, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 4, 3, 4, 4, 4, 3, 1, 1, 1, 0],
+        [0, 1, 1, 1, 1, 3, 3, 1, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 3, 3, 1, 3, 3, 3, 1, 3, 3, 3, 1, 3, 3, 3, 1, 3, 3, 1, 1, 1, 0],
+        [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+        [0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 0],
+        [0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 0],
+        [0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 0],
+        [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 0],
+        [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 3, 3, 3, 1, 1, 2, 2, 1, 1, 0],
+        [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 3, 1, 5, 5, 1, 5, 5, 1, 5, 5, 1, 1, 1, 1, 1, 3, 3, 1, 2, 2, 1, 1, 0],
+        [0, 1, 1, 1, 1, 1, 3, 3, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 2, 2, 2, 1, 3, 1, 5, 5, 1, 5, 5, 1, 5, 5, 1, 1, 1, 1, 1, 1, 3, 1, 2, 2, 1, 1, 0],
+        [0, 1, 1, 1, 1, 1, 3, 4, 4, 4, 4, 4, 3, 1, 1, 1, 1, 1, 2, 2, 2, 1, 3, 1, 5, 5, 1, 5, 5, 1, 5, 5, 1, 1, 1, 1, 1, 1, 3, 1, 2, 2, 1, 1, 0],
+        [0, 1, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 3, 1, 1, 1, 1, 1, 2, 2, 2, 1, 3, 1, 5, 5, 1, 5, 5, 1, 5, 5, 1, 1, 1, 1, 1, 1, 3, 1, 2, 2, 2, 1, 0],
+        [0, 1, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 3, 1, 2, 1, 1, 2, 2, 2, 2, 1, 3, 1, 5, 5, 1, 5, 5, 1, 5, 5, 1, 0, 1, 1, 1, 1, 3, 1, 1, 2, 2, 2, 0],
+        [0, 1, 3, 4, 4, 4, 3, 4, 4, 4, 4, 4, 1, 1, 1, 1, 2, 1, 2, 2, 2, 1, 3, 1, 5, 5, 1, 5, 5, 1, 5, 5, 1, 0, 0, 1, 1, 1, 3, 1, 1, 1, 2, 2, 0],
+        [0, 1, 3, 4, 4, 4, 3, 4, 4, 4, 4, 4, 3, 2, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 3, 1, 1, 1, 1, 2, 0],
+        [0, 1, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 3, 1, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 2, 1, 1, 2, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 3, 1, 1, 1, 1, 1, 0],
+        [0, 1, 3, 4, 4, 4, 3, 4, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 2, 2, 2, 1, 3, 1, 5, 5, 1, 5, 5, 1, 5, 5, 1, 1, 0, 0, 1, 1, 3, 1, 1, 1, 1, 1, 0],
+        [0, 1, 3, 4, 4, 4, 4, 4, 4, 3, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 3, 1, 5, 5, 1, 5, 5, 1, 5, 5, 1, 1, 0, 0, 0, 1, 3, 1, 1, 1, 1, 1, 0],
+        [0, 1, 3, 4, 4, 3, 4, 3, 4, 3, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 3, 1, 5, 5, 1, 5, 5, 1, 5, 5, 1, 1, 0, 0, 0, 1, 3, 1, 1, 1, 1, 1, 0],
+        [0, 1, 3, 4, 4, 4, 4, 4, 4, 3, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 3, 1, 5, 5, 1, 5, 5, 1, 5, 5, 1, 1, 1, 0, 0, 1, 3, 1, 1, 1, 1, 1, 0],
+        [0, 1, 3, 4, 4, 3, 4, 3, 4, 3, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 3, 1, 5, 5, 1, 5, 5, 1, 5, 5, 1, 1, 1, 0, 0, 0, 3, 1, 1, 1, 1, 1, 0],
+        [0, 1, 3, 4, 4, 4, 4, 4, 4, 3, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 3, 1, 5, 5, 1, 5, 5, 3, 3, 1, 1, 3, 3, 0, 0, 0, 3, 1, 1, 1, 1, 1, 0],
+        [0, 1, 3, 4, 4, 3, 4, 3, 4, 3, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 3, 3, 5, 5, 1, 5, 5, 3, 4, 4, 4, 4, 3, 0, 0, 0, 3, 1, 1, 1, 1, 1, 0],
+        [0, 1, 3, 4, 4, 4, 4, 4, 4, 3, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 3, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0],
+        [0, 1, 3, 3, 4, 3, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 3, 4, 4, 4, 4, 3, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0],
+        [0, 1, 1, 3, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 3, 4, 4, 4, 4, 3, 1, 0, 0, 0, 1, 1, 1, 1, 1, 0],
+        [0, 1, 1, 3, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 3, 4, 4, 4, 4, 3, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0],
+        [0, 1, 1, 3, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 3, 3, 3, 3, 3, 3, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0],
+        [0, 1, 1, 3, 1, 1, 1, 1, 1, 3, 3, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0],
+        [0, 1, 1, 3, 3, 1, 1, 3, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0],
+        [0, 1, 1, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0],
+        [0, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 0],
+        [0, 1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, 0],
+        [0, 1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 0, 0, 0, 0, 0, 0],
+        [0, 1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 0, 0, 0, 0, 0],
+        [0, 1, 3, 1, 1, 1, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0],
+        [0, 1, 1, 3, 3, 3, 3, 3, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 1, 1, 1, 3, 3, 1, 3, 3, 3, 3, 1, 3, 3, 3, 3, 1, 3, 3, 1, 1, 1, 1, 1, 0, 0, 0, 0],
+        [0, 1, 1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 1, 1, 3, 4, 4, 4, 3, 4, 4, 4, 4, 4, 3, 4, 4, 4, 3, 1, 1, 1, 1, 1, 0, 0, 0, 0],
+        [0, 1, 1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 1, 1, 3, 4, 4, 4, 3, 4, 4, 4, 4, 4, 3, 4, 4, 4, 3, 1, 1, 1, 1, 1, 1, 0, 0, 0],
+        [0, 1, 1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 1, 1, 3, 4, 4, 4, 3, 4, 4, 4, 4, 4, 3, 4, 4, 4, 3, 1, 1, 1, 1, 1, 1, 0, 0, 0],
+        [0, 1, 1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 1, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 1, 1, 1, 1, 0, 0, 0, 0],
+        [0, 1, 1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0],
+        [0, 1, 1, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0],
+        [0, 1, 1, 3, 3, 2, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0],
+        [0, 1, 1, 3, 2, 2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0],
+        [0, 1, 1, 3, 2, 2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0],
+        [0, 1, 1, 3, 2, 2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+        [0, 1, 1, 3, 2, 2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+        [0, 1, 1, 3, 2, 2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 3, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+        [0, 1, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0],
+        [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0],
+        [0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]];
+     
+      var pathingAssist = [];
       var squareSize = 40;
-      
-      
+      /*this array determines the positions of all the entities as well as their profession.
+      It's format is [x, y, profession, color, movement direction, movement phase, targetX, targetY]
+      For direction, 0 is not moving, while 1 to 8 is direction.
+      For movement phase, 0 is not moving, 1 is random movement, and 2 is pathing to a specific location, described in the next two areas.*/
+      var entityData = [[31 * squareSize, 35 * squareSize, "farmer", "#8800FF", 0, 0, 5, 5],
+                                        [18 * squareSize, 15 * squareSize, "poet", "#8888FF", 0, 0, 5, 5],
+                        [28 * squareSize, 7 * squareSize, "scholar", "#0088FF", 0, 1, 5, 5]
+                        ];
+      var entitySpeed = Math.round(squareSize * 0.0375);
+     
+      //the players x and y go here because squareSize is defined here.
+ 
+      var x = 8 * squareSize;
+      var y = 9 * squareSize;
+      //this array says all the surfaces that are solid and cannot be walked through.
+      var solidSurfaces = [0, 3];
+     
+     
       window.onload = setup;            
       // the initializing function.
       function setup() {
-        
+       
         canvas = document.getElementById("canvas");
         ctx = canvas.getContext("2d");
         setInterval(draw, 15);
-        
+       
         centerX = canvas.width / 2;
         centerY = canvas.height / 2;
+       
+        //initialies the pathfinding array
+        for (i=0; i<map.length; i++) {
+            pathingAssist[i] = [];
+            for (j=0; j<map[i].length; j++) {
+            pathingAssist[i].push(0);
+          }
+        }
+        console.log(pathingAssist);
       }
-      
-      function drawEntity() {
+     
+      function keyPress(h) {
+        switch (h.keyCode) {
+            case 16:
+            additive = 2;
+            break;
+          case 49:
+            numPressed = 1;
+            break;
+          case 50:
+            numPressed = 2;
+            break;
+          case 51:
+            numPressed = 3;
+            break;
+                case 37:
+                dx = entitySpeed * -1;
+                break;
+            case 38:
+                dy = entitySpeed * -1;
+                break;
+            case 39:
+                dx = entitySpeed;
+                break;
+            case 40:
+            dy = entitySpeed;
+                break;
+          case 90:
+            if (arrayValue == 5) {
+                action();
+            }
+            break;
+            }
+      }
+     
+      function keyNegate(h) {
+        switch (h.keyCode) {
+            case 16:
+                additive = 1;
+                case 37:
+                dx = 0;
+                break;
+            case 38:
+                dy = 0;
+                break;
+            case 39:
+                dx = 0;
+                break;
+            case 40:
+            dy = 0;
+                break;
+            }
+      }
+     
+      function action() {
+            map[Math.floor((y - 5) / squareSize)][Math.floor((x - 5) / squareSize)] = 6;
+      }
+     
+      function drawPlayer() {
         ctx.fillStyle = ballColor;
         ctx.beginPath();
-        ctx.ellipse(centerX, centerY, 10, 10, Math.PI, 0, Math.PI * 4);
+        ctx.ellipse(centerX, centerY, squareSize / 4, squareSize / 4, Math.PI, 0, Math.PI * 4);
         ctx.fill();
       }
-      
-      function keyPress(h) {
-      	switch (h.keyCode) {
-        	case 16:
-          	additive = 2;
-            break;
-    			case 37:
-        		dx = -2;
-        		break;
-      		case 38:
-        		dy = -2;
-        		break;
-      		case 39:
-        		dx = 2;
-        		break;
-      		case 40:
-          	dy = 2;
-        		break;
-    		}
+     
+      function entityHandle() {
+        //this for loop handles the entities one by one.
+        for (a=0; a < entityData.length; a++) {
+        //handles movement, if the circle is not moving there is a 1/350 chance every frame they will start moving.
+            var proposedX = entityData[a][0];
+            var proposedY = entityData[a][1];
+         
+          if (entityData[a][5] == 0) {
+            var differenceX = Math.abs(proposedX - x);
+            var differenceY = Math.abs(proposedY - y);
+            if (differenceX < 40 && differenceY < 40) {
+                //if the player is less than 20px away from you and hasn't left the conversation, then initiate conversation with them.
+                if (differenceX < 20 && differenceY < 20 && conversationPhase[1] != 0) {
+                conversationPhase[0] = a + 1;
+            } else if (differenceX >= 20 && differenceY >= 20){
+              //if the player is trying to have a conversation with you but is more than 20 px away, cease the conversation.
+                conversationPhase[0] = 0;
+                conversationPhase[1] = 1;
+              }
+            }
+          }
+         
+            if (entityData[a][5] == 1) {
+                if (entityData[a][4] == 0) {
+                if (Math.floor(Math.random() * 350) == 5) {
+                    entityData[a][4] = 1 + Math.round(Math.random() * 7);
+                }
+            } else {
+               
+                switch(entityData[a][4]) {
+                    case 1:
+                    proposedY = entityData[a][1] - entitySpeed;
+                    proposedX = entityData[a][0];
+                    break;
+                case 2:
+                    proposedY = entityData[a][1] - entitySpeed;
+                    proposedX = entityData[a][0] + entitySpeed;
+                    break;
+                case 3:
+                    proposedX = entityData[a][0] + entitySpeed;
+                    proposedY = entityData[a][1];
+                    break;
+                case 4:
+                    proposedX = entityData[a][0] + entitySpeed;
+                    proposedY = entityData[a][1] + entitySpeed;
+                    break;
+                case 5:
+                    proposedY = entityData[a][1] + entitySpeed;
+                    proposedX = entityData[a][0];
+                    break;
+                case 6:
+                    proposedY = entityData[a][1] + entitySpeed;
+                    proposedX = entityData[a][0] - entitySpeed;
+                    break;
+                case 7:
+                    proposedX = entityData[a][0] - entitySpeed;
+                    proposedY = entityData[a][1];
+                    break;
+                case 8:
+                    proposedX = entityData[a][0] - entitySpeed;
+                    proposedY = entityData[a][1] - entitySpeed;
+                    break;
+                    default:
+                        break;
+                }
+            }
+          }
+         
+          if (entityData[a][5] == 2) {
+            var goalX;
+            var goalY;
+            var squareX = Math.floor(proposedX / squareSize);
+            var squareY = Math.floor(proposedY / squareSize);
+           
+            path([squareX][squareY], [goalX][goalY]);
+          }
+         
+          //handles collision for entities
+          var entityMapPosition = map[Math.floor(proposedY / squareSize)][Math.floor(proposedX / squareSize)];
+          var nonagon = 0;
+          for (k=0; k<solidSurfaces.length; k++) {
+            if (entityMapPosition == solidSurfaces[k]) {
+                nonagon = 1;
+            }
+          }
+          if (nonagon != 1) {
+            entityData[a][0] = proposedX;
+            entityData[a][1] = proposedY;
+          } else {
+            entityData[a][4] = Math.round(Math.random() * 8);
+          }
+         
+          //random decision to stop walking
+          if (Math.floor(Math.random() * 450) == 2) {
+            entityData[a][4] = Math.floor(Math.random() * 8);
+          }
+           
+          //handles special behavior for the different circle types
+            switch(entityData[a][2]) {
+                case "farmer":
+                if (entityMapPosition == 5) {
+                map[Math.floor(entityData[a][1] / squareSize)][Math.floor(entityData[a][0] / squareSize)] = 6;
+              }
+                break;
+            case "poet":
+                break;
+            }
+            //this part draws them
+            var entityScreenX = entityData[a][0] - cornerCoords[0];
+          var entityScreenY = entityData[a][1] - cornerCoords[1];
+          ctx.fillStyle = entityData[a][3];
+            ctx.beginPath();
+            ctx.ellipse(entityScreenX, entityScreenY, squareSize / 4, squareSize / 4, Math.PI, 0, Math.PI * 4);
+            ctx.fill();
+        }
       }
+     
+     
       /*keyNegate makes sure that when you stop pressing a key, the ball stops as well. */
-      function keyNegate(h) {
-      	switch (h.keyCode) {
-        	case 16:
-        		additive = 1;
-    			case 37:
-        		dx = 0;
-        		break;
-      		case 38:
-        		dy = 0;
-        		break;
-      		case 39:
-        		dx = 0;
-        		break;
-      		case 40:
-          	dy = 0;
-        		break;
-    		}
-      }
-      
-      // mapWrite is the function that turns the array above into actual maps that the player can see. 
-      function mapWrite() {
-      	var cornerCoords = [(x - centerX - 5), (y - centerY - 5), (x + centerX + 5), (y + centerY + 5)];
-        var row = Math.floor(cornerCoords[1] / squareSize);
-        var counter = 0;
-        
-        var mapRow = 0;
+     
+     
+      // mapWrite is the function that turns the array above into actual maps that the player can see.
+      function drawMap() {
+        cornerCoords[0] = x - centerX - 5;
+        cornerCoords[1] = y - centerY - 5;
+        cornerCoords[2] = x + centerX + squareSize;
+        cornerCoords[3] = y + centerY + squareSize;
         var mapCounter = 0;
         var loadingMap = map;
         var theColor;
-        
-        var xOffset = x - (Math.round(x / squareSize) * squareSize) + squareSize/2;
-        var yOffset = y - (Math.floor(y / squareSize) * squareSize);
-
-        if (xOffset == 0) {xOffset = squareSize-2};
-        if (yOffset == squareSize-2) {yOffset = 0};
-
-        console.log([xOffset, yOffset]);
-        
-        /* this function is a meta-function that helps with optimization. It draws all the different map tiles. */
-        function mapSquare(color, offsetX, offsetY) {
-          ctx.fillStyle = color;
-          ctx.fillRect(offsetX, offsetY, squareSize, squareSize);
+       
+        var xSquare = x / squareSize;
+        var ySquare = y / squareSize;
+        console.log(x, y);
+       
+        /* mapSquare is the function that draws all the different tiles. */
+        function mapSquare(value, ex, why) {
+            switch (value) {
+            case 0:
+                ctx.fillStyle = waterColor;
+                ctx.fillRect(ex, why, squareSize, squareSize);
+                break;
+            case 1:
+                ctx.fillStyle = landColor;
+                ctx.fillRect(ex, why, squareSize, squareSize);
+                break;
+            case 2:
+                ctx.fillStyle = roadColor;
+                ctx.fillRect(ex, why, squareSize, squareSize);
+                break;
+            case 3:
+                ctx.fillStyle = landColor;
+              ctx.fillRect(ex, why, squareSize, squareSize);
+                ctx.fillStyle = woodColor;
+                ctx.fillRect(ex + (squareSize / 8), why + (squareSize / 8), squareSize * 0.75, squareSize * 0.75);
+                break;
+            case 4:
+                ctx.fillStyle = floorColor;
+                ctx.fillRect(ex, why, squareSize, squareSize);
+                break;
+            case 5:
+                ctx.fillStyle = farmColor;
+                ctx.fillRect(ex, why, squareSize, squareSize);
+                break;
+            case 6:
+                ctx.fillStyle = farmColor;
+                ctx.fillRect(ex, why, squareSize, squareSize);
+              ctx.fillStyle = landColor;
+              ctx.fillRect(ex + (squareSize / 4), why + (squareSize / 4), squareSize * 0.5, squareSize * 0.5);
+              ctx.fillStyle = farmColor
+              ctx.fillRect(ex + (squareSize / 3), why + (squareSize / 3), squareSize /3, squareSize /3);
+                break;
+            default:
+                ctx.fillStyle = waterColor;
+                ctx.fillRect(ex, why, squareSize, squareSize);
+                break;
+          }
         }
         /*This is the part that draws the map. It uses two while loops, one for y and one for x. */
+        var row = cornerCoords[1] / squareSize;
+        var mapRow = 0 - (row - Math.floor(row));
+        var counter = 0;
+       
         while (row * squareSize < cornerCoords[3]) {    
-        	counter = Math.floor(cornerCoords[0] / squareSize);
-            mapCounter = 0;
-        	while (counter * squareSize < cornerCoords[2]) {
-                switch (loadingMap[Math.abs(row)][counter]) {
-                    case 1:
-                        theColor = grassColor;
-                        break;
-                case 2:
-                    theColor = roadColor;
-                    break;
-                case 3:
-                    theColor = woodColor;
-                    break;
-                    default:
-                        theColor = waterColor;
-                        break;
-                }
-                mapSquare(theColor, mapCounter * squareSize - xOffset, mapRow * squareSize - yOffset);
-                
-                counter = counter + 1;
-                mapCounter = mapCounter + 1;
-                
-                
+            counter = cornerCoords[0] / squareSize;
+          mapCounter = 0 - (counter - Math.floor(counter));
+         
+            while (counter * squareSize < cornerCoords[2]) {
+            //this line determines what square to load in. For the rows, it uses counter, and for the number of rows it uses row. The floor and absolute value operations are just to turn the players square coordinates into something that the array can understand.
+            var value = loadingMap[Math.abs(Math.floor(row))][Math.floor(counter)];
+           
+            mapSquare(value, mapCounter * squareSize, mapRow * squareSize);
+            counter = counter + 1;
+            mapCounter = mapCounter + 1;
+           
+           
           }
-        	row = row + 1;
+            row = row + 1;
           mapRow = mapRow + 1;
-          if (row > map.length - 1) {
-          	row = map.length - 1;
+        }
+      }
+     
+      function drawMenu() {
+        var hour = Math.floor(dayPercent * 24);
+        var minute = Math.floor(((dayPercent * 24) - hour) * 6) * 10;
+       
+        ctx.fillStyle = menuColor;
+        ctx.fillRect(0, canvas.height * 0.8, canvas.width, canvas.height * 0.2)
+        ctx.fillStyle = textColor2;
+        ctx.font = "20px Century Gothic";
+        if (minute < 10) {
+            ctx.fillText("it is " + hour + ":0" + minute, 15, canvas.height * 0.95);
+        } else {
+            ctx.fillText("it is " + hour + ":" + minute, 15, canvas.height * 0.95);
+        }  
+      }
+     
+      function drawConversation() {
+        //this part draws the conversation boxes
+        var theText;
+        var arrayStart = (conversationPhase[1] - 1) * 7
+        switch (conversationPhase[0] - 1) {
+            case 0:
+            theText = farmerText;
+            break;
+          case 1:
+            theText = poetText;
+            break;
+          case 2:
+            theText = text2;
+            break;
+        }
+        ctx.font = "15px Century Gothic";
+        ctx.fillStyle = textColor;
+        ctx.textAlign = "left";
+        ctx.fillText(theText[arrayStart], 15, canvas.height * 0.85);
+       
+        //and this one changes it to your color.
+        ctx.fillStyle = ballColor;
+        ctx.fillText(theText[arrayStart + 1], centerX * 0.4, canvas.height * 0.89);
+        ctx.fillText(theText[arrayStart + 3], centerX * 0.4, canvas.height * 0.935);
+        ctx.fillText(theText[arrayStart + 5], centerX * 0.4, canvas.height * 0.98);
+       
+        //this part modifies what section of the conversation you are on. The number you press corresponds to a number in the array, which changes the section of the text you are on.
+        if (numPressed != 0) {
+            conversationPhase[1] = theText[arrayStart + (numPressed * 2)];
+          numPressed = 0;
+          //a line number of zero just means exit the conversation.
+          if (conversationPhase[1] == 0) {
+            conversationPhase[0] = 0;
           }
         }
       }
-      
-      /*this function is the main function, that repeats every time the timer goes off. It does a few things. 
+     
+      /*this function is the main function, that repeats every time the timer goes off. It does a few things.
       First, it clears everything, and then draws everything. (the ball, the background, the map.). */
       function draw() {
-      
-      	//clearing the screen and then drawing background
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = backgroundColor;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        //handles movement
-        
-        move();
-
         //draws the map
-        mapWrite();
-        
+        drawMap();
+       
         //handles all the entities on screen, by first moving them and then drawing them.
-        drawEntity();
-    
+        drawPlayer();
+        entityHandle();
+       
+        //after drawing almost everything, it handles the day time
+        if (dayTime > Math.floor(dayLength * 0.75) || dayTime < Math.floor(dayLength * 0.25)) {
+            ctx.globalAlpha = 0.2;
+          ctx.fillStyle = nightFilter;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.globalAlpha = 1.0;
+        }
+       
+        dayTime = dayTime + 1;
+        if (dayTime > dayLength) {
+            dayTime = 0;
+        }
+        dayPercent = dayTime / dayLength;
+        //the final thing to draw is the menu and text things. Time filters shouldn't apply to the menu, which is why it's drawn last.
+        drawMenu();
+        if (conversationPhase[0] != 0) {
+            drawConversation();
+        }
+       
+       
+        //handles movement, for both the player and the entities
+       
+        move();
+       
+        console.log(conversationPhase);
+       
       }
-      
+     
       //teleport is a quick way of moving the player
       function teleport(a, b) {
         x = a;
         y = b;
       }
-      
+     
       function move() {
-        
+       
         x = x + (dx * additive);
         y = y + (dy * additive);
-        
-        if (map[Math.floor((y - 5) / squareSize)][Math.floor((x - 20) / squareSize)] == 0) {
-        	x = x - (dx * additive);
-        	y = y - (dy * additive);
+       
+       
+        //this part handles collision
+        arrayValue = map[Math.floor((y - 5) / squareSize)][Math.floor((x - 5) / squareSize)];
+        for (l=0; l < solidSurfaces.length; l++) {
+            if (arrayValue == solidSurfaces[l]) {
+                x = x - (dx * additive);
+                y = y - (dy * additive);
+            }
         }
+      }
+     
+      function path(a, b) {
+        var a2 = a;
+        var a3;
+       
+        var lowestFost;
+        var lowestGost;
+        var lowestCost;
+        var direction = 0;
+       
+        while (a3 != b) {
+            lowestFost = 9999;
+            lowestGost = 9999;
+            lowestCost = 9999;
+            for (h=0; h<8; h++) {
+            //calculate cost for square, done 8 times for the 8 squares around, make a3 square with lowest hCost and lowest tCost        
+            }
+            a3; //square with lowest cost around a3
+        }
+        //this algorithm takes two points on the map as input and outputs the direction needed to pathfind from one to the other. It only outputs the first direction needed instead of the whole path to save on resources, as this function is going to be called many times a second anyways. (I didn't want the circle creatures to have to remember where to go.)
+        return direction;
       }
     </script>
   </head>
-
   <body>
-    <div>
       <canvas id="canvas" width="512" height="384">
       </canvas>
-      <p id="scoreReadout">
-      </p>
-
-    </div>
   </body>
-
 </html>
