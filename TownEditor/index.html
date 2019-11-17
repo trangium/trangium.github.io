@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Gamedev Canvas Workshop</title>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+        }
+
+        canvas {
+            background: #eee;
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div contenteditable>
+        <pre id="input">
+[[3, 3, 2], [6, 3, 3], [5, 6, 4]]
+        </pre>
+    </div>
+    <div style="font-size: 30px" contenteditable>
+        <pre>
+        <table>
+            <tr>
+                <td>8</td>
+                <td>3</td>
+                <td>4</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td>8</td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td>5</td>
+                <td>3</td>
+            </tr>
+        </table>
+        </pre>
+    </div>
+    <button onclick="tableConv()">Convert to table</button>
+    <button onclick="textConv()">Convert to text</button>
+    <script>
+        function refr() {
+            var elem = document.getElementsByTagName("td");
+            for (var i = 0; i < 9; i++) {
+                if (elem[i].textContent == 3) {
+                    elem[i].style["background-color"] = "#c6c";
+                } else {
+                    elem[i].style["background-color"] = "#6c6";
+                }
+            }
+        }
+        function tableConv() {
+            var inputStr = document.getElementById("input").textContent;
+            var sanitizedInput = inputStr.replace(/\[/g,"").replace(/\]/g,"").replace(/ /g,"").split(",");
+            var elem = document.getElementsByTagName("td");
+            for (var i = 0; i < 9; i++) {
+                    elem[i].textContent = sanitizedInput[i];
+            }
+        }
+        function textConv() {
+            var elem = document.getElementsByTagName("td");
+            var ret = "[";
+            for (var i = 0; i < 9; i++) {
+                if (i%3 == 0) {
+                    ret += "[";
+                } 
+                ret += elem[i].textContent;
+                if (i%3 == 2) {
+                    ret += "], ";
+                } else {
+                    ret += ", ";
+                }
+            }
+            var inputStr = document.getElementById("input");
+            inputStr.textContent = ret+"]";
+        }
+        setInterval(refr, 40);
+    </script>
+</body>
+
+</html>
