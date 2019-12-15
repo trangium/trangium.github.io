@@ -183,12 +183,12 @@
 
             // Draw top text
             ctx.clearRect(0,0,canvas.width,canvas.height);
-            text(black,"Deal Or No Deal",256,30,disp5*yoff,"Arial","center");
-            text(black,"Your Case:",452,20,disp6*yoff,'Arial',1,0,"center");
-            text(black,"Cases To Open:",60,20,disp6*yoff,"Arial",'center');
+            text(black,"Deal Or No Deal",256,30,disp5*yoff,"Century Gothic","center");
+            text(black,"Your Case:",452,20,disp6*yoff,'Century Gothic',1,0,"center");
+            text(black,"Cases To Open:",60,20,disp6*yoff,"Century Gothic",'center');
             if (yourcase !== null) {
                 centerRect(lgray,452,48,casewidth,caseheight);
-                text(black,yourcase.toString(),452,56,20,"Arial","center");
+                text(black,yourcase.toString(),452,56,20,"Century Gothic","center");
             }
             if (waiting === true) {
                 casesLeft = '0';
@@ -207,7 +207,7 @@
                     casesLeft = '1';
                 }
             }
-            text(black,casesLeft,60,60,disp7*yoff,'Arial','center');
+            text(black,casesLeft,60,60,disp7*yoff,'Century Gothic','center');
             // Draw the cases
             for (var i=0;i<6;i++) {
                 for (var j=0;j<5;j++) {
@@ -215,7 +215,7 @@
                     if (num !== null) {
                         let co = gridToPy(i+.5,j+.5);
                         centerRect(lgray,co[0],co[1],casewidth,caseheight);
-                        text(black,num,co[0],co[1]+caseheight/3,20,'Arial','center');
+                        text(black,num,co[0],co[1]+caseheight/3,20,'Century Gothic','center');
                     }
                 }
             }
@@ -230,7 +230,7 @@
                     var col = yellow;
                 }
                 rect(col,xoff*disp1,y+start,xoff*disp3,step*disp2);
-                text(black,addCommas(pricelist1[index]),xoff*disp1+xoff*disp3/2,start+y+(step*disp2)/2+step*disp2/3,step*disp4,'Arial','center');
+                text(black,addCommas(pricelist1[index]),xoff*disp1+xoff*disp3/2,start+y+(step*disp2)/2+step*disp2/3,step*disp4,'Century Gothic','center');
                 index++;
             }
             var index = 0;
@@ -241,7 +241,7 @@
                     var col = yellow;
                 }
                 rect(col,512+xoff*(disp1-1),y+start,xoff*disp3,step*disp2);
-                text(black,addCommas(pricelist2[index]),512+xoff*(disp1-1)+xoff*disp3/2,start+y+(step*disp2)/2+step*disp2/3,step*disp4,'Arial','center');
+                text(black,addCommas(pricelist2[index]),512+xoff*(disp1-1)+xoff*disp3/2,start+y+(step*disp2)/2+step*disp2/3,step*disp4,'Century Gothic','center');
                 index++;
             }
             if (contains(offertimes,usedprices.length)) {
@@ -250,7 +250,7 @@
                     sumRemaining = 3418416.01-usedprices.reduce(add);
                     numRemaining = 26-usedprices.length;
                     mean = sumRemaining/numRemaining;
-                    text(black,"$"+addCommas(autoround(mean*(offertimes.indexOf(usedprices.length)+1)*multStep)),xoff+(size-casewidth)/2,384-yUp,18,'Arial','left');
+                    text(black,"$"+addCommas(autoround(mean*(offertimes.indexOf(usedprices.length)+1)*multStep)),xoff+(size-casewidth)/2,384-yUp,18,'Century Gothic','left');
                                        
                 }
                 if (waiting !== 0) {
@@ -260,7 +260,7 @@
                         let x = gridToPy(i+2.5,6)[0];
                         let y = 384-yUp-caseheight/2;
                         centerRect(bCols[i],x,y,casewidth,caseheight);
-                        text(black,words[i],x,y+3,9,'Arial','center')
+                        text(black,words[i],x,y+3,9,'Century Gothic','center')
                     }
                 }
             }
@@ -273,7 +273,7 @@
     </script>
 
 </body>
-<p style="font-family: 'Century Gothic', 'MS Sans Serif', arial; font-size: 24px; text-align:left; line-height:150%; margin:0px; color:#000000; clear:both;"><center>
+<p style="font-family:'Century Gothic', 'MS Sans Serif', arial; font-size:24px; text-align:left; line-height:150%; margin:0px; color:#000000; clear:both;"> <center>
     <br>
     Directions: <br>
     In front of you are 26 cases, each holding money amounts from 1¢ to a top prize. <br> 

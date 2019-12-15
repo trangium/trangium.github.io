@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Gamedev Canvas Workshop</title>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+        }
+
+        canvas {
+            background: #eef0ff;
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="myCanvas" width="512" height="384"></canvas>
+
+    <script>
+        var canvas = document.getElementById("myCanvas");
+        var ctx = canvas.getContext("2d");
+
+        var black = "#000000";
+        var blue = "#0000FF";
+        var lblue = "#6699FF";
+        var green = "#33CC33";
+        var orange = "#CC6600";
+        var white = "#FFFFFF";
+        var gray = "#DDDDDD";
+        var thick = 2;
+
+        var perm = [0,1,2,3,4,5,6,7,8,9];
+        var xspots = [256,211,301,166,256,346,121,211,301,391];
+        var yspots = [66,144,144,222,222,222,300,300,300,300];
+        
+        function cycle(plist) {
+            var temp = perm[plist[0]];
+            for (var i=0; i<plist.length-1; i++) {
+                perm[plist[i]] = perm[plist[i+1]];
+            }
+            perm[plist[plist.length-1]] = temp;
+        }
+        function circle(col,cenx,ceny,rad,thick) {
+            ctx.strokeStyle = col;
+            ctx.lineWidth = thick;
+            ctx.beginPath();
+            ctx.arc(cenx, ceny, rad, 0, 2 * Math.PI);
+            ctx.stroke();
+        }
+        function disc(col,cenx,ceny,rad) {
+            ctx.fillStyle = col;
+            ctx.beginPath();
+            ctx.arc(cenx, ceny, rad, 0, 2 * Math.PI);
+            ctx.fill();
+        }
+        function text(col,txt,x,y,size,rotation=0) {
+            ctx.save();
+            ctx.translate(x,y);
+            ctx.rotate(rotation);
+            ctx.font = size+"px Century Gothic";
+            ctx.fillStyle = col;
+            ctx.fillText(txt,-ctx.measureText(txt).width/2,size/3);
+            ctx.restore();
+        }
+        function keyDownHandler(e,keyfind=true) {
+            if (keyfind) {
+                var v = e.key;
+            } else {
+                var v = e;
+            }
+            if (v == 'q') {
+                cycle([8,7,3,1,2,5]);
+            } else if (v == 'a') {
+                cycle([5,2,1,3,7,8]);
+            } else if (v == 'w') {
+                cycle([0,2,1]);
+                cycle([4,8,7]);
+            } else if (v == 's') {
+                cycle([0,1,2]);
+                cycle([4,7,8]);
+            } else if (v == 'r') {
+                cycle([2,5,4]);
+                cycle([3,7,6]);
+            } else if (v == 'f') {
+                cycle([2,4,5]);
+                cycle([3,6,7]);
+            } else if (v == 'e') {
+                cycle([1,4,3]);
+                cycle([5,9,8]);
+            } else if (v == 'd') {
+                cycle([1,3,4]);
+                cycle([5,8,9]);
+            } else if (v == ' ') {
+                for (var i=0; i<500; i++) {
+                    keyDownHandler(['q','a','w','s','e','d','r','f'][Math.floor(Math.random()*8)],false);
+                }
+            }
+        }
+        function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        document.addEventListener("keydown", keyDownHandler, false);
+        
+        circle(orange,256,222,90,thick);
+        circle(lblue,211,196,52,thick);
+        circle(lblue,346,274,52,thick);
+        circle(blue,256,118,52,thick);
+        circle(blue,256,274,52,thick);
+        circle(green,166,274,52,thick);
+        circle(green,301,196,52,thick);
+
+        for (var i=0; i<10; i++) {
+            disc((i==perm[i]?white:gray),xspots[i],yspots[i],15);
+            circle(black,xspots[i],yspots[i],15,1);
+            text(black,perm[i],xspots[i],yspots[i],20);
+        }
+    }
+    setInterval(draw,20);
+
+    </script>
+</body>
+
+</html>

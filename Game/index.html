@@ -219,15 +219,15 @@
             ctx.arc(convert(ballx+.5),convert(bally+.5),ballsize,0,Math.PI*2,true);
             ctx.fill();
             ctx.closePath();
-            text(white,"Level "+(1+listUsed),385,25,25,"Arial");
-            text(white,score,385,55,25,"Arial");
+            text(white,"Level "+(1+listUsed),385,25,25,"Century Gothic");
+            text(white,score,385,55,25,"Century Gothic");
             if (finished) {
-                text(green,((finished-starttime)/1000).toFixed(2),385,85,25,"Arial");
+                text(green,((finished-starttime)/1000).toFixed(2),385,85,25,"Century Gothic");
             } else {
-                text(yellow,((time()-starttime)/1000).toFixed(2),385,85,25,"Arial");
+                text(yellow,((time()-starttime)/1000).toFixed(2),385,85,25,"Century Gothic");
             }
-            text(white,"Goal: "+goal,385,135,20,"Arial"); 
-            text(white,"Best: "+getCookie("fastest"+listUsed),385,165,20,"Arial"); 
+            text(white,"Goal: "+goal,385,135,20,"Century Gothic"); 
+            text(white,"Best: "+getCookie("fastest"+listUsed),385,165,20,"Century Gothic"); 
         }
 
         var starttime = time();
@@ -321,7 +321,7 @@
         everyFrame();
 
     </script>
-<p style="font-family: 'Century Gothic', 'MS Sans Serif', arial; font-size: 24px; text-align:left; line-height:150%; margin:0px; color:#000000; clear:both;"><center>
+<p style="font-family: 'Century Gothic', 'MS Sans Serif', 'arial'; font-size: 24px; text-align:left; line-height:150%; margin:0px; color:#000000; clear:both;"><center>
     <br>
     Directions: <br>
     Press the arrow keys or WASD to move in that direction. <br>
