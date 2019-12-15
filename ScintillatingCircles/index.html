@@ -150,7 +150,7 @@
             }
         }
         if (done && !(finished)) {
-            finished = time()-starttime;
+            finished = (time()-starttime)/1000;
         }
     }
     setInterval(draw,20);
