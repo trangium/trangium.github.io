@@ -34,6 +34,8 @@
         var white = "#FFFFFF";
         var gray = "#DDDDDD";
         var thick = 2;
+        var starttime = 0;
+        var finished = 0.001;
 
         var perm = [0,1,2,3,4,5,6,7,8,9];
         var xspots = [256,211,301,166,256,346,121,211,301,391];
@@ -45,6 +47,10 @@
                 perm[plist[i]] = perm[plist[i+1]];
             }
             perm[plist[plist.length-1]] = temp;
+        }
+        function time() {
+            var date = new Date;
+            return date.getTime();
         }
         function circle(col,cenx,ceny,rad,thick) {
             ctx.strokeStyle = col;
@@ -100,6 +106,8 @@
                 for (var i=0; i<500; i++) {
                     keyDownHandler(['q','a','w','s','e','d','r','f'][Math.floor(Math.random()*8)],false);
                 }
+                starttime = time();
+                finished = false;
             }
         }
         function draw() {
@@ -116,19 +124,27 @@
         text(black,'Controls:',75,25,15);
         text(orange,'Orange circle:',75,50,15);
         text(orange,'⭯: Q ⭮: A',75,70,15);
-        text(blue,'Blue circle:',75,90,15);
+        text(blue,'Blue circles:',75,90,15);
         text(blue,'⭯: W ⭮: S',75,110,15);
-        text(lblue,'Light blue circle:',75,130,15);
+        text(lblue,'Light blue circles:',75,130,15);
         text(lblue,'⭯: E ⭮: D',75,150,15);
-        text(green,'Green circle:',75,170,15);
+        text(green,'Green circles:',75,170,15);
         text(green,'⭯: R ⭮: F',75,190,15);
         text(black,'Mix it up:',75,210,15);
         text(black,'spacebar',75,230,15);
+        if (finished) {
+            text(blue,'Timer: '+(finished).toFixed(2),437,50,15);
+        } else {
+            text(black,'Timer: '+((time()-starttime)/1000).toFixed(2),437,50,15);
+        }
 
         for (var i=0; i<10; i++) {
             disc((i==perm[i]?white:gray),xspots[i],yspots[i],15);
             circle(black,xspots[i],yspots[i],15,1);
             text(black,perm[i],xspots[i],yspots[i],20);
+        }
+        if (perm == [0,1,2,3,4,5,6,7,8,9]) {
+            finished = time();
         }
     }
     setInterval(draw,20);
