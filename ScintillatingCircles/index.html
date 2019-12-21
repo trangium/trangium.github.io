@@ -166,6 +166,7 @@
         text(green,'CCW: U, CW: J',75,190,13);
         text(black,'Mix it up:',75,210,15);
         text(black,'spacebar',75,230,13);
+
         if (finished) {
             text(blue,'Timer: '+(finished).toFixed(2),437,50,15);
         } else {
@@ -181,9 +182,11 @@
                 y = Math.round(newPoint[1]);
                 ringFrame[i] -= 1;
             }
-            disc((i==perm[i]?white:gray),x,y,15);
-            circle(black,x,y,15,1);
-            text(black,perm[i],x,y,20);
+            for (var j=0; j<3; j++) {
+                disc((i==perm[i]?white:gray),x,y,15);
+                circle(black,x,y,15,1);
+                text(black,perm[i],x,y,20);
+            }
         }
         var done = true;
         for (var i=0; i<10; i++) {
