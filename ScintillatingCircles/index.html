@@ -37,10 +37,15 @@
         var starttime = 0;
         var finished = 0.001;
 
-        var perm = [0,1,2,3,4,5,6,7,8,9];
         var xspots = [256,211,301,166,256,346,121,211,301,391];
         var yspots = [66,144,144,222,222,222,300,300,300,300];
-        
+        var interpol = [0,.01,.04,.09,.16,.25,.36,.49,.64,.81,1];
+    
+        var perm = [0,1,2,3,4,5,6,7,8,9];
+        var ringCenter = [];
+        var ringAngle = Math.PI/3;
+        var ringFrame = [0,0,0,0,0,0,0,0,0,0];
+
         function cycle(plist) {
             var temp = perm[plist[0]];
             for (var i=0; i<plist.length-1; i++) {
@@ -74,6 +79,19 @@
             ctx.fillText(txt,-ctx.measureText(txt).width/2,size/3);
             ctx.restore();
         }
+        function pointRotate(point,center,angle) {
+            var xoff = point[0] - center[0];
+            var yoff = point[1] - center[1];
+            var mag = (xoff**2 + yoff**2) ** .5;
+            var origTheta = Math.atan2(yoff,xoff);
+            var theta = origTheta + angle;
+            return [mag*Math.cos(theta)+center[0],mag*Math.sin(theta)+center[1]];
+        }
+        function ringConfig(center, angle, framelist) {
+            ringCenter = center;
+            ringAngle = angle;
+            ringFrame = framelist;
+        }
         function keyDownHandler(e,keyfind=true) {
             if (keyfind) {
                 var v = e.key;
@@ -82,30 +100,39 @@
             }
             if (v == 'q') {
                 cycle([8,7,3,1,2,5]);
+                ringConfig([null,[256,222],[256,222],[256,222],null,[256,222],null,[256,222],[256,222],null],Math.PI/3,[0,10,10,10,0,10,0,10,10,0]);
             } else if (v == 'a') {
                 cycle([5,2,1,3,7,8]);
+                ringConfig([null,[256,222],[256,222],[256,222],null,[256,222],null,[256,222],[256,222]],-Math.PI/3,[0,10,10,10,0,10,0,10,10,0]);
             } else if (v == 'i') {
                 cycle([0,2,1]);
                 cycle([4,8,7]);
+                ringConfig([[256,118],[256,118],[256,118],null,[256,274],null,null,[256,274],[256,274],null],2*Math.PI/3,[10,10,10,0,10,0,0,10,10,0]);
             } else if (v == 'k') {
                 cycle([0,1,2]);
                 cycle([4,7,8]);
+                ringConfig([[256,118],[256,118],[256,118],null,[256,274],null,null,[256,274],[256,274],null],-2*Math.PI/3,[10,10,10,0,10,0,0,10,10,0]);
             } else if (v == 'u') {
                 cycle([2,5,4]);
                 cycle([3,7,6]);
+                ringConfig([null,null,[301,196],[166,274],[301,196],[301,196],[166,274],[166,274],null,null],2*Math.PI/3,[0,0,10,10,10,10,10,10,0,0]);
             } else if (v == 'j') {
                 cycle([2,4,5]);
                 cycle([3,6,7]);
+                ringConfig([null,null,[301,196],[166,274],[301,196],[301,196],[166,274],[166,274],null,null],-2*Math.PI/3,[0,0,10,10,10,10,10,10,0,0]);
             } else if (v == 'o') {
                 cycle([1,4,3]);
                 cycle([5,9,8]);
+                ringConfig([null,[211,196],null,[211,196],[211,196],[346,274],null,null,[346,274],[346,274]],2*Math.PI/3,[0,10,0,10,10,10,0,0,10,10]);
             } else if (v == 'l') {
                 cycle([1,3,4]);
                 cycle([5,8,9]);
+                ringConfig([null,[211,196],null,[211,196],[211,196],[346,274],null,null,[346,274],[346,274]],-2*Math.PI/3,[0,10,0,10,10,10,0,0,10,10]);
             } else if (v == ' ') {
                 for (var i=0; i<500; i++) {
                     keyDownHandler(['q','a','i','k','o','l','u','j'][Math.floor(Math.random()*8)],false);
                 }
+                ringFrame = [0,0,0,0,0,0,0,0,0,0];
                 starttime = time();
                 finished = false;
             }
@@ -139,9 +166,17 @@
         }
 
         for (var i=0; i<10; i++) {
-            disc((i==perm[i]?white:gray),xspots[i],yspots[i],15);
-            circle(black,xspots[i],yspots[i],15,1);
-            text(black,perm[i],xspots[i],yspots[i],20);
+            let x = xspots[i];
+            let y = yspots[i];
+            if (ringFrame[i] != 0) {
+                let newPoint = pointRotate([x,y],ringCenter[i],interpol[ringFrame[i]]*ringAngle);
+                x = Math.round(newPoint[0]);
+                y = Math.round(newPoint[1]);
+                ringFrame[i] -= 1;
+            }
+            disc((i==perm[i]?white:gray),x,y,15);
+            circle(black,x,y,15,1);
+            text(black,perm[i],x,y,20);
         }
         var done = true;
         for (var i=0; i<10; i++) {
