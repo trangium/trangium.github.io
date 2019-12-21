@@ -94,9 +94,9 @@
         }
         function keyDownHandler(e,keyfind=true) {
             if (keyfind) {
-                var v = e.key;
+                var v = e.key.toLowerCase();
             } else {
-                var v = e;
+                var v = e.toLowerCase();
             }
             if (v == 'q') {
                 cycle([8,7,3,1,2,5]);
@@ -136,6 +136,13 @@
                 starttime = time();
                 finished = false;
             }
+        }
+        function doMoves(moves) {
+            for (var i=0; i<moves.length; i++) {
+                keyDownHandler(moves[i],false);
+                console.log(moves[i]);
+            }
+            ringFrame = [0,0,0,0,0,0,0,0,0,0];
         }
         function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
