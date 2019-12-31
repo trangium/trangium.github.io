@@ -1,0 +1,567 @@
+<!doctype html>
+<!-- Copyright Davis Zetlan
+Dec-28-2019 -->
+<html>
+  <head>
+    <title>Present Finder v1.1</title>
+    <style>
+      #canvas {
+        border-style: double;
+        border-color: slateblue;
+        margin: auto;
+        display: block;
+      }
+    </style>
+    <script type="text/javascript">
+      window.addEventListener("keydown", keyPress, false);
+      window.addEventListener("keyup", keyNegate, false);
+      //setting up variables for later
+      var canvas;
+      var ctx;
+      
+      /*these are the maps that are drawn for the player. 
+      The last value of each map is the map's point threshold, which makes sure 
+      the player is transferred to the next map when finished. */
+      var map = [[0, 0, 0, 0, 0, 0, 0, 0, 0],
+      					 [0, 1, 1, 1, 1, 1, 1, 1, 0],
+                 [0, 1, 1, 1, 1, 1, 3, 1, 0],
+                 [0, 1, 1, 1, 1, 1, 1, 1, 0],
+                 [0, 1, 2, 1, 1, 1, 1, 1, 0],
+                 [0, 1, 1, 1, 1, 1, 1, 1, 0],
+                 [0, 1, 1, 1, 1, 1, 1, 1, 0],
+                 [0, 0, 0, 0, 0, 0, 0, 0, 0, 5],
+      					];
+                
+      var map2 = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      						[0, 1, 1, 1, 1, 1, 1, 1, 2, 1, 1, 0],
+                  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0],
+                  [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11],
+      					 ];
+      var map3 = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      						[0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 0, 1, 1, 1, 1, 1, 1, 3, 1, 0],
+                  [0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 3, 0],
+                  [0, 1, 0, 1, 1, 1, 1, 1, 3, 1, 1, 0],
+                  [0, 1, 0, 1, 1, 1, 1, 1, 1, 3, 1, 0],
+                  [0, 1, 0, 1, 1, 3, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 0, 1, 1, 1, 1, 1, 3, 1, 3, 0],
+                  [0, 1, 0, 1, 1, 1, 1, 3, 1, 3, 1, 0],
+                  [0, 1, 0, 1, 3, 1, 3, 1, 1, 1, 3, 0],
+                  [0, 1, 0, 1, 1, 1, 1, 1, 3, 1, 1, 0],
+                  [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+                  [0, 1, 1, 1, 1, 1, 1, 1, 1, 3, 1, 0],
+                  [0, 1, 1, 1, 1, 1, 3, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 18]
+      					 ];
+      var map4 = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      						[0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 2, 1, 1, 1, 1, 4, 1, 4, 0],
+                  [0, 1, 1, 1, 1, 1, 1, 1, 1, 2, 1, 0],
+                  [0, 1, 1, 1, 0, 3, 3, 0, 4, 1, 4, 0],
+                  [0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0],
+                  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 0],
+                  [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+                  [0, 1, 1, 1, 1, 1, 1, 0, 1, 2, 1, 0],
+                  [0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0],
+                  [0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 2, 0, 1, 1, 1, 1, 1, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 23],
+      					 ];
+      var map5 = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      						[0, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 0],
+                  [0, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 1, 3, 1, 1, 3, 1, 1, 0],
+                  [0, 1, 1, 3, 1, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 1, 4, 1, 4, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 3, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 1, 4, 1, 4, 1, 3, 1, 0],
+                  [0, 1, 3, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 1, 1, 1, 3, 1, 1, 1, 0],
+                  [0, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+                  [0, 1, 1, 1, 3, 1, 1, 1, 1, 1, 3, 0],
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, Infinity],
+      					 ];
+      
+      var solidSurfaces = [0, 3, 4];
+      var inviSurfaces = [1];
+      
+      var loadingMap = map;
+      var arrayValue;
+      var centerX;
+      var centerY;
+      var squareSize = 40;
+      //player attributes. a is the angle that the player is facing in degrees.
+      var x = (loadingMap[0].length * squareSize) / 2;
+      var y = (loadingMap.length * squareSize) / 2;
+      var a = 0;
+      var dx = 0;
+      var dy = 0;
+      var da = 0;
+      
+      var entitySpeed = (Math.round(4 * (squareSize * 0.025))) / 4;
+      var timer;
+      var dayLength = 12500;
+      var time = 0;
+      var points = 0;
+      
+      var cameraSpeed = 2;
+      var numOfRays = 640;
+      var fieldOfView = 80;
+      var rayDist = 200;
+      var rayStep = 1;
+      var heightLimit;
+      
+      var gameState = -1;
+      var yes = 0;
+      var cutsceneTime = 200;
+      
+      //all the colors used
+      var landColor = "#008800";
+      var stoneColor = "#494D5E";
+      var woodColor = "#AB6E05";
+      var pillarColor = "#CCCCFF";
+      var skyColor = "#AAAAFF";
+      var farmColor = "#916B2F";
+      var endingColor = "#FF00FF";
+      var startingColor = "#00FF00";
+      var blackColor = "#000000";
+      
+      var menuColor = "#333366";
+      var textColor = "#00FFCC";
+      var presentOneColor = "#FF00FF";
+      var presentTwoColor = "#00FFFF";
+      var playerColor = "#FF3333";
+      
+      var notMuch = 0;
+      var text = " ";
+      var additive = 1;
+      var presentFlashRate = 150;
+      var presentGenerationChance = 2 / (loadingMap[0].length * loadingMap.length);
+      var presentX;
+      var presentY;
+
+      var indicatorRadius = 25;
+      var indicatorLineWidth = 3;
+      
+      //text
+      var text2 = ["Collect Presents to win!"];
+
+      var menuText = ["Present Finder", "Press W to start!", "Use W A S and D to move", "Use the left and right arrow keys to control the camera", "press z to reset your position"];
+      
+      window.onload = setup;
+      // the initializing function.
+      function setup() {
+        setInterval(main, 15);
+        canvas = document.getElementById("canvas");
+        ctx = canvas.getContext("2d");
+
+        centerX = canvas.width / 2;
+        centerY = canvas.height / 2;
+        heightLimit = canvas.height * 0.3;
+      }
+      
+      function keyPress(h) {
+      	//37 and 39 are the arrow keys. 65, 68, 83, and 87 are the WASD keys.
+        //there is one switch statement that controls all the key presses
+      	switch (h.keyCode) { 
+        	//arrow keys
+    			case 37:
+        			da = -1 * cameraSpeed;
+        		break;
+          case 39:
+          	da = 1 * cameraSpeed;
+          	break;
+          
+          //wasd
+          case 87:
+          	if (gameState < 0) {
+            	gameState = 1;
+            }
+            dx = -1 * entitySpeed;
+          	break;
+          case 65:
+          	dy = -1 * entitySpeed;
+            break;
+          case 83:
+          	dx = entitySpeed;
+            break;
+          case 68:
+          	dy = entitySpeed;
+            break;
+          //z
+          case 90:
+          	if (yes >= cutsceneTime) {
+              loadingMap[loadingMap.length-1][loadingMap[loadingMap.length-1].length-1] = time;
+            	switch (loadingMap) {
+                case map:
+                  loadingMap = map2;
+                  break;
+                case map2:
+                  loadingMap = map3;
+                  break;
+                case map3:
+                  loadingMap = map4;
+                  break;
+                case map4:
+                  loadingMap = map5;
+                  break;
+              }
+              yes = 0;
+              time = 0;
+            }
+            x = (loadingMap[0].length * squareSize) / 2;
+            y = (loadingMap.length * squareSize) / 2;
+          	break;
+    		}
+      }
+      
+      function keyNegate(h) {
+      	switch (h.keyCode) {
+        	case 37:
+          	if (da < 0) {
+            	da = 0;
+            }
+            break;
+          case 39:
+          	if (da > 0) {
+            	da = 0;
+            }
+          	break;
+          case 87:
+          	if (dx < 0) {
+            	dx = 0;
+            }
+            break;
+          case 65:
+          	if (dy < 0) {
+            	dy = 0;
+            }
+            break;
+          case 83:
+          	if (dx > 0) {
+            	dx = 0;
+            }
+            break;
+          case 68:
+          	if (dy > 0) {
+            	dy = 0;
+            }
+            break;
+    		}
+      }
+      
+      function collectPresent() {
+      	//getting the players position
+      	var thisThing = Math.floor(y / squareSize);
+        var again = Math.floor(x / squareSize);
+      	var value = loadingMap[thisThing][again];
+        var doGeneration = 0;
+        //collecting present
+        if (value == 2) {
+        	loadingMap[thisThing][again] = 1;
+          points += 1;
+          doGeneration = 1;
+          if (loadingMap == map4) {
+            doGeneration = 0;
+          }
+          
+          if (points > loadingMap[loadingMap.length-1][loadingMap[loadingMap.length-1].length-1]) {
+          	yes = 1;
+          }
+        }
+        //generating a new present.
+        //as long as a new present doesn't exist, loop through the entire map
+        while (doGeneration == 1) {	
+          for (h=0;h<loadingMap.length;h++) {
+          	for (p=0;p<loadingMap[h].length;p++) {
+              //select a square at random, if it is not a solid surface, generate a present there.
+            	if (Math.random() < presentGenerationChance && loadingMap[h][p] != solidSurfaces[0] && loadingMap[h][p] != solidSurfaces[1]) {
+                loadingMap[h][p] = 2;
+                p = loadingMap[h].length + 1;
+                h = loadingMap.length + 1;
+                doGeneration = 0;
+              }
+            }
+          }
+        }
+      }
+
+      function anglePointer() {
+        var xPoint = canvas.width * 0.85;
+        var yPoint = canvas.height * 0.9;
+        var needyLength = indicatorRadius - 5;
+        var playerAngle = a * (Math.PI / 180);
+
+        /*I was originally going to put a feature in where there was 
+        an extra line on the compass showing where the present was. 
+        I removed it because I felt that it took away the exploration aspect, 
+        and made the player too focused on staring at the compass instead 
+        of the actual game. */
+
+        //the circle
+        ctx.beginPath();
+        ctx.strokeStyle = textColor;
+        ctx.ellipse(xPoint, yPoint, indicatorRadius, indicatorRadius, 0, 0, Math.PI * 2);
+        ctx.fillStyle = menuColor;
+        ctx.ellipse(xPoint, yPoint, indicatorRadius-3, indicatorRadius-3, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        //the compass line
+        ctx.beginPath();
+        ctx.lineWidth = indicatorLineWidth;
+        ctx.strokeStyle = playerColor;
+        ctx.moveTo(xPoint, yPoint);
+        ctx.lineTo(xPoint + needyLength * Math.cos(playerAngle), yPoint + needyLength * Math.sin(playerAngle));
+        ctx.stroke();       
+      }
+            
+      // drawMap is the function that turns the array above an image on the screen.
+      function drawMap() {
+      	/*the function is contained within a for loop. The system loops through each ray, 
+        gets the distance to an object, and draws a rectangle based on that object. 
+        In this way, it creates the illusion of 3d without being 3d. */
+        
+        //gets angle of each ray based on number of rays and FOV 
+        var startingAngle = a - (fieldOfView / 2);
+        var angleOffset = fieldOfView / numOfRays;
+        var pixelOffset = canvas.width / numOfRays;
+        var currentAngle = startingAngle % 360;
+        
+        var currentLength = 0.01;
+        var intersectLength = -1;
+        var intersectValue;
+        var done;
+        for (g=0;g<numOfRays;g++) {
+        //sends out ray, calculates angle
+        	var theta = startingAngle + g * (angleOffset);
+          var theta = theta % 360;
+          var theta = theta * (Math.PI / 180);
+          currentLength = 0;
+          done = 0;
+        	while (currentLength < rayDist && done != 1) {
+          	//calculate xy coordinates of the current ray, uses r sin theta and r cos theta to get xy coords
+            var rayX = x + (currentLength * Math.sin(theta));
+            var rayY = y + (currentLength * Math.cos(theta));
+            
+            var rayXSquare = Math.round(rayX / squareSize);
+            var rayYSquare = Math.round(rayY / squareSize);
+            //if the ray intersects, log the length of the ray and exit the while loop
+            var value = loadingMap[rayYSquare][rayXSquare];
+            if (value != inviSurfaces[0]) {
+              intersectValue = loadingMap[rayYSquare][rayXSquare];
+              done = 1;
+            }
+            //finally, step the ray forward
+          	currentLength += rayStep;
+          }
+        	//if the ray has intersected with something other than the walkable surfaces, draw that object
+          if (currentLength < rayDist) {
+        		var hei = (rayDist - currentLength) / rayDist;
+          	hei = hei * heightLimit;
+          	if (hei >= heightLimit) {
+          		hei = heightLimit;
+          	}
+            switch (intersectValue) {
+              case 2:
+              	if (time % presentFlashRate < presentFlashRate / 2) {
+                	ctx.fillStyle = presentOneColor;
+                } else {
+                	ctx.fillStyle = presentTwoColor;
+                }
+              	break;
+              case 3:
+                ctx.fillStyle = woodColor;
+                break;
+              case 4:
+                ctx.fillStyle = pillarColor;
+                break;
+              case 1:
+              default:
+              	ctx.fillStyle = stoneColor;
+              	break;
+            }
+            ctx.fillRect(pixelOffset * g, centerY - hei, pixelOffset, hei * 2);
+          }
+        }
+      }
+      
+      function drawMenu() {
+        ctx.textAlign = "left";   
+      	//draws main menu things
+        //this is messy, but whatever
+      	ctx.fillStyle = menuColor;
+        ctx.fillRect(0, canvas.height * 0.8, canvas.width, canvas.height * 0.2);
+        
+        ctx.fillStyle = textColor;
+        ctx.font = "20px Century Gothic";
+        ctx.fillText("Time elapsed: " + (time / 66.6666666).toFixed(2), 15, canvas.height * 0.95); 
+        ctx.fillText("Points: " + points, 15, canvas.height * 0.87);
+        
+        if (loadingMap == map) {
+        	ctx.font = "15px Century Gothic";
+        	ctx.fillText("Run into presents for points!", canvas.width * 0.4, canvas.height * 0.85);
+        	ctx.fillText("Explore to find them :)", canvas.width * 0.4, canvas.height * 0.9);
+        }
+        anglePointer();
+      }
+      
+      //this function is the main function that repeats every time the timer goes off. It is very important.
+      function main() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      	//gamestate -1 is just the splash screen. As such it is entirely text.
+        if (gameState < 0) {
+          ctx.fillStyle = menuColor;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+          ctx.fillStyle = textColor;
+          ctx.font = "45px Century Gothic";
+          ctx.textAlign = "center";
+          ctx.fillText(menuText[0], centerX - 5, 50);
+          ctx.font = "30px Century Gothic";
+          ctx.fillText(menuText[1], centerX, centerY);
+          ctx.font = "17px Century Gothic";
+          ctx.fillText(menuText[2], centerX, canvas.height * 0.73);
+          ctx.fillText(menuText[3], centerX, canvas.height * 0.8);
+          ctx.fillText(menuText[4], centerX, canvas.height * 0.87);
+        }
+        
+        if (gameState > 0) {
+          //drawing sky
+          ctx.fillStyle = skyColor;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);;
+          ctx.fillStyle = landColor;
+          ctx.fillRect(0, centerY, canvas.width, canvas.height);
+
+          //everything else
+          drawMap();
+          drawMenu();
+        	move();
+          collectPresent();
+          
+          if (yes > 0) {
+          	if (yes < cutsceneTime) {
+            	yes += 1;
+            }
+            ctx.globalAlpha = yes / cutsceneTime;
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.globalAlpha = 1;
+            ctx.textAlign = "center";
+            ctx.fillStyle = blackColor;
+            ctx.font = "15px Century Gothic";
+            if (loadingMap != map4) {
+              ctx.fillText("You got enough points to progress to the next level!", centerX, centerY);
+              ctx.fillText("Level time: " + (time / 66.6666666).toFixed(2), centerX, centerY + 30);
+              ctx.fillText("Press Z to continue", centerX, centerY + 60);
+            } else {
+              var totalTime = map[map.length-1][map[map.length-1].length-1] + 
+                              map2[map2.length-1][map2[map2.length-1].length-1] +
+                              map3[map3.length-1][map3[map3.length-1].length-1] +
+                              time;
+              ctx.fillText("You got enough points to finish the game!", centerX, centerY * 0.9);
+              ctx.fillText("You can walk around the field now or reset", centerX, centerY);
+              ctx.fillText("Level time: " + (time / 66.6666666).toFixed(2), canvas.width * 0.33333333333, centerY + 30);
+              ctx.fillText("Total time: " + (totalTime / 66.6666666).toFixed(2), canvas.width * 0.66666666666, centerY + 30);
+              ctx.fillText("Press Z to enter the field", centerX, centerY + 60);
+            }
+            
+          } else {
+          	time += 1;
+          }
+        }
+      }
+      
+      function move() {
+      	/*collision has to be handled for both x and y. The collision function 
+        applies velocity, than checks to see if the player intersects with any solid surfaces. 
+        If the player does intersect, it makes that not happen.
+        X and Y are seperated for a smoother system. */
+        
+        //turning the arrow keys into velocity
+        //this part looks complicated, but it's just incorporating a and d into the movement.
+        var effectiveA = a;
+        if (dx == 0 && dy != 0) {
+          if (dy > 0) {
+            effectiveA += 90;
+          } else {
+            effectiveA -= 90;
+          }
+        } else if (dx < 0 && dy != 0) {
+          if (dy > 0) {
+            effectiveA += 45;
+          } else {
+            effectiveA -= 45;
+          }
+        } else if (dx > 0 && dy != 0) {
+          if (dy > 0) {
+            effectiveA -= 45;
+          } else {
+            effectiveA += 45;
+          }
+        }
+        var theta = effectiveA * (Math.PI / 180);
+        var xChanged = x;
+        var yChanged = y;
+        var collides = 0;
+        
+        if (dx != 0) {
+        	xChanged = x - (dx * Math.sin(theta));
+          yChanged = y - (dx * Math.cos(theta));
+        } else if (dy != 0) {
+          xChanged = x - (-1.1 * Math.sin(theta));
+          yChanged = y - (-1.1 * Math.cos(theta));
+        }
+        //this part handles collision for x
+        arrayValue = loadingMap[Math.floor(y / squareSize)][Math.floor(xChanged / squareSize)];
+        
+        for (l=0; l < solidSurfaces.length; l++) {
+        	if (arrayValue == solidSurfaces[l]) {
+        		collides = 1;
+        	}
+        }
+        if (collides == 0) {
+        	x = xChanged;
+        }
+        
+        //and for y
+        collides = 0;
+        arrayValue = loadingMap[Math.floor(yChanged / squareSize)][Math.floor(x / squareSize)];
+        for (l=0; l < solidSurfaces.length; l++) {
+        	if (arrayValue == solidSurfaces[l]) {
+        		collides = 1;
+        	}
+        }
+        if (collides == 0) {
+        	y = yChanged;
+        }
+        //handling camera movement, which is simpler.
+        a += da;
+        a = a % 360;
+        if (a < 0) {
+        	a += 360;
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div>
+      <canvas id="canvas" width="640" height="480">
+      </canvas>
+    </div>
+  </body>
+</html>
