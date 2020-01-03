@@ -5,7 +5,7 @@ Jan-2-2019 -->
 <!-- x=10000, y=0 -->
 <html>
   <head>
-    <title>Sun Survivor v1.0</title>
+    <title>Sun Survivor v1.10</title>
     <style>
       #canvas {
         border-style: double;
@@ -156,7 +156,7 @@ Jan-2-2019 -->
                     ["Taking off, you reflect on all the people that will probably die", "because no plan was made for this, even though everybody", "knew it would happen hundreds of years in advance."],
                     ["As you are on your way out of the solar system however,", "one major problem is discovered:", "The ship's light speed travel is broken!"],
                     ["Now you must repair the broken engines (in grey/blue)", "with the ship's repair tool. (green)", "While managing the ship and your needs."],
-                    ["Use the arrow keys or WASD to manuever,", "Use shift to access your ship, and", "use Z to interact with objects inside your ship."],
+                    ["Use the arrow keys or WASD to manuever,", "Use the spacebar to access your ship, and", "use Z to interact with objects inside your ship."],
                     ["You died. To restart, refresh the page."],
                     ["Congratulations! You escaped from certain doom!", "To retry, refresh the page."]
       ];
@@ -387,8 +387,8 @@ Jan-2-2019 -->
           var asteroidVelX = dx;
           var asteroidVelY = dy;
           //take a weighted average of the velocities
-          var dxAverage = ((4 * this.dx) + asteroidVelX) / 5;
-          var dyAverage = ((4 * this.dy) + asteroidVelY) / 5;
+          var dxAverage = ((6 * this.dx) + asteroidVelX) / 7;
+          var dyAverage = ((6 * this.dy) + asteroidVelY) / 7;
           //with this, distances can be negative, but it doesn't matter because I square them anyways
           var xSunDist = this.x - sun.x;
           var ySunDist = this.y - sun.y;
@@ -401,11 +401,12 @@ Jan-2-2019 -->
           this.pow += powerIncrement * 16;
 
           /*if the player has collided in a range that suggests being in the belt area, 
-          (36-50 sun radii) make the game spawn a new belt object */
+          (36-50 sun radii) make the game spawn a new belt object 
+          Belt objects also give the player more charge*/
           console.log(dist, sun.r * 18, sun.r * 25);
           if (dist > (sun.r * 18) && dist < (sun.r * 25)) {
             beltCreated -= 1;
-            this.pow += powerIncrement * 1024;
+            this.pow += powerIncrement * 512;
           }
         }
 
@@ -551,15 +552,19 @@ Jan-2-2019 -->
       function keyPress(h) {
       	switch (h.keyCode) { 
         	//arrow keys + WASD
+          case 65:
     			case 37:
             character.ax = -1 * entitySpeed;
         		break;
+          case 87:
           case 38:
             character.ay = -1 * entitySpeed;
             break;
+          case 68:
           case 39:
           	character.ax = 1 * entitySpeed;
           	break;
+          case 83:
           case 40:
             character.ay = 1 * entitySpeed;
             break;
@@ -568,10 +573,12 @@ Jan-2-2019 -->
 
           //special operations
           //shift
-          case 16:
+          case 32:
             if (gameState > 0) {
               gameState = 2;
-              menuPos = 1;
+              if (menuPos > 1) {
+              	menuPos = 1;
+              }
               if (dt == dtBase) {
                 dt = dtBase * dtMult;
               }
@@ -638,27 +645,31 @@ Jan-2-2019 -->
       through the gravity function, stored inside the bodies. */
       function keyNegate(h) {
       	switch (h.keyCode) {
+          case 65:
           case 37:
             if (character.ax < 0) {
               character.ax = 0;
             }
             break;
+          case 87:
           case 38:
             if (character.ay < 0) {
               character.ay = 0;
             }
             break;
+          case 68:
           case 39:
             if (character.ax > 0) {
               character.ax = 0;
             }
             break;
+          case 83:
           case 40:
             if (character.ay > 0) {
               character.ay = 0;
             }
             break;
-          case 16:
+          case 32:
             if (gameState > 0) {
               gameState = 1;
               if (dt == dtBase * dtMult) {
