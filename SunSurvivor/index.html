@@ -2,10 +2,9 @@
 <!-- Copyright Davis Zetlan
 Jan-2-2019 -->
 
-<!-- x=10000, y=0 -->
 <html>
   <head>
-    <title>Sun Survivor v1.10</title>
+    <title>Sun Survivor v1.3</title>
     <style>
       #canvas {
         border-style: double;
@@ -47,7 +46,7 @@ Jan-2-2019 -->
                      [9, 9, 9, 9, 9, 9, 9, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0], 
                      [9, 9, 9, 9, 9, 9, 9, 9, 9, 0, 0, 0, 0, 0, 0, 0]
       					     ];
-      var solidSurfaces = [0, 4, 5, 6, 7];
+      var solidSurfaces = [0, 4, 5, 6, 6.5, 7];
       var cornerCoords = [0, 0, 0, 0];
       
       var loadingMap = shipMap;
@@ -74,6 +73,7 @@ Jan-2-2019 -->
       var maxRepairPower = 50;
       var repaired = 0;
       var repairsRequired = 0;
+      var failedRepair = 0;
 
       var buttonPos = [undefined, undefined];
 
@@ -94,6 +94,7 @@ Jan-2-2019 -->
       var debStartNum = 100;
       var maxDebris = 850;
       var maxBelt = 450;
+      var beltV = 1.56;
       var beltCreated = 0;
       
       //all the colors used
@@ -155,7 +156,7 @@ Jan-2-2019 -->
                     ["You quickly board your spaceship."],
                     ["Taking off, you reflect on all the people that will probably die", "because no plan was made for this, even though everybody", "knew it would happen hundreds of years in advance."],
                     ["As you are on your way out of the solar system however,", "one major problem is discovered:", "The ship's light speed travel is broken!"],
-                    ["Now you must repair the broken engines (in grey/blue)", "with the ship's repair tool. (green)", "While managing the ship and your needs."],
+                    ["Now you must repair the broken engines (in grey)", "with the ship's repair tool, (green)", "while managing needs such as solar power and temperature."],
                     ["Use the arrow keys or WASD to manuever,", "Use the spacebar to access your ship, and", "use Z to interact with objects inside your ship."],
                     ["You died. To restart, refresh the page."],
                     ["Congratulations! You escaped from certain doom!", "To retry, refresh the page."]
@@ -164,6 +165,9 @@ Jan-2-2019 -->
       var menuText = ["Sun Survivor", "Press Z!"];
 
       var barsText = ["Power: ", "Temperature: ", "Fuel: ", "Time Until Explosion: ", "Repair Power: "];
+      
+      var failedRepairText = ["The repair tool has too little power to repair any more.", 
+      												"Return to the charger to recharge the repair tool."];
 
       //classes exist here, oh boy!
       var sunX;
@@ -252,8 +256,8 @@ Jan-2-2019 -->
           this.x = x;
           this.y = y;
           if (dx === undefined || dy === undefined) {
-            this.dx = (Math.random() - 0.5) * (10 / Math.abs(this.x / 750));
-            this.dy = (Math.random() - 0.5) * (10 / Math.abs(this.x / 750));
+            this.dx = (Math.random() - 0.7) * (9 / Math.abs(this.x / 750));
+            this.dy = (Math.random() - 0.7) * (9 / Math.abs(this.x / 750));
           } else {
             this.dx = dx;
             this.dy = dy;
@@ -443,6 +447,7 @@ Jan-2-2019 -->
           ctx.beginPath();
           ctx.ellipse(this.x - cx, this.y - cy, 5, 5, 0, 0, Math.PI * 2);
           ctx.fill();
+          
 
           //drawing teleport beam
           if (this.tele > 0) {
@@ -515,7 +520,7 @@ Jan-2-2019 -->
         centerY = canvas.height / 2;
 
         sun = new Body(centerX, centerY, 100000, 100, sunColor, 1, 0, 0);
-        earth = new Body(sun.x + (sun.r * 10.5), sun.y, 2000, 15, startingColor, 0, 0, -2.2);
+        earth = new Body(sun.x + (sun.r * 9.5), sun.y, 2000, 15, startingColor, 0, 0, -2.25);
         mercury = new Body(sun.x - (sun.r * 2), sun.y, 1500, 10, mercColor, 0, 0, 5.3);
         bh = new Body(10000, 0, 200000, 50, blackColor, 1, 0, 0);
 
@@ -523,7 +528,7 @@ Jan-2-2019 -->
 
         //populating the debris field
         for (jc=0;jc<debStartNum;jc++) {
-          debrisBits.push(new Debris(canvas.width * (1 + (Math.random() - 0.5) * 0.3), canvas.height * (0.5 + (Math.random() - 0.5) * 0.3)));
+          debrisBits.push(new Debris(sun.x + ((Math.random() - 0.5) * 700), sun.y + ((Math.random() - 0.5) * 700)));
         }
         
         //finding the button
@@ -592,7 +597,7 @@ Jan-2-2019 -->
             if (gameState == 0 && beltCreated == 0) {
               time += 1;
             }
-            if (gameState > 0) {
+            if (gameState == 2) {
               var didIt;
               var switched = 0;
               //if the player has repaired everything, attempt to finish the game
@@ -614,14 +619,21 @@ Jan-2-2019 -->
                 didIt = squareMod(6.5, 6);
                 if (didIt != 4) {
                   character.toolPos = 0;
-                } else if (character.toolPower >= repairPower){
-                  didIt = squareMod(4, 5);
+                  //attempting to repair
+                } else {
+                  didIt = squareMod(4, 4);
                   if (didIt != 4) {
-                    character.toolPower -= repairPower;
-                    repairsRequired -= 1;
-                    //if no repairs are left, then activate the button in the center
-                    if (repairsRequired < 1) {
-                      loadingMap[buttonPos[0]][buttonPos[1]] = 7;
+                  	if (character.toolPower >= repairPower) {
+                    	character.toolPower -= repairPower;
+                      squareMod(4, 5);
+                    	repairsRequired -= 1;
+                      //if no repairs are left, then activate the button in the center
+                      if (repairsRequired < 1) {
+                      	loadingMap[buttonPos[0]][buttonPos[1]] = 7;
+                   	  }
+                    } else {
+                    	//if the power is too low, then if the player can repair, alert the player
+                    	failedRepair = 1;
                     }
                   }
                 }
@@ -741,24 +753,50 @@ Jan-2-2019 -->
 
           //adding debris, as they run into or out of the universe rather often
           if (debrisBits.length < maxDebris) {
-            if (time % 50 == 0) {
+            if (time % 30 == 1) {
               //random dust
               var posX = sun.x + ((Math.random() - 0.5) * 2000);
               var posY = sun.y + ((Math.random() - 0.5) * 2000);
               debrisBits.push(new Debris(posX, posY));
             }
             
-            if (time % 20 == 0 && beltCreated < maxBelt) {
-              //debris belt
-              var beltR = sun.r * 21
-              var beltX = sun.x + beltR + ((Math.random() - 0.5) * 100);
-              var otherBeltX = sun.x - beltR + ((Math.random() - 0.5) * 100);
-              var beltY = sun.y + ((Math.random() - 0.5) * 100);
+            if (beltCreated < maxBelt) {
+            	
+              //first gets avg position of belt (beltR)
+              var beltMult = 21;
+              var beltR = sun.r * beltMult;
+              
+              //while loop picks an xy point inside the belt range
+              var choseX = 0;
+              var choseY = 0;
+              var choseR = 0;
+              
+              var xDist = 0;
+              var yDist = 0;
+              
+              //if the point is more than 3 sun-radii away from the avg belt area, it isn't a valid point
+              //pick a random point on the circle
+              var angle = Math.floor(Math.random() * 360);
+              angle = angle * (Math.PI / 180);
+              var circlePoint = [sun.x + (beltR * Math.sin(angle)), sun.y + (beltR * Math.cos(angle))];
 
-              debrisBits.push(new Debris(beltX, beltY, 0, -1.56));
-              debrisBits.push(new Debris(otherBeltX, beltY, 0, 1.56));
+              //give the point a random offset
+              choseX = circlePoint[0] + ((Math.random() - 0.5) * sun.r);
+              choseY = circlePoint[1] + ((Math.random() - 0.5) * sun.r);
 
-              beltCreated += 2;
+              //split into x and y distances
+              xDist = choseX - sun.x;
+              yDist = choseY - sun.y;
+              /* Next the velocity needs to be gotten. Here we can turn to my good old friend atan2. */
+              var velAngle = (Math.PI / 2) + Math.atan2(xDist, yDist);
+
+              var choseVelX = beltV * Math.sin(velAngle);
+              var choseVelY = beltV * Math.cos(velAngle);
+              
+              //finally spawn the debris
+              debrisBits.push(new Debris(choseX, choseY, choseVelX, choseVelY));
+
+              beltCreated += 1;
             }
           }
           //ticking everything
@@ -766,9 +804,10 @@ Jan-2-2019 -->
 
           //time based things, adding time and then making the sun expand if doom time is happening.
           time += 1 / dt;
+          failedRepair -= 0.00390625;
           timeLeft = timeUntilExplosion - time;
           if (timeLeft < 0) {
-            sun.r += 1 / dt;
+            sun.r *= 1.00625 / dt;
             sun.m *= 1.0125 / dt;
           }
           
@@ -867,12 +906,6 @@ Jan-2-2019 -->
           ctx.fillText(barsText[4], canvas.width * 0.45, canvas.height * (1 - (menuPos + 0.13)));
           
           //timer and effects
-          
-          if (timeLeft < 0) {
-            timeLeft = 0;
-            ctx.globalAlpha = Math.floor((time % cutsceneTime / (cutsceneTime / 2)));
-          }
-          ;
 
           ctx.globalAlpha = 1;
           //meters now
@@ -907,14 +940,29 @@ Jan-2-2019 -->
 
           //repair power
           drawMeter(meterX * 1.75, canvas.height * (1 - (menuPos + 0.16)), meterWidth / 2, meterHeight, character.toolPower, 0, 50, toolColor);
-
+          
+          //making timer flash
+          var timeDisplay = timeLeft;
+          if (timeLeft < 0) {
+            timeDisplay = 0;
+            ctx.globalAlpha = Math.floor((time % (cutsceneTime / 3) / (cutsceneTime / 6)));
+          };
           //time is not a meter, but drawing it here anyways
-          ctx.fillText((timeLeft / 66.666666666).toFixed(2), canvas.width * 0.325, canvas.height * (1 - (menuPos + 0.13)))
-
-          
-          
+          ctx.fillText((timeDisplay / 66.666666666).toFixed(2), canvas.width * 0.325, canvas.height * (1 - (menuPos + 0.13)))
+          ctx.globalAlpha = 1;
         } else {
           menuPos = 1;
+        }
+        //draw the failed repair text if necessary
+        if (failedRepair > 0 && gameState == 2) {
+        	if (gameState == 2) {
+          	ctx.fillStyle = sunColor;
+        		ctx.globalAlpha = failedRepair;
+          	ctx.textAlign = "center";
+          	ctx.fillText(failedRepairText[0], canvas.width * 0.5, canvas.height * 0.3);
+          	ctx.fillText(failedRepairText[1], canvas.width * 0.5, canvas.height * 0.35);
+          	ctx.globalAlpha = 1;
+          }
         }
         //sun-dial gets drawn no matter what
           var dialX = canvas.width * 0.9;
@@ -931,6 +979,19 @@ Jan-2-2019 -->
           ctx.moveTo(dialX, dialY);
           ctx.lineTo(dialX + (l * Math.sin(angle)), dialY + (l * Math.cos(angle)));
           ctx.stroke();
+          
+        //if doomsday is happening, color the screen accordingly, kill the player if too much time has passed
+        if (timeLeft < 0) {
+        	ctx.globalAlpha = Math.abs(timeLeft) / (cutsceneTime * 4);
+          ctx.fillStyle = sunColor;
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          if (-1 * timeLeft > cutsceneTime * 4) {
+            gameState = 0;
+            time = 10;
+          }
+          ctx.globalAlpha = 1;
+          ctx.fillStyle = textColor;
+        }
       }
 
       function drawShip() {
@@ -1032,6 +1093,13 @@ Jan-2-2019 -->
         ctx.fillStyle = characterColor;
         ctx.ellipse(centerX, centerY, 5, 5, 0, 0, Math.PI * 2);
         ctx.fill();
+        
+        //drawing the repair tool
+        if (character.toolPos == 1) {
+        	ctx.beginPath();
+          ctx.fillStyle = repairColor;
+          ctx.fillRect(centerX-10, centerY-10, 5, 20);
+        }
 
       }
 
@@ -1094,6 +1162,7 @@ Jan-2-2019 -->
     <div>
       <canvas id="canvas" width="640" height="480">
       </canvas>
+      <!-- x=10000, y=0 -->
     </div>
   </body>
 </html>
