@@ -126,6 +126,12 @@
             let relativeX = e.clientX - canvas.offsetLeft;
             paddleX = Math.min(canvas.width-paddleWidth,Math.max(0,relativeX - paddleWidth/2));
         }
+
+        function touchMoveHandler(e) {
+            let relativeX = e.touches[0].screenX - canvas.offsetLeft;
+            paddleX = Math.min(canvas.width-paddleWidth,Math.max(0,relativeX - paddleWidth/2));
+        }
+
         function collisionDetection() {
             for (let c = 0; c < brickColumnCount; c++) {
                 for (let r = 0; r < brickRowCount; r++) {
@@ -203,6 +209,7 @@
         document.addEventListener("mousemove", mouseMoveHandler, false);
         document.addEventListener("keydown", keyDownHandler, false);
         document.addEventListener("keyup", keyUpHandler, false);
+        document.addEventListener("touchmove", touchMoveHandler, false);
         draw();
     </script>
 <p style="font-family: 'Century Gothic', 'MS Sans Serif', arial; font-size: 24px; text-align:left; line-height:150%; margin:0px; color:#000000; clear:both;"><center>
