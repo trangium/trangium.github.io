@@ -107,8 +107,7 @@
         }
 
         function touchMoveHandler(e) {
-            let relativeX = e.touchX - canvas.offsetLeft;
-            alert(relativeX);
+            let relativeX = e.touches[0].screenX - canvas.offsetLeft;
             paddleX = Math.min(canvas.width-paddleWidth,Math.max(0,relativeX - paddleWidth/2));
         }
 
