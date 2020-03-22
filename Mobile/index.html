@@ -106,9 +106,9 @@
             ctx.fillText("Lives: "+lives, 210, 20);
         }
 
-        function touchStartHandler(e) {
-            paddleX += 10;
-            alert(e.touches[0].screenX);
+        function touchMoveHandler(e) {
+            let relativeX = e.touchX - canvas.offsetLeft;
+            paddleX = Math.min(canvas.width-paddleWidth,Math.max(0,relativeX - paddleWidth/2));
         }
 
         function collisionDetection() {
@@ -185,7 +185,7 @@
             }
             requestAnimationFrame(draw);
         }
-        document.addEventListener("touchstart", touchStartHandler, false);
+        document.addEventListener("touchMove", touchMoveHandler, false);
         draw();
     </script>
 <p style="font-family: 'Century Gothic', 'MS Sans Serif', arial; font-size: 24px; text-align:left; line-height:150%; margin:0px; color:#000000; clear:both;"><center>
