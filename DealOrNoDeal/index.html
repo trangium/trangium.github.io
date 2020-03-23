@@ -132,8 +132,14 @@
         }
 
         function mouseDownHandler(e) {
-            let relativeX = e.clientX - canvas.offsetLeft;
-            let relativeY = e.clientY - canvas.offsetTop;
+            screenEvent(e.clientX - canvas.offsetLeft, e.clientY - canvas.offsetTop);
+        }
+        
+        function touchStartHandler(e) {
+            screenEvent(e.touches[0].screenX - canvas.offsetLeft, e.touches[0].screenY - canvas.offsetTop);
+        }
+
+        function screenEvent(relativeX,relativeY) {
             let arr = pyToGrid(relativeX,relativeY);
             let x = arr[0];
             let y = arr[1];
@@ -268,6 +274,7 @@
         }
 
         document.addEventListener("mousedown", mouseDownHandler, false);
+        document.addEventListener("touchstart", touchStartHandler, false);
         draw();
         
     </script>
