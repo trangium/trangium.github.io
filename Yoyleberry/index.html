@@ -8,10 +8,13 @@
             position: relative;
             bottom: 22px;
         }
-        table, th, td { 
+        table, th, td {
             border: 2px solid black; 
             border-collapse: collapse; 
         } 
+        th, td {
+            padding: 2px;
+        }
     </style> 
     </style>
 </head>
@@ -27,85 +30,92 @@
                 <th>Name</th>
                 <th>Image</th>
                 <th>Algorithm</th>
+                <th>Probability</th>
                 <th>Comments</th>
             </tr>
             <tr>
                 <td>Solved</td>
                 <td><img src="checkerL.png"> <img src="checkerL.png"></td>
                 <td>N/A</td>
-                <td>2.86% skip chance.</td>
+                <td>2.86%</td>
+                <td>1 in 35 skip chance.</td>
             </tr>
             <tr>
                 <td>Left Feet</td>
                 <td><img src="leftfootU.png"> <img src="leftfootD.png"></td>
-                <td>/ U' / U' / D </td>
-                <td>11.43% probability.</td>
+                <td>/ U' / U' /</td>
+                <td>11.43%</td>
+                <td></td>
             </tr>
             <tr>
                 <td>Right Feet</td>
                 <td><img src="rightfootU.png"> <img src="rightfootD.png"></td>
-                <td>/ U / U / D</td>
-                <td>11.43% probability. Mirror of Left Feet.</td>
+                <td>/ U / U /</td>
+                <td>11.43%</td>
+                <td>Mirror of Left Feet.</td>
             </tr>
             <tr>
                 <td>Opp. Feet</td>
                 <td><img src="oppfeetU.png"> <img src="rightfootD.png"></td>
-                <td>/ U5' / D</td>
-                <td>22.86% probability - the most common case.</td>
+                <td>/ U5' /</td>
+                <td>22.86%</td>
+                <td>The most common case.</td>
             </tr>
             <tr>
                 <td>Left Crowbar</td>
                 <td><img src="leftcrowbarU.png"> <img src="leftcrowbarD.png"></td>
-                <td>/ U / U' / U</td>
-                <td>5.71% probability.</td>
+                <td>/ U / U' /</td>
+                <td>5.71%</td>
+                <td></td>
             </tr>
             <tr>
                 <td>Right Crowbar</td>
                 <td><img src="leftcrowbarU.png"> <img src="rightcrowbarD.png"></td>
                 <td>/ U' / U / U</td>
-                <td>5.71% probability. Mirror of Left Crowbar.</td>
+                <td>5.71%</td>
+                <td>Mirror of Left Crowbar.</td>
             </tr>
             <tr>
                 <td>Matching Blocks</td>
                 <td><img src="barrel_u4.png"> <img src="blocksD.png"></td>
                 <td>/ U' D' / U </td>
-                <td>2.86% probability. Can be performed from any angle.</td>
+                <td>2.86%</td>
+                <td>Can be performed from any angle.</td>
             </tr>
             <tr>
                 <td>Blocolumns</td>
                 <td><img src="blocolumnsU.png"> <img src="leftcrowbarU.png"></td>
                 <td>/ U' / U5 D / U </td>
-                <td>11.43% probability.</td>
+                <td>11.43%</td>
+                <td></td>
             </tr>
             <tr>
                 <td>Opp. Blocks</td>
                 <td><img src="blocolumnsU.png"> <img src="oppblocksD.png"></td>
                 <td>/ U' / U' D' / U</td>
-                <td>5.71% probability. Obvious slice into Matching Blocks.</td>
+                <td>5.71%</td>
+                <td>Lateral slice into Matching Blocks.</td>
             </tr>
             <tr>
-                <td>Left Lock</td>
-                <td><img src="leftcrowbarD.png"> <img src="leftlockD.png"></td>
-                <td>/ U / D5' / U</td>
-                <td>5.71% probability. Simple slice into Opp. Feet.</td>
-            </tr>
-            <tr>
-                <td>Right Lock</td>
+                <td>Lock</td>
                 <td><img src="rightcrowbarD.png"> <img src="blocolumnsU.png"></td>
                 <td>/ U' / D5 / U</td>
-                <td>5.71% probability. Mirror of Left Lock.</td>
+                <td>11.43%</td>
+                <td>Lateral slice into Opp. Feet.</td>
             </tr>
             <tr>
                 <td>Columns</td>
                 <td><img src="leftcrowbarU.png"> <img src="columnsD.png"></td>
                 <td>/ U / U' D' / U</td>
-                <td>5.71% probability. Slice into Matching Blocks.</td>
+                <td>5.71%</td>
+                <td>Central slice into Matching Blocks.</td>
             </tr>
             <tr>
                 <td>Antipode</td>
                 <td><img src="leftcrowbarD.png"> <img src="antipodeD.png"></td>
                 <td>/ U D / U / U' D' / U</td>
-                <td>2.86% probability. Slice into Columns.</td>
+                <td>2.86%</td>
+                <td>Lateral slice into Columns.</td>
             </tr>
         </table> <br>
         Step 3: Corner-Edge Pairs: All 8 edges need to be paired with their respective corner. 
@@ -123,9 +133,18 @@
                 <td>/ U / D / U' / U2 / D' / D / U2' D'</td>
             </tr>
             <tr>
-                <td>4 ⟷ 5</td>
-                <td>U2' / U / D' / U2' / U' / U2' / U2' / U' D /</td>
+                <td>2 ⟷ 3</td>
+                <td>/ U / D' / U2' / U' / U2' / U2' / U' D / U2'</td>
             </tr>
+            <tr>
+                <td>1 ⟷ 5</td>
+                <td>/ U2' / D2' / U2 / U2' / U2' D2 / U2 / U2'</td>
+            </tr>
+            <tr>
+                <td>1 ⟷ 4</td>
+                <td>/ D U2' / D' U2 / U / U2' D / U2 D' / U2</td>
+            </tr>
+            
             <tr>
                 <td>10 → 6 → 2 → 10; 1 ⟷ 3</td>
                 <td>/ U2' / U2 / U2</td>
@@ -138,8 +157,57 @@
                 <td>10 → 3 → 4 → 10</td>
                 <td>/ D' / U / U' / D</td>
             </tr>
+        </table> <br>
+        Step 4: Square-0 <br>
+        The notation is different again: since only 90-degree turns are used, a 90-degree turn is U/D.
+        <ol type="a">
+            <li> Get back into cubeshape: / U D / does the trick. It's possible to learn all ~100-ish algs to solve all of step 4 with one alg, but these algs are not listed. </li>
+            <li> PBL: Solve the whole thing! 
+        </ol>
+        <table style="width:100%">
+            <tr>
+                <th width="120px">Name</th>
+                <th width="240px">Algorithm</th>
+                <th>Probability</th>
+                <th>Comments</th>
+            </tr>
+            <tr>
+                <td>Solved</td>
+                <td>N/A</td>
+                <td>2.78%</td>
+                <td>1 in 36 skip chance</td>
+            </tr>
+            <tr>
+                <td>N+N</td>
+                <td>/ U D' / U' D /</td>
+                <td>2.78%</td>
+                <td>This case can actually be avoided by doing a U2 before going back into cubeshape.</td>
+            </tr>
+            <tr>
+                <td>J+J</td>
+                <td>/ U' / U' D' / U' /</td>
+                <td>44.44%</td>
+                <td>Put the solved bars in the back.</td>
+            </tr>
+            <tr>
+                <td>N+J</td>
+                <td>/ U' / U / U' / U /</td>
+                <td>22.22%</td>
+                <td>Put the solved bar in the bottom-left.</td>
+            </tr>
+            <tr>
+                <td>Pure J</td>
+                <td>/ U / U' / U' D / U' / U / </td>
+                <td>22.22%</td>
+                <td>Put the unsolved pieces in the top-right, like a normal J-perm.</td>
+            </tr>
+            <tr>
+                <td>Pure N</td>
+                <td>/ U' D' / U / U' D' / U / U' D' /</td>
+                <td>5.56%</td>
+                <td>This is arguably the worst PBL, but it's easy to remember: ( / U' D' / U )x3 </td>
+            </tr>
         </table>
-        
     </div>
 </body>
 
