@@ -25,7 +25,7 @@
         Step 1: Get into Barrel-Barrel. This can always be done in 6 or fewer slices. A basic method to do this step is to get all 8 edges next to each other, then do / U2 D4 /. <br>
         <div> <img src="together.png"> <img src="star.png"> <span class="raised">→</span> <img src="barrel_u2.png"> <img src="barrel_u2.png"> </div>
         Step 2: Edge Checkering: The 4 edge pairs need to be all yellow-white or all white-yellow. Requires 12 algorithms (9 excluding mirrors). <br><br>
-        <table style="width:100%">
+        <table>
             <tr>
                 <th>Name</th>
                 <th>Image</th>
@@ -118,33 +118,75 @@
                 <td>Lateral slice into Columns.</td>
             </tr>
         </table> <br>
-        Step 3: Corner-Edge Pairs: All 8 edges need to be paired with their respective corner. 
+        Step 3: Corner-Edge Pairs: All 8 edges need to be paired with their respective corner. The notation is different here: since 30-degree turns are impossible, a 60-degree turn is U/D.
         <ol type="a">
-            <li> Pair 3 edges on the bottom layer: Intuitive. </li>
-            <li> Pair remaining 5 edges using a series of swaps. Only the first algorithm is necessary to solve any L5P case. The notation is different here: since 30-degree turns are impossible, a 60-degree turn is U/D.<br></li>
+            <li>Pair 3 edges on the bottom layer: Intuitive. </li>
+            <li>Pair the 4th edge on the bottom layer and get into Barrel-Barrel.</li>
+            <li>Pair the remaining 4 edges on the top layer. Requires 13 algorithms (10 excluding mirrors).<br></li>
         </ol>
-        <table style="width:100%">
+        <table>
             <tr>
-                <th>Case (1 = UFL, 2 = UL...)</th>
+                <th>Case</th>
                 <th>Algorithm</th>
             </tr>
             <tr>
-                <td>10 ⟷ 4</td>
-                <td>/ U / D / U' / U2 / D' / D / U2' D'</td>
-            </tr>
-            <tr>
-                <td>2 ⟷ 3</td>
+                <td>Adj: 2 ⟷ 3</td>
                 <td>/ U / D' / U2' / U' / U2' / U2' / U' D / U2'</td>
             </tr>
             <tr>
-                <td>1 ⟷ 5</td>
+                <td>Opp: 1 ⟷ 5</td>
                 <td>/ U2' / D2' / U2 / U2' / U2' D2 / U2 / U2'</td>
             </tr>
             <tr>
-                <td>1 ⟷ 4</td>
+                <td>Diag: 1 ⟷ 4</td>
                 <td>/ D U2' / D' U2 / U / U2' D / U2 D' / U2</td>
             </tr>
-            
+            <tr>
+                <td>D perm: 6 → 2 → 3 → 6</td>
+                <td>/ U2 D / U' / U / D' / U2 /</td>
+            </tr>
+            <tr>
+                <td>D' perm: 6 → 3 → 2 → 6</td>
+                <td>/ U2' / D / U' / U / D' U2 /</td>
+            </tr>
+            <tr>
+                <td>A perm: 1 → 2 → 4 → 1</td>
+                <td>/ U2 / D' / U / U' / D U2' /</td>
+            </tr>
+            <tr>
+                <td>A' perm: 1 → 4 → 2 → 1</td>
+                <td>/ U2 D' / U / U' / D / U2' /</td>
+            </tr>
+            <tr>
+                <td>O perm: 1 → 2 → 4 → 5 → 1</td>
+                <td>/ U / U / U' / D / U' / U / D' /</td>
+            </tr>
+            <tr>
+                <td>O' perm: 1 → 5 → 4 → 2 → 1</td>
+                <td>/ D / U' / U / D' / U / U' / U' /</td>
+            </tr>
+            <tr>
+                <td>W perm: 2 → 3 → 6 → 5 → 2</td>
+                <td>/ U2 / U2' / U' / U' / U2' / U / U3</td>
+            </tr>
+            <tr>
+                <td>N perm: 1 → 4 → 6 → 3 → 1</td>
+                <td>/ U2 / U2' / U' / U2 / U / U' / U2' / U2'</td>
+            </tr>
+            <tr>
+                <td>E perm: 1 ⟷ 2; 4 ⟷ 5</td>
+                <td>/ D' U' / U' / U D / D' / U D /</td>
+            </tr>
+            <tr>
+                <td>H perm: 1 ⟷ 3; 4 ⟷ 6</td>
+                <td>/ D U / U2 / U' D' / U' D / U' D' /</td>
+            </tr>
+        </table> <br>
+        <table>
+            <tr>
+                <th>Extra Case</th>
+                <th>Algorithm</th>
+            </tr>
             <tr>
                 <td>10 → 6 → 2 → 10; 1 ⟷ 3</td>
                 <td>/ U2' / U2 / U2</td>
@@ -199,7 +241,7 @@
                 <td>Pure J</td>
                 <td>/ U / U' / U' D / U' / U / </td>
                 <td>22.22%</td>
-                <td>Put the unsolved pieces in the top-right, like a normal J-perm.</td>
+                <td>Put the unsolved pieces in the top-right, like a normal J perm.</td>
             </tr>
             <tr>
                 <td>Pure N</td>
