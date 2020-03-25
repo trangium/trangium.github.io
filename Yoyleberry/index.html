@@ -3,20 +3,143 @@
 
 <head>
     <style>
-        .arrow {
+        .raised {
             display: inline-block;
             position: relative;
             bottom: 22px;
         }
+        table, th, td { 
+            border: 2px solid black; 
+            border-collapse: collapse; 
+        } 
+    </style> 
     </style>
 </head>
 
 <body>
-    <div style="font-family: 'Century Gothic', 'MS Sans Serif', arial; font-size: 24px; text-align:left; line-height:150%; margin:0px; color:#000000; clear:both;">
-        <strong>Yoyleberry Method </strong><br><br>
-        Step 1: Get into Barrel-Barrel. Can always be done in 6 or fewer slices. A beginner method to do this step is to get all 8 edges next to each other, then do / U2 D4 /. <br>
-        <div class="diagram"> <img src="together.gif"> <img src="star.gif"> <span class="arrow">→</span> <img src="barrel.gif"> <img src="barrel.gif"> </div> <br>
-        Step 2: Edge Checkering: The 4 edge pairs need to be all yellow-white or all white-yellow. Requires 12 algorithms (9 excluding mirrors).
+    <div style="font-family: 'Century Gothic', 'MS Sans Serif', 'arial'; font-size: 24px; text-align:left; line-height:150%; margin:0px; color:#000000; clear:both;">
+        <strong>Yoyleberry Method (A Variation)</strong><br><br>
+        Step 1: Get into Barrel-Barrel. This can always be done in 6 or fewer slices. A basic method to do this step is to get all 8 edges next to each other, then do / U2 D4 /. <br>
+        <div> <img src="together.png"> <img src="star.png"> <span class="raised">→</span> <img src="barrel_u2.png"> <img src="barrel_u2.png"> </div>
+        Step 2: Edge Checkering: The 4 edge pairs need to be all yellow-white or all white-yellow. Requires 12 algorithms (9 excluding mirrors). <br><br>
+        <table style="width:100%">
+            <tr>
+                <th>Name</th>
+                <th>Image</th>
+                <th>Algorithm</th>
+                <th>Comments</th>
+            </tr>
+            <tr>
+                <td>Solved</td>
+                <td><img src="checkerL.png"> <img src="checkerL.png"></td>
+                <td>N/A</td>
+                <td>2.86% skip chance.</td>
+            </tr>
+            <tr>
+                <td>Left Feet</td>
+                <td><img src="leftfootU.png"> <img src="leftfootD.png"></td>
+                <td>/ U' / U' / D </td>
+                <td>11.43% probability.</td>
+            </tr>
+            <tr>
+                <td>Right Feet</td>
+                <td><img src="rightfootU.png"> <img src="rightfootD.png"></td>
+                <td>/ U / U / D</td>
+                <td>11.43% probability. Mirror of Left Feet.</td>
+            </tr>
+            <tr>
+                <td>Opp. Feet</td>
+                <td><img src="oppfeetU.png"> <img src="rightfootD.png"></td>
+                <td>/ U5' / D</td>
+                <td>22.86% probability - the most common case.</td>
+            </tr>
+            <tr>
+                <td>Left Crowbar</td>
+                <td><img src="leftcrowbarU.png"> <img src="leftcrowbarD.png"></td>
+                <td>/ U / U' / U</td>
+                <td>5.71% probability.</td>
+            </tr>
+            <tr>
+                <td>Right Crowbar</td>
+                <td><img src="leftcrowbarU.png"> <img src="rightcrowbarD.png"></td>
+                <td>/ U' / U / U</td>
+                <td>5.71% probability. Mirror of Left Crowbar.</td>
+            </tr>
+            <tr>
+                <td>Matching Blocks</td>
+                <td><img src="barrel_u4.png"> <img src="blocksD.png"></td>
+                <td>/ U' D' / U </td>
+                <td>2.86% probability. Can be performed from any angle.</td>
+            </tr>
+            <tr>
+                <td>Blocolumns</td>
+                <td><img src="blocolumnsU.png"> <img src="leftcrowbarU.png"></td>
+                <td>/ U' / U5 D / U </td>
+                <td>11.43% probability.</td>
+            </tr>
+            <tr>
+                <td>Opp. Blocks</td>
+                <td><img src="blocolumnsU.png"> <img src="oppblocksD.png"></td>
+                <td>/ U' / U' D' / U</td>
+                <td>5.71% probability. Obvious slice into Matching Blocks.</td>
+            </tr>
+            <tr>
+                <td>Left Lock</td>
+                <td><img src="leftcrowbarD.png"> <img src="leftlockD.png"></td>
+                <td>/ U / D5' / U</td>
+                <td>5.71% probability. Simple slice into Opp. Feet.</td>
+            </tr>
+            <tr>
+                <td>Right Lock</td>
+                <td><img src="rightcrowbarD.png"> <img src="blocolumnsU.png"></td>
+                <td>/ U' / D5 / U</td>
+                <td>5.71% probability. Mirror of Left Lock.</td>
+            </tr>
+            <tr>
+                <td>Columns</td>
+                <td><img src="leftcrowbarU.png"> <img src="columnsD.png"></td>
+                <td>/ U / U' D' / U</td>
+                <td>5.71% probability. Slice into Matching Blocks.</td>
+            </tr>
+            <tr>
+                <td>Antipode</td>
+                <td><img src="leftcrowbarD.png"> <img src="antipodeD.png"></td>
+                <td>/ U D / U / U' D' / U</td>
+                <td>2.86% probability. Slice into Columns.</td>
+            </tr>
+        </table> <br>
+        Step 3: Corner-Edge Pairs: All 8 edges need to be paired with their respective corner. 
+        <ol type="a">
+            <li> Pair 3 edges on the bottom layer: Intuitive. </li>
+            <li> Pair remaining 5 edges using a series of swaps. Only the first algorithm is necessary to solve any L5P case. The notation is different here: since 30-degree turns are impossible, a 60-degree turn is U/D.<br></li>
+        </ol>
+        <table style="width:100%">
+            <tr>
+                <th>Case (1 = UFL, 2 = UL...)</th>
+                <th>Algorithm</th>
+            </tr>
+            <tr>
+                <td>10 ⟷ 4</td>
+                <td>/ U / D / U' / U2 / D' / D / U2' D'</td>
+            </tr>
+            <tr>
+                <td>4 ⟷ 5</td>
+                <td>U2' / U / D' / U2' / U' / U2' / U2' / U' D /</td>
+            </tr>
+            <tr>
+                <td>10 → 6 → 2 → 10; 1 ⟷ 3</td>
+                <td>/ U2' / U2 / U2</td>
+            </tr>
+            <tr>
+                <td>1 ⟷ 2; 10 ⟷ 4</td>
+                <td>/ U' / U' / U / U</td>
+            </tr>
+            <tr>
+                <td>10 → 3 → 4 → 10</td>
+                <td>/ D' / U / U' / D</td>
+            </tr>
+        </table>
+        
     </div>
 </body>
 
