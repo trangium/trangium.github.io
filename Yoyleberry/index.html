@@ -120,84 +120,96 @@
         </table> <br>
         Step 3: Corner-Edge Pairs: All 8 edges need to be paired with their respective corner. The notation is different here: since 30-degree turns are impossible, a 60-degree turn is U/D.
         <ol type="a">
-            <li>Pair 3 edges on the bottom layer: Intuitive. </li>
-            <li>Pair the 4th edge on the bottom layer and get into Barrel-Barrel.</li>
-            <li>Pair the remaining 4 edges on the top layer. Requires 13 algorithms (10 excluding mirrors).<br></li>
+            <li>Create two "quads" made of of an edge pair with its two corresponding corners. One quad will be on each layer.</li>
+            <li>Use a 3-cycle to get both of the remaining edges in the same location relative to the quad on each layer. Can be done intuitively, but easier to do with two algorithms: the 3-cycle (/ D' / U / U' / D) and the antipode (/ U' / U2' / U' / U' /).</li>
+            <li>Place the U quad on D, and you will automatically be in Barrel-Barrel.</li>
+            <li>Pair the remaining 4 edges on the top layer. Requires 13 algorithms (9 excluding mirrors and inverses).<br></li>
         </ol>
+        <br>
         <table>
             <tr>
                 <th>Case</th>
                 <th>Algorithm</th>
+                <th>Probability</th>
+                <th>Comments</th>
             </tr>
             <tr>
                 <td>Adj: 2 ⟷ 3</td>
-                <td>/ U / D' / U2' / U' / U2' / U2' / U' D /</td>
+                <td>/ U / D' / U2' / U' / U2' / U2' / D U' /</td>
+                <td>8.33%</td>
+                <td>Start off with / U / D' /. The next 4 face turns are just U2' U' U2' U2', and the / D U' / kind of undoes the / U / D' / at the beginning.</td>
             </tr>
             <tr>
                 <td>Opp: 2 ⟷ 6</td>
-                <td>/ D / U / U' / U' / U2' D' / U' / U2' /</td>
+                <td>/ D / U / U' / U' / D' U2' / U' / U2' /</td>
+                <td>8.33%</td>
+                <td>Do / D / to start things off. Then we do 3 U-turns (U / U' / U' /) before undoing the initial D with a D'. Then U2' / U' / U2' / to finish it off.</td>
             </tr>
             <tr>
                 <td>Diag: 1 ⟷ 4</td>
-                <td>/ D U2' / D' U2 / U / U2' D / U2 D' /</td>
+                <td>/ D U2' / U2 D' / U / D U2' / U2 D' /</td>
+                <td>8.33% (12.5%)</td>
+                <td>Note the structure in the algorithm: We do some setup moves (/ D U2'), do a slice, undo the setup, and do U. Then repeat. <br> If you have an X-perm (1 ⟷ 4; 2 ⟷ 5), use this algorithm to swap the two edge pairs. This happens with 4.17% probability.</td>
             </tr>
             <tr>
                 <td>A perm: 6 → 2 → 3 → 6</td>
-                <td>/ U2 D / U' / U / D' / U2 /</td>
+                <td>/ U2 D / U' / U / D' / U2' /</td>
+                <td>8.33%</td>
+                <td>/ U2 [mirrored & shifted 3-cycle] U2' /</td>
             </tr>
             <tr>
                 <td>A' perm: 6 → 3 → 2 → 6</td>
                 <td>/ U2' / D / U' / U / D' U2 /</td>
+                <td>8.33%</td>
+                <td>/ U2' [mirrored 3-cycle] U2 /</td>
             </tr>
             <tr>
                 <td>a perm: 1 → 2 → 4 → 1</td>
                 <td>/ U2 / D' / U / U' / D U2' /</td>
+                <td>8.33%</td>
+                <td>/ U2 [3-cycle] U2' /</td>
             </tr>
             <tr>
                 <td>a' perm: 1 → 4 → 2 → 1</td>
                 <td>/ U2 D' / U / U' / D / U2' /</td>
+                <td>8.33%</td>
+                <td>/ U2 [shifted 3-cycle] U2' /</td>
             </tr>
             <tr>
                 <td>O perm: 1 → 2 → 4 → 5 → 1</td>
                 <td>/ U / U / U' / D / U' / U / D' /</td>
+                <td>4.17%</td>
+                <td>Alternates between slice and face turns. Pretty easy to memorize.</td>
             </tr>
             <tr>
                 <td>O' perm: 1 → 5 → 4 → 2 → 1</td>
                 <td>/ D / U' / U / D' / U / U' / U' /</td>
+                <td>4.17%</td>
+                <td>Just the mirror of O perm.</td>
             </tr>
             <tr>
                 <td>W perm: 2 → 3 → 6 → 5 → 2</td>
                 <td>/ U2 / U2' / U' / U' / U2' / U /</td>
+                <td>8.33%</td>
+                <td>2-gen.</td>
             </tr>
             <tr>
                 <td>N perm: 1 → 4 → 6 → 3 → 1</td>
                 <td>/ U2 / U2' / U' / U2 / U / U' / U2' /</td>
+                <td>8.33%</td>
+                <td>2-gen. Same 3 starting face turns as W perm.</td>
             </tr>
             <tr>
                 <td>E perm: 1 ⟷ 2; 4 ⟷ 5</td>
                 <td>/ D' U' / U' / U D / D' / U D /</td>
+                <td>4.17%</td>
+                <td>Alternates between two and one face turns in betwen each slice turn. Note the obvious structure in the algorithm.</td>
             </tr>
             <tr>
                 <td>H perm: 1 ⟷ 3; 4 ⟷ 6</td>
                 <td>/ D U / U2 / U' D' / U' D / U' D' /</td>
-            </tr>
-        </table> <br>
-        <table>
-            <tr>
-                <th>Extra Case</th>
-                <th>Algorithm</th>
-            </tr>
-            <tr>
-                <td>10 → 6 → 2 → 10; 1 ⟷ 3</td>
-                <td>/ U2' / U2 / U2</td>
-            </tr>
-            <tr>
-                <td>1 ⟷ 2; 10 ⟷ 4</td>
-                <td>/ U' / U' / U / U</td>
-            </tr>
-            <tr>
-                <td>10 → 3 → 4 → 10</td>
-                <td>/ D' / U / U' / D</td>
+                <td>4.17%</td>
+                <td>Once you learn the E perm, the H perm is very easy to learn.</td>
             </tr>
         </table> <br>
         Step 4: Square-0 <br>
@@ -223,7 +235,7 @@
                 <td>N+N</td>
                 <td>/ U D' / U' D /</td>
                 <td>2.78%</td>
-                <td>This case can actually be avoided by doing a U2 before going back into cubeshape.</td>
+                <td>Although this is arguably the best PBL, if you recognize that you'll get this case, do a U2 before going back into cubeshape to skip PBL.</td>
             </tr>
             <tr>
                 <td>J+J</td>
@@ -247,7 +259,7 @@
                 <td>Pure N</td>
                 <td>/ U' D' / U / U' D' / U / U' D' /</td>
                 <td>5.56%</td>
-                <td>This is arguably the worst PBL, but it's easy to remember: ( / U' D' / U )x3 </td>
+                <td>This is arguably the worst PBL, but it's easy to remember: ( / U' D' / U )x3. It can be avoided by doing a central slice before going beck into cubeshape, and you'll get J+J instead. </td>
             </tr>
         </table>
     </div>
