@@ -23,6 +23,16 @@
     <canvas id="myCanvas" width="512" height="384"></canvas>
 
     <script>
+        alert(`Directions: 
+        In front of you are 26 cases, each holding money amounts from 1¢ to a top prize. 
+        First, pick one case for you to keep.
+        Then, you will eliminate the other cases one by one. 
+        Whatever amount is in the case you open cannot be in the case you picked to keep. 
+        Each round removes fewer cases from the game, until eventually only one case is removed per round. 
+        At the end of each round, the Banker will make you an offer. 
+        The Banker wants you to win as little money as possible. 
+        If you eliminate a small amount, the Banker will increase your offer.
+        If you eliminate a large amount, the Banker will decrease your offer. `);
         var canvas = document.getElementById("myCanvas");
         var ctx = canvas.getContext("2d");
         var black = "#000000";
