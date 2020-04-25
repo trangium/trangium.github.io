@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+</head>
+
+<body>
+    <div style="font-family: 'Century Gothic', 'MS Sans Serif', arial; font-size: 24px; text-align:left; line-height:150%; margin:0px; color:#000000; clear:both;">
+        The sandwich method! <br>
+        I'm not sure if this is new. <br>
+        I don't use this method, but here goes! <br><br>
+        Layer separation (0) <br>
+        <ol>
+            <li>You should plan a 2x2x3 + 2 E-edges in inspection</li>
+            <li>Then do the rest of separation with just R and U moves</li>
+        </ol>
+        Canonical Sandwich (1)<br>
+        <ol>
+            <li>Separate the layers - D edges in D, E edges <strong>solved</strong> in E, and U edges in U</li>
+            <li>OLL + PLL on D - Note that there can be parity cases that are not normal OLLs / PLLs, increasing the number of OLLs to 347 and the number of PLLs to 43. OLL would almost certainly be done in two looks.</li>
+            <li>OLL + PLL on U - Normal OLL (57 algs) / PLL (21 algs)</li>
+        </ol>
+        Concurrent Sandwich (2) <br>
+        <ol>
+            <li>Separate the layers - Same as in Canonical</li>
+            <li>Orient edges on both layers</li>
+            <li>Orient corners on both layers</li>
+            <li>Position corners on both layers</li>
+            <li>Position edges on both layers</li>
+        </ol>
+        EO Sandwich (3) <br>
+        <ol>
+            <li>EO, zz-style</li>
+            <li>Separate the layers without breaking EO</li>
+            <li>Continue in the same fashion as Concurrent</li>
+        </ol>
+        Belt Sandwich (4) <br>
+        <ol>
+            <li>EO-Belt</li>
+            <li>Separate the layers using only U, D, R2, L2, F2, and B2 moves</li>
+            <li>Continue in the same fashion as Concurrent</li>
+        </ol>
+        3/4 Sandwich (5) <br>
+        <ol>
+            <li>EO + 3/4 belt</li>
+            <li>Separate the layers <strong>minus one corner</strong> without breaking the 3/4-belt</li>
+            <li>Insert the last corner with the last E-edge with either R' U R, R' U2 R, or r' U r' F' r2 to avoid "parity"</li>
+            <li>COLL on both layers</li>
+            <li>Position edges on both layers</li>
+        </ol>
+    </div>
+</body>
+
+</html>
