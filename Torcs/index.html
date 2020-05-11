@@ -27,26 +27,35 @@
         var ctx = canvas.getContext("2d");
         ctx.font = "20px Century Gothic";
 
-        var cubeMult = function(a, b, prod) {
+        function Cube3() {
+            this.ca = [0, 1, 2, 3, 4, 5, 6, 7];
+            this.ea = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+        }
+        Cube3.prototype.init = function(ca, ea) {
+            this.ca = ca.slice();
+            this.ea = ea.slice();
+            return this;
+        }
+        Cube3.cubeMult = function(a, b, prod) {
             for (let ed = 0; ed < 12; ed++) { // compute edge product; prod[ed] = a[b[ed] >> 1] ^ (b[ed] & 1); // If mid-operator is ^ you don't need the & 31 at the end but it improves performance for whatever reason
-                prod[ed] = (a[b[ed] & 15] + (b[ed] & 16)) & 31
+                prod.ea[ed] = (a.ea[b.ea[ed] & 15] + (b.ea[ed] & 16)) & 31
             }
-            for (let corn = 12; corn < 20; corn++) { // compute corner product
-                let temp = (a[b[corn] & 7 + 12] + (b[corn] & 24)); 
-                prod[corn] = temp<24 ? temp : temp-24;                
+            for (let corn = 0; corn < 8; corn++) { // compute corner product
+                let temp = (a.ca[b.ca[corn] & 7] + (b.ca[corn] & 24)); 
+                prod.ca[corn] = temp<24 ? temp : temp-24;                
             }
         }
 
-        var uMove = [3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 3, 0, 1, 2, 4, 5, 6, 7]; // first 12 spots are for edges and last 8 spots are for corners
-        var rMove = [0, 4, 2, 3, 9, 5, 6, 1, 8, 7, 10, 11, 0, 10, 21, 3, 4, 14, 17, 7];
-        var fMove = [0, 1, 21, 3, 18, 24, 6, 7, 20, 9, 10, 11, 0, 1, 11, 20, 13, 18, 6, 7];
-        var dMove = [0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10, 0, 1, 2, 3, 7, 4, 5, 6];
-        var lMove = [0, 1, 2, 6, 4, 3, 11, 7, 8, 9, 10, 5, 23, 1, 2, 8, 19, 5, 6, 12];
-        var bMove = [23, 1, 2, 3, 4, 5, 16, 26, 8, 9, 22, 11, 9, 22, 2, 3, 4, 5, 15, 16];
+        var uMove = new Cube3([3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11], [3, 0, 1, 2, 4, 5, 6, 7]); // first 12 spots are for edges and last 8 spots are for corners
+        var rMove = new Cube3([0, 4, 2, 3, 9, 5, 6, 1, 8, 7, 10, 11], [0, 10, 21, 3, 4, 14, 17, 7]);
+        var fMove = new Cube3([0, 1, 21, 3, 18, 24, 6, 7, 20, 9, 10], [11, 0, 1, 11, 20, 13, 18, 6, 7]);
+        var dMove = new Cube3([0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10], [0, 1, 2, 3, 7, 4, 5, 6]);
+        var lMove = new Cube3([0, 1, 2, 6, 4, 3, 11, 7, 8, 9, 10, 5], [23, 1, 2, 8, 19, 5, 6, 12]);
+        var bMove = new Cube3([23, 1, 2, 3, 4, 5, 16, 26, 8, 9, 22, 11], [9, 22, 2, 3, 4, 5, 15, 16]);
         var moves = [uMove, rMove, fMove, dMove, lMove, bMove];
         
-        var prod = [];
-        let a = Date.now(); for (let i=0; i<23456789; i++) {cubeMult(fMove, dMove, prod);}; ctx.fillText(Date.now()-a, 130, 130); 
+        var prod = new Cube3();
+        let a = Date.now(); for (let i=0; i<23456789; i++) {Cube3.cubeMult(uMove, fMove, prod)}; ctx.fillText(Date.now()-a, 130, 130); 
         ctx.fillText(prod,30,30);
         
     </script>
