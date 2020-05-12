@@ -25,7 +25,7 @@
     <script>
         var canvas = document.getElementById("myCanvas");
         var ctx = canvas.getContext("2d");
-        ctx.font = "25px Century Gothic";
+        ctx.font = "20px Century Gothic";
 
         var cubeMult = function(ae, be, ac, bc, pe, pc) {
             for (let ed = 0; ed < 12; ed++) { // compute edge product; prod[ed] = a[b[ed] >> 1] ^ (b[ed] & 1); // If mid-operator is ^ you don't need the & 31 at the end but it improves performance for whatever reason
@@ -35,9 +35,9 @@
                 let temp = (ac[bc[corn] & 7] + (bc[corn] & 24)); 
                 pc[corn] = temp<24 ? temp : temp-24;                
             }
-        }
+        } // potential for currying (It might be premature optimization but it's also a useful thing for me to learn)
 
-        var uEdge = [3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11];
+        var uEdge = [3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11]; // initialize where edges go after each clockwise move
         var rEdge = [0, 4, 2, 3, 9, 5, 6, 1, 8, 7, 10, 11];
         var fEdge = [0, 1, 21, 3, 18, 24, 6, 7, 20, 9, 10, 11];
         var dEdge = [0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10];
@@ -45,13 +45,19 @@
         var bEdge = [23, 1, 2, 3, 4, 5, 16, 26, 8, 9, 22, 11];
         var edgeMove = [uEdge, rEdge, fEdge, dEdge, lEdge, bEdge];
 
-        var uCorn = [3, 0, 1, 2, 4, 5, 6, 7];
+        var uCorn = [3, 0, 1, 2, 4, 5, 6, 7]; // initialize where corners go after each clockwise move
         var rCorn = [0, 10, 21, 3, 4, 14, 17, 7];
         var fCorn = [0, 1, 11, 20, 13, 18, 6, 7];
         var dCorn = [0, 1, 2, 3, 7, 4, 5, 6];
         var lCorn = [23, 1, 2, 8, 19, 5, 6, 12];
         var bCorn = [9, 22, 2, 3, 4, 5, 15, 16];
         var cornMove = [uCorn, rCorn, fCorn, dCorn, lCorn, bCorn];
+
+        for (let i=0; i<12; i++) { // initialize compositions of single moves (double and counterclockwise moves)
+            edgeMove[i+6] = [];
+            cornMove[i+6] = [];
+            cubeMult(edgeMove[i], edgeMove[i%6], cornMove[i], cornMove[i%6], edgeMove[i+6], cornMove[i+6]);
+        }
         
         function doMoves(movelist) {
             let cubeEdge = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -67,14 +73,8 @@
             return [cubeEdge, cubeCorn];
         }
 
-        var prod = doMoves([0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5]);
-        var prode = [];
-        var prodc = [];
-        let a = Date.now();
-        for (let i=0; i<23456789; i++) {
-            cubeMult(uEdge, fEdge, uCorn, fCorn, prode, prodc);
-        }
-        ctx.fillText(Date.now()-a,30,130);
+        var prod = doMoves([6, 9, 7, 10, 8, 11]);
+        ctx.fillText(prod,30,170);
         
     </script>
 
