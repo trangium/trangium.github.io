@@ -15,7 +15,6 @@
         var graphData = [];
         var steps = 0;
         var sold = false;
-        console.log(randStock);
 
         var url = 'https://financialmodelingprep.com/api/company/historical-price/' + randStock + '?serietype=line&serieformat=array&datatype=json';
         var req = false;
@@ -38,6 +37,8 @@
                 if (req.status === 200) {
                     graphData = JSON.parse(req.responseText).historical;
                     main();
+                } else {
+                    window.location.reload(false)
                 }
             }
         }
