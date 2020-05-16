@@ -93,14 +93,10 @@
         }
 
         var prod = doMoves([6, 9, 7, 10, 8, 11]); // return a checkerboard
-        var prode = [];
-        var prodc = [];
-        ctx.fillText(prod,30,170);
-        let a = Date.now();
-        for (let i=0; i<23456789; i++) { // profiling
-            cubeMult(uEdge, uCorn, fEdge, fCorn, prode, prodc); // perform U F on a solved cube and cast the result to prode and prodc
+
+        for (let i of neighbors([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], [0, 1, 2, 3, 4, 5, 6, 7])) {
+            console.log(i)
         }
-        ctx.fillText(Date.now()-a,30,130);
         
     </script>
 
