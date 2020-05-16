@@ -83,9 +83,9 @@
                         }
                     }
                     ctx.fillStyle = "#000000";
-                    if (sold) {ctx.fillText("Sold: $" + sold, 7, 20)} else {ctx.fillText("Sold: ", 7, 20)}
-                    ctx.fillText("Now: $" + graphData[steps][1], 7, 40)
-                    ctx.fillText("Buy: $" + graphData[0][1], 7, 60)
+                    if (sold) {ctx.fillText("Sold: $" + sold, 7, 20)} else {ctx.fillText("Sold: ", 7, 21)}
+                    ctx.fillText("Now: $" + graphData[steps][1], 7, 41)
+                    ctx.fillText("Buy: $" + graphData[0][1], 7, 61)
                 
                 requestAnimationFrame(step)
             }
@@ -98,6 +98,7 @@
         }
 
         document.addEventListener("keydown", keyDownHandler, false);
+        document.addEventListener("touchstart", keyDownHandler, false);
 
     </script>
 </body>
