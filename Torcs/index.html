@@ -27,15 +27,15 @@
         var ctx = canvas.getContext("2d");
         ctx.font = "20px Century Gothic";
 
-        var cubeMult = function(ae, be, ac, bc, pe, pc) {
-            for (let ed = 0; ed < 12; ed++) { // compute edge product; prod[ed] = a[b[ed] >> 1] ^ (b[ed] & 1); // If mid-operator is ^ you don't need the & 31 at the end but it improves performance for whatever reason
-                pe[ed] = (ae[be[ed] & 15] + (be[ed] & 16)) & 31
-            }
-            for (let corn = 0; corn < 8; corn++) { // compute corner product
-                let temp = (ac[bc[corn] & 7] + (bc[corn] & 24)); 
-                pc[corn] = temp<24 ? temp : temp-24;                
-            }
-        } // potential for currying (It might be premature optimization but it's also a useful thing for me to learn)
+        var types = 2;
+        var typecount = [12, 8];
+        var typeori = [2, 3];
+        var faces = 6; // rotatable faces
+
+        var typebin = [16, 8]; // typecount, each element is the next power of 2
+        var typebinmask = [15, 7]; // typebin, each element minus 1
+        var typemax = [32, 24]; // typeori * typebin
+        var typemaxmask = [31, 23]; // typemax, each element minus 1
 
         var uEdge = [3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11]; // initialize where edges go after each clockwise move
         var rEdge = [0, 4, 2, 3, 9, 5, 6, 1, 8, 7, 10, 11];
@@ -53,10 +53,20 @@
         var bCorn = [9, 22, 2, 3, 4, 5, 15, 16];
         var cornMove = [uCorn, rCorn, fCorn, dCorn, lCorn, bCorn];
 
+        var cubeMult = function(ae, ac, be, bc, pe, pc) {
+            for (let ed = 0; ed < typecount[0]; ed++) { 
+                pe[ed] = (ae[be[ed] & typebinmask[0]] + (be[ed] & typebin[0])) & typemaxmask[0];
+            }
+            for (let corn = 0; corn < typecount[1]; corn++) { // compute corner product
+                var temp = (ac[bc[corn] & typebinmask[1]] + (bc[corn] & typemax[1]));
+                pc[corn] = temp<typemax[1] ? temp : temp-typemax[1]; 
+            }
+        } // potential for currying (It might be premature optimization but it's also a useful thing for me to learn)
+
         for (let i=0; i<12; i++) { // initialize compositions of single moves (double and counterclockwise moves)
-            edgeMove[i+6] = [];
-            cornMove[i+6] = [];
-            cubeMult(edgeMove[i], edgeMove[i%6], cornMove[i], cornMove[i%6], edgeMove[i+6], cornMove[i+6]);
+            edgeMove[i+faces] = [];
+            cornMove[i+faces] = [];
+            cubeMult(edgeMove[i], cornMove[i], edgeMove[i%faces], cornMove[i%faces], edgeMove[i+faces], cornMove[i+faces]);
         }
         
         function doMoves(movelist) {
@@ -65,7 +75,7 @@
             let edgeTemp = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
             let cornTemp = [0, 1, 2, 3, 4, 5, 6, 7];
             for (let i=0; i<movelist.length; i++) {
-                cubeMult(cubeEdge, edgeMove[movelist[i]], cubeCorn, cornMove[movelist[i]], edgeTemp, cornTemp);
+                cubeMult(cubeEdge, cubeCorn, edgeMove[movelist[i]], cornMove[movelist[i]], edgeTemp, cornTemp);
                 cubeEdge = edgeTemp.slice();
                 cubeCorn = cornTemp.slice();
                 console.log(cubeCorn);
@@ -73,8 +83,24 @@
             return [cubeEdge, cubeCorn];
         }
 
-        var prod = doMoves([6, 9, 7, 10, 8, 11]);
+        function* neighbors(edState, cornState) {
+            for (let i=0; i<edgeMove.length; i++) {
+                let prodE = [];
+                let prodC = [];
+                cubeMult(edState, cornState, edgeMove[i], cornMove[i], prodE, prodC);
+                yield ([prodE, prodC]);
+            }
+        }
+
+        var prod = doMoves([6, 9, 7, 10, 8, 11]); // return a checkerboard
+        var prode = [];
+        var prodc = [];
         ctx.fillText(prod,30,170);
+        let a = Date.now();
+        for (let i=0; i<23456789; i++) { // profiling
+            cubeMult(uEdge, uCorn, fEdge, fCorn, prode, prodc); // perform U F on a solved cube and cast the result to prode and prodc
+        }
+        ctx.fillText(Date.now()-a,30,130);
         
     </script>
 
