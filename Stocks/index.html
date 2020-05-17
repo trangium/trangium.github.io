@@ -113,7 +113,8 @@
 
         function keyDownHandler() {
             if (steps >= graphData.length - 2 || (bought && sold)) {
-                if (bought) {sold = graphData[steps][1];ctx.clearRect(0, 0, canvas.width, canvas.height); bTotal += bought; sTotal += sold }
+                if (bought) {sold = graphData[steps][1]; bTotal += bought; sTotal += sold }
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
                 start('https://financialmodelingprep.com/api/company/historical-price/' + namelist[~~(Math.random() * namelist.length)] + '?serietype=line&serieformat=array&datatype=json');
             }
             if (bought == false) { bought = graphData[steps][1]; timeSinceBuy = 0 }
