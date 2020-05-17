@@ -14,7 +14,8 @@
 
 
         var graphData, steps, bought, timeSinceBuy, req;
-        var scores = [];
+        var bTotal = 0;
+        var sTotal = 0;
 
         function start(url) {
             graphData = [];
@@ -108,13 +109,13 @@
                 ctx.fillStyle = "#000000";
                 if (sold) {
                     ctx.fillText("Sold: $" + sold, 7, 20);
-                    ctx.fillText("Gain/yr: " + Math.round(((sold - bought) / bought) / timeSinceBuy * 3650000) / 100 + "%", 7, 81)
+                    ctx.fillText("Gain: $" +Math.round((sold - bought)*100)/100, 7, 81)
                 } else {
                     ctx.fillText("Sold:", 7, 21);
                 }
                 ctx.fillText("Now: $" + graphData[steps][1], 7, 41);
                 if (bought) { ctx.fillText("Buy: $" + bought, 7, 61) } else { ctx.fillText("Buy:", 7, 61) }
-                if (scores.length) { ctx.fillText("Avg: " + Math.round(average(scores)) / 100 + "% ("+scores.length+")", 7, 101) }
+                if (bTotal) { ctx.fillText("$"+Math.round(bTotal*100)/100 + " -> $" + Math.round(sTotal*100)/100, 7, 106) }
 
 
                 requestAnimationFrame(step)
@@ -125,11 +126,10 @@
         function keyDownHandler() {
             if (steps >= graphData.length - 2 || (bought && sold)) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-                if (bought && sold) { scores.push(((sold - bought) / bought) / timeSinceBuy * 3650000) }
                 start('https://financialmodelingprep.com/api/company/historical-price/' + namelist[~~(Math.random() * namelist.length)] + '?serietype=line&serieformat=array&datatype=json');
             }
             if (bought == false) { bought = graphData[steps][1]; timeSinceBuy = 0 }
-            else if (sold == false) { sold = graphData[steps][1] }
+            else if (sold == false) { sold = graphData[steps][1]; bTotal += bought; sTotal += sold }
             else {
             }
         }
