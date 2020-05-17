@@ -53,28 +53,27 @@
         var bCorn = [9, 22, 2, 3, 4, 5, 15, 16];
         var cornMove = [uCorn, rCorn, fCorn, dCorn, lCorn, bCorn];
 
-        var cubeMult = function(ae, ac, be, bc, pe, pc) {
-            for (let ed = 0; ed < typecount[0]; ed++) { 
+        var cubeMult = function (ae, ac, be, bc, pe, pc) {
+            for (let ed = 0; ed < typecount[0]; ed++) {
                 pe[ed] = (ae[be[ed] & typebinmask[0]] + (be[ed] & typebin[0])) & typemaxmask[0];
             }
             for (let corn = 0; corn < typecount[1]; corn++) { // compute corner product
                 var temp = (ac[bc[corn] & typebinmask[1]] + (bc[corn] & typemax[1]));
-                pc[corn] = temp<typemax[1] ? temp : temp-typemax[1]; 
+                pc[corn] = temp < typemax[1] ? temp : temp - typemax[1];
             }
-        } // potential for currying (It might be premature optimization but it's also a useful thing for me to learn)
-
-        for (let i=0; i<12; i++) { // initialize compositions of single moves (double and counterclockwise moves)
-            edgeMove[i+faces] = [];
-            cornMove[i+faces] = [];
-            cubeMult(edgeMove[i], cornMove[i], edgeMove[i%faces], cornMove[i%faces], edgeMove[i+faces], cornMove[i+faces]);
         }
-        
+        for (let i = 0; i < 12; i++) { // initialize compositions of single moves (double and counterclockwise moves)
+            edgeMove[i + faces] = [];
+            cornMove[i + faces] = [];
+            cubeMult(edgeMove[i], cornMove[i], edgeMove[i % faces], cornMove[i % faces], edgeMove[i + faces], cornMove[i + faces]);
+        }
+
         function doMoves(movelist) {
             let cubeEdge = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
             let cubeCorn = [0, 1, 2, 3, 4, 5, 6, 7];
             let edgeTemp = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
             let cornTemp = [0, 1, 2, 3, 4, 5, 6, 7];
-            for (let i=0; i<movelist.length; i++) {
+            for (let i = 0; i < movelist.length; i++) {
                 cubeMult(cubeEdge, cubeCorn, edgeMove[movelist[i]], cornMove[movelist[i]], edgeTemp, cornTemp);
                 cubeEdge = edgeTemp.slice();
                 cubeCorn = cornTemp.slice();
@@ -83,21 +82,76 @@
             return [cubeEdge, cubeCorn];
         }
 
-        function* neighbors(edState, cornState) {
-            for (let i=0; i<edgeMove.length; i++) {
-                let prodE = [];
-                let prodC = [];
-                cubeMult(edState, cornState, edgeMove[i], cornMove[i], prodE, prodC);
-                yield ([prodE, prodC]);
+        //function* neighbors(edState, cornState) {
+        //    for (let i=0; i<edgeMove.length; i++) {
+        //        let prodE = [];
+        //        let prodC = [];
+        //        cubeMult(edState, cornState, edgeMove[i], cornMove[i], prodE, prodC);
+        //        yield ([prodE, prodC]);
+        //    }
+        //}
+
+        function reachable(state, n) {
+            //states = {state:''}
+            //for depth in range(n):
+            //    new_states = {}
+            //    for s in states:
+            //        for pos in neighbors(s, True):
+            //            if pos[0] not in states:
+            //                new_states[pos[0]] = states[s]+pos[1]
+            //    states.update(new_states)
+            //return states
+        }
+
+        // var prod = doMoves([6, 9, 7, 10, 8, 11]); // return a checkerboard
+
+        //for (let i of neighbors([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], [0, 1, 2, 3, 4, 5, 6, 7])) {
+        //    console.log(i)
+        //}
+
+        // NEW ARCHITECTURE! CONGLOMULT
+
+        var cubeOri = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3];
+        var maxOri = Math.max(...cubeOri); // 3
+        var pcCount = cubeOri.length; // 20
+        var pcPosLen = Math.ceil(Math.log2(pcCount)) // 5
+        var pcPosBin = 1 << pcPosLen; // 32
+        var pcPosMask = pcPosBin - 1; // 31
+        var maxOriMask = ((1 << Math.ceil(Math.log2(maxOri))) - 1) * pcPosBin; // 3 * 32 = 96
+
+        var prod = [];
+
+        var congloMult = function (ac, bc, prod) {
+            for (let p = 0; p < pcCount; p++) {
+                var temp = (ac[bc[p] & pcPosMask] + (bc[p] & maxOriMask));
+                prod[p] = temp < cubeOri[p] << pcPosLen ? temp : temp - (cubeOri[p] << pcPosLen);
             }
         }
 
-        var prod = doMoves([6, 9, 7, 10, 8, 11]); // return a checkerboard
+        var uCube = [3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14, 16, 17, 18, 19];
+        var dCube = [0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10, 12, 13, 14, 15, 19, 16, 17, 18];
+        var rCube = [0, 4, 2, 3, 9, 5, 6, 1, 8, 7, 10, 11, 12, 46, 81, 15, 16, 50, 77, 19];
+        var lCube = [0, 1, 2, 6, 4, 3, 11, 7, 8, 9, 10, 5, 83, 13, 14, 44, 79, 17, 18, 48];
+        var fCube = [0, 1, 37, 3, 34, 40, 6, 7, 36, 9, 10, 11, 12, 13, 47, 80, 49, 78, 18, 19];
+        var bCube = [39, 1, 2, 3, 4, 5, 32, 42, 8, 9, 38, 11, 45, 82, 14, 15, 16, 17, 51, 76];
+        var moves = [uCube, rCube, fCube, dCube, lCube, bCube];
 
-        for (let i of neighbors([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], [0, 1, 2, 3, 4, 5, 6, 7])) {
-            console.log(i)
+        for (let i = 0; i < 12; i++) {
+            congloMult(moves[i], moves[i % 6], prod);
+            moves[moves.length] = prod;
         }
-        
+
+        function doMoves(movelist) {
+            var cube = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+            var temp = [];
+            for (let move in movelist) {
+                congloMult(cube, moves[move], temp);
+                cube = temp.slice();
+            }
+            return cube;
+        }
+        console.log(doMoves([5, 3, 5, 5, 5, 3, 5, 3, 5, 5, 5, 3, 5, 3, 5, 5, 5, 3, 5, 3, 5, 5, 5, 3, 5, 3, 5, 5, 5, 3]));
+
     </script>
 
 </body>
