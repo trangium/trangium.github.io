@@ -32,7 +32,7 @@
                         graphData = JSON.parse(req.responseText).historical;
                         main();
                     } else {
-                        window.location.reload(false);
+                        start('https://financialmodelingprep.com/api/company/historical-price/' + namelist[~~(Math.random() * namelist.length)] + '?serietype=line&serieformat=array&datatype=json');
                     }
                 }
             }
