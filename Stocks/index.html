@@ -65,13 +65,14 @@
         }
 
         function main() {
-            ctx.strokeStyle = "#FF0303";
             var speed = 1;
             var x = (180 / graphData[1][1]);
             function step() {
                 ctx.fillStyle = "#DDDDDD";
                 ctx.fillRect(0, 0, 190, 125);
+                ctx.strokeStyle = "#030303";
                 line(0, canvas.height, canvas.width, canvas.height);
+                ctx.strokeStyle = "#FF0303";
                 if (speed == 0) {
                     let day1 = new Date(graphData[steps + 1][0]);
                     let day2 = new Date(graphData[steps][0]);
