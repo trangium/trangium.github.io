@@ -111,9 +111,9 @@
             step();
         }
 
-        function keyDownHandler() {
+        function keyDownHandler(e) {
             if (steps >= graphData.length - 2 || (bought && sold)) {
-                if (bought) { if (!sold) {sold = graphData[steps][1]} bTotal += bought; sTotal += sold }
+                if (bought) { if (!sold) {sold = graphData[steps][1]} bTotal += 100; sTotal += sold*(100/bought) }
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 start('https://financialmodelingprep.com/api/company/historical-price/' + namelist[~~(Math.random() * namelist.length)] + '?serietype=line&serieformat=array&datatype=json');
             }
