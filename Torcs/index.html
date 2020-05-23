@@ -16,64 +16,78 @@
             cursor: pointer;
             font: arial;
         }
+
         .solve {
             background-color: white;
             color: black;
             border: 2px solid #0066FF;
         }
+
         .solve:hover {
             background-color: #0066FF;
             color: white;
         }
+
         .cross {
             background-color: white;
             color: black;
             border: 2px solid #00CC00;
         }
+
         .cross:hover {
             background-color: #00CC00;
             color: white;
         }
+
         .eo {
             background-color: white;
             color: black;
             border: 2px solid #EED000;
         }
+
         .eo:hover {
             background-color: #EED000;
         }
+
         .eoline {
             background-color: white;
             color: black;
             border: 2px solid #0033AA;
         }
+
         .eoline:hover {
             background-color: #0033AA;
             color: white;
         }
+
         .dr {
             background-color: white;
             color: black;
             border: 2px solid #BB0022;
         }
+
         .dr:hover {
             background-color: #BB0022;
             color: white;
         }
+
         .block222 {
             background-color: white;
             color: black;
-            border: 2px solid #005500;   
+            border: 2px solid #005500;
         }
+
         .block222:hover {
             background-color: #005500;
             color: white;
         }
+
         .block223 {
             background-color: white;
             color: black;
-            border: 2px solid #009999;   
+            border: 2px solid #009999;
         }
+
         .block223:hover {
             background-color: #009999;
             color: white;
@@ -83,12 +97,20 @@
 
 <body>
     <button class="button solve" onclick="solveInput();">Solve (10 move limit) </button>
-    <button class="button cross" onclick="solveInput([NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, 0, 1, 2, 3, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN], 4, 4);">Cross</button>
-    <button class="button eo" onclick="solveInput([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN], 3, 4);">EO</button>
-    <button class="button eoline" onclick="solveInput([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN], 4, 5);">EO-Line</button>
-    <button class="button dr" onclick="solveInput([0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 5, 5);">DR</button>
-    <button class="button block222" onclick="solveInput([NaN, NaN, NaN, NaN, NaN, NaN, 0, NaN, NaN, NaN, 1, 2, NaN, NaN, NaN, NaN, NaN, NaN, NaN, 0], 4, 4);">2x2x2 block</button>
-    <button class="button block223" onclick="solveInput([NaN, NaN, NaN, NaN, NaN, 0, 1, NaN, 2, NaN, 3, 4, NaN, NaN, NaN, NaN, 0, NaN, NaN, 1], 5, 5);">2x2x3 block</button>
+    <button class="button cross"
+        onclick="solveInput([NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, 0, 1, 2, 3, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN], 4, 4);">Cross</button>
+    <button class="button eo"
+        onclick="solveInput([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN], 3, 4);">EO</button>
+    <button class="button eoline"
+        onclick="solveInput([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN], 4, 5);">EO-Line</button>
+    <button class="button dr"
+        onclick="solveInput([0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 5, 5);">DR</button>
+    <button class="button block222"
+        onclick="solveInput([NaN, NaN, NaN, NaN, NaN, NaN, 0, NaN, NaN, NaN, 1, 2, NaN, NaN, NaN, NaN, NaN, NaN, NaN, 0], 4, 4);">2x2x2
+        block</button>
+    <button class="button block223"
+        onclick="solveInput([NaN, NaN, NaN, NaN, NaN, 0, 1, NaN, 2, NaN, 3, 4, NaN, NaN, NaN, NaN, 0, NaN, NaN, 1], 5, 5);">2x2x3
+        block</button>
     <script>
         var cubeOri = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3];
         var maxOri = Math.max(...cubeOri); // 3
@@ -197,7 +219,9 @@
             var movelist = [];
             let brokenSeq = sequence.split(" ");
             for (let i = 0; i < brokenSeq.length; i++) {
-                movelist[i] = moveStr.indexOf(brokenSeq[i][0]) + fcCount * typeStr.indexOf(brokenSeq[i].slice(1))
+                if (brokenSeq[i].length) {
+                    movelist[i] = moveStr.indexOf(brokenSeq[i][0]) + fcCount * typeStr.indexOf(brokenSeq[i].slice(1))
+                }
             }
             var cube = state;
             var temp = [];
