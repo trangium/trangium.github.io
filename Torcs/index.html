@@ -5,112 +5,91 @@
     <meta charset="utf-8" />
     <title>TORCS prototype</title>
     <style>
-        * {
-            padding: 0;
-            margin: 0;
+        .button {
+            transition-duration: 0.4s;
+            color: white;
+            padding: 12px 24px;
+            text-align: center;
+            display: inline-block;
+            font-size: 20px;
+            margin: 4px 2px;
+            cursor: pointer;
+            font: arial;
         }
-
-        canvas {
-            background: #eee;
-            display: block;
-            margin: 0 auto;
+        .solve {
+            background-color: white;
+            color: black;
+            border: 2px solid #0066FF;
+        }
+        .solve:hover {
+            background-color: #0066FF;
+            color: white;
+        }
+        .cross {
+            background-color: white;
+            color: black;
+            border: 2px solid #00CC00;
+        }
+        .cross:hover {
+            background-color: #00CC00;
+            color: white;
+        }
+        .eo {
+            background-color: white;
+            color: black;
+            border: 2px solid #EED000;
+        }
+        .eo:hover {
+            background-color: #EED000;
+        }
+        .eoline {
+            background-color: white;
+            color: black;
+            border: 2px solid #0033AA;
+        }
+        .eoline:hover {
+            background-color: #0033AA;
+            color: white;
+        }
+        .dr {
+            background-color: white;
+            color: black;
+            border: 2px solid #BB0022;
+        }
+        .dr:hover {
+            background-color: #BB0022;
+            color: white;
+        }
+        .block222 {
+            background-color: white;
+            color: black;
+            border: 2px solid #005500;   
+        }
+        .block222:hover {
+            background-color: #005500;
+            color: white;
+        }
+        .block223 {
+            background-color: white;
+            color: black;
+            border: 2px solid #009999;   
+        }
+        .block223:hover {
+            background-color: #009999;
+            color: white;
         }
     </style>
 </head>
 
 <body>
-
-    <canvas id="myCanvas" width="480" height="320"></canvas>
-
+    <button class="button solve" onclick="solveInput();">Solve (10 move limit) </button>
+    <button class="button cross" onclick="solveInput([NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN, 0, 1, 2, 3, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN], 4, 4);">Cross</button>
+    <button class="button eo" onclick="solveInput([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN], 3, 4);">EO</button>
+    <button class="button eoline" onclick="solveInput([0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 2, 0, NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN], 4, 5);">EO-Line</button>
+    <button class="button dr" onclick="solveInput([0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 5, 5);">DR</button>
+    <button class="button block222" onclick="solveInput([NaN, NaN, NaN, NaN, NaN, NaN, 0, NaN, NaN, NaN, 1, 2, NaN, NaN, NaN, NaN, NaN, NaN, NaN, 0], 4, 4);">2x2x2 block</button>
+    <button class="button block223" onclick="solveInput([NaN, NaN, NaN, NaN, NaN, 0, 1, NaN, 2, NaN, 3, 4, NaN, NaN, NaN, NaN, 0, NaN, NaN, 1], 5, 5);">2x2x3 block</button>
     <script>
-        var canvas = document.getElementById("myCanvas");
-        var ctx = canvas.getContext("2d");
-        ctx.font = "20px Century Gothic";
-
-        var types = 2;
-        var typecount = [12, 8];
-        var typeori = [2, 3];
-        var faces = 6; // rotatable faces
-
-        var typebin = [16, 8]; // typecount, each element is the next power of 2
-        var typebinmask = [15, 7]; // typebin, each element minus 1
-        var typemax = [32, 24]; // typeori * typebin
-        var typemaxmask = [31, 23]; // typemax, each element minus 1
-
-        var uEdge = [3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11]; // initialize where edges go after each clockwise move
-        var rEdge = [0, 4, 2, 3, 9, 5, 6, 1, 8, 7, 10, 11];
-        var fEdge = [0, 1, 21, 3, 18, 24, 6, 7, 20, 9, 10, 11];
-        var dEdge = [0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10];
-        var lEdge = [0, 1, 2, 6, 4, 3, 11, 7, 8, 9, 10, 5];
-        var bEdge = [23, 1, 2, 3, 4, 5, 16, 26, 8, 9, 22, 11];
-        var edgeMove = [uEdge, rEdge, fEdge, dEdge, lEdge, bEdge];
-
-        var uCorn = [3, 0, 1, 2, 4, 5, 6, 7]; // initialize where corners go after each clockwise move
-        var rCorn = [0, 10, 21, 3, 4, 14, 17, 7];
-        var fCorn = [0, 1, 11, 20, 13, 18, 6, 7];
-        var dCorn = [0, 1, 2, 3, 7, 4, 5, 6];
-        var lCorn = [23, 1, 2, 8, 19, 5, 6, 12];
-        var bCorn = [9, 22, 2, 3, 4, 5, 15, 16];
-        var cornMove = [uCorn, rCorn, fCorn, dCorn, lCorn, bCorn];
-
-        var cubeMult = function (ae, ac, be, bc, pe, pc) {
-            for (let ed = 0; ed < typecount[0]; ed++) {
-                pe[ed] = (ae[be[ed] & typebinmask[0]] + (be[ed] & typebin[0])) & typemaxmask[0];
-            }
-            for (let corn = 0; corn < typecount[1]; corn++) { // compute corner product
-                var temp = (ac[bc[corn] & typebinmask[1]] + (bc[corn] & typemax[1]));
-                pc[corn] = temp < typemax[1] ? temp : temp - typemax[1];
-            }
-        }
-        for (let i = 0; i < 12; i++) { // initialize compositions of single moves (double and counterclockwise moves)
-            edgeMove[i + faces] = [];
-            cornMove[i + faces] = [];
-            cubeMult(edgeMove[i], cornMove[i], edgeMove[i % faces], cornMove[i % faces], edgeMove[i + faces], cornMove[i + faces]);
-        }
-
-        function doMoves(movelist) {
-            let cubeEdge = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-            let cubeCorn = [0, 1, 2, 3, 4, 5, 6, 7];
-            let edgeTemp = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-            let cornTemp = [0, 1, 2, 3, 4, 5, 6, 7];
-            for (let i = 0; i < movelist.length; i++) {
-                cubeMult(cubeEdge, cubeCorn, edgeMove[movelist[i]], cornMove[movelist[i]], edgeTemp, cornTemp);
-                cubeEdge = edgeTemp.slice();
-                cubeCorn = cornTemp.slice();
-                console.log(cubeCorn);
-            }
-            return [cubeEdge, cubeCorn];
-        }
-
-        //function* neighbors(edState, cornState) {
-        //    for (let i=0; i<edgeMove.length; i++) {
-        //        let prodE = [];
-        //        let prodC = [];
-        //        cubeMult(edState, cornState, edgeMove[i], cornMove[i], prodE, prodC);
-        //        yield ([prodE, prodC]);
-        //    }
-        //}
-
-        function reachable(state, n) {
-            //states = {state:''}
-            //for depth in range(n):
-            //    new_states = {}
-            //    for s in states:
-            //        for pos in neighbors(s, True):
-            //            if pos[0] not in states:
-            //                new_states[pos[0]] = states[s]+pos[1]
-            //    states.update(new_states)
-            //return states
-        }
-
-        // var prod = doMoves([6, 9, 7, 10, 8, 11]); // return a checkerboard
-
-        //for (let i of neighbors([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11], [0, 1, 2, 3, 4, 5, 6, 7])) {
-        //    console.log(i)
-        //}
-
-        // NEW ARCHITECTURE! CONGLOMULT
-
         var cubeOri = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3];
         var maxOri = Math.max(...cubeOri); // 3
         var pcCount = cubeOri.length; // 20
@@ -119,41 +98,130 @@
         var pcPosMask = pcPosBin - 1; // 31
         var maxOriMask = ((1 << Math.ceil(Math.log2(maxOri))) - 1) * pcPosBin; // 3 * 32 = 96
 
-        var prod = [];
+        var uCube = [3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14, 16, 17, 18, 19];
+        var rCube = [0, 4, 2, 3, 9, 5, 6, 1, 8, 7, 10, 11, 12, 46, 81, 15, 16, 50, 77, 19];
+        var fCube = [0, 1, 37, 3, 34, 40, 6, 7, 36, 9, 10, 11, 12, 13, 47, 80, 49, 78, 18, 19];
+        var dCube = [0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10, 12, 13, 14, 15, 19, 16, 17, 18];
+        var lCube = [0, 1, 2, 6, 4, 3, 11, 7, 8, 9, 10, 5, 83, 13, 14, 44, 79, 17, 18, 48];
+        var bCube = [39, 1, 2, 3, 4, 5, 32, 42, 8, 9, 38, 11, 45, 82, 14, 15, 16, 17, 51, 76];
+        var moves = [uCube, rCube, fCube, dCube, lCube, bCube];
 
+        var moveStr = ['U', 'R', 'F', 'D', 'L', 'B'];
+        var typeStr = ["", "2", "'"];
+
+        var fcCount = moves.length; // 6
+        var moveTypes = typeStr.length; // Multiplicity of the move: the number of sides minus 1
+        var distinctMoves = fcCount * moveTypes // 18
+        var fullMoveStr = [];
+        for (let i = 0; i < moveTypes; i++) {
+            for (let j = 0; j < fcCount; j++) {
+                fullMoveStr.push(moveStr[j] + (i + 1).toString());
+            }
+        }
+        var solved = [];
+        for (i = 0; i < pcCount; i++) {
+            solved[i] = i;
+        }
         var congloMult = function (ac, bc, prod) {
             for (let p = 0; p < pcCount; p++) {
                 var temp = (ac[bc[p] & pcPosMask] + (bc[p] & maxOriMask));
                 prod[p] = temp < cubeOri[p] << pcPosLen ? temp : temp - (cubeOri[p] << pcPosLen);
             }
         }
-
-        var uCube = [3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14, 16, 17, 18, 19];
-        var dCube = [0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10, 12, 13, 14, 15, 19, 16, 17, 18];
-        var rCube = [0, 4, 2, 3, 9, 5, 6, 1, 8, 7, 10, 11, 12, 46, 81, 15, 16, 50, 77, 19];
-        var lCube = [0, 1, 2, 6, 4, 3, 11, 7, 8, 9, 10, 5, 83, 13, 14, 44, 79, 17, 18, 48];
-        var fCube = [0, 1, 37, 3, 34, 40, 6, 7, 36, 9, 10, 11, 12, 13, 47, 80, 49, 78, 18, 19];
-        var bCube = [39, 1, 2, 3, 4, 5, 32, 42, 8, 9, 38, 11, 45, 82, 14, 15, 16, 17, 51, 76];
-        var moves = [uCube, rCube, fCube, dCube, lCube, bCube];
-
-        for (let i = 0; i < 12; i++) {
-            congloMult(moves[i], moves[i % 6], prod);
-            moves[moves.length] = prod;
+        for (let i = 0; i < distinctMoves - fcCount; i++) {
+            moves[i + fcCount] = [];
+            congloMult(moves[i], moves[i % fcCount], moves[i + fcCount]);
         }
-
-        function doMoves(movelist) {
-            var cube = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19];
+        function neighbors(state) {
+            let neigh = [];
+            for (let i = 0; i < distinctMoves; i++) {
+                neigh[i] = [];
+                congloMult(state, moves[i], neigh[i]);
+            }
+            return neigh;
+        }
+        function mask(state) {
+            let m = "";
+            for (let i = 0; i < pcCount; i++) {
+                let u = state[i]
+                if (u == u) { m += u };
+                m += " ";
+            }
+            return m
+        }
+        function reachable(state, n) {
+            var reached = new Map([[mask(state), [state, ""]]])
+            for (let i = n; i > 0; i--) {
+                let statemasks = Array.from(reached.keys());
+                for (let k = 0, klen = statemasks.length; k < klen; k++) {
+                    let statemask = statemasks[k];
+                    let stateprop = reached.get(statemask);
+                    let neighborlist = neighbors(stateprop[0]);
+                    for (let j = 0, jlen = neighborlist.length; j < jlen; j++) {
+                        let nmask = mask(neighborlist[j]);
+                        if (!(reached.has(nmask))) {
+                            reached.set(nmask, [neighborlist[j], reached.get(statemask)[1] + fullMoveStr[j] + " "]);
+                        }
+                    }
+                }
+            }
+            return reached;
+        }
+        function invert(sequence) {
+            let m = "";
+            let brokenSeq = sequence.split(" ");
+            for (let i = brokenSeq.length; i; i--) {
+                let mfrag = brokenSeq[i - 1];
+                if (mfrag.length) {
+                    m += mfrag[0];
+                    m += moveTypes - (mfrag.slice(1)) + 1
+                    m += " ";
+                }
+            }
+            return m;
+        }
+        function convert(sequence) {
+            let m = "";
+            let brokenSeq = sequence.split(" ");
+            for (let i = 0; i < brokenSeq.length; i++) {
+                let mfrag = brokenSeq[i];
+                if (mfrag.length) {
+                    m += mfrag[0];
+                    m += typeStr[mfrag.slice(1) - 1];
+                    m += " ";
+                }
+            }
+            return m;
+        }
+        function doMoves(sequence, state = solved) {
+            var movelist = [];
+            let brokenSeq = sequence.split(" ");
+            for (let i = 0; i < brokenSeq.length; i++) {
+                movelist[i] = moveStr.indexOf(brokenSeq[i][0]) + fcCount * typeStr.indexOf(brokenSeq[i].slice(1))
+            }
+            var cube = state;
             var temp = [];
-            for (let move in movelist) {
-                congloMult(cube, moves[move], temp);
+            for (let moveind = 0; moveind < movelist.length; moveind++) {
+                congloMult(cube, moves[movelist[moveind]], temp);
                 cube = temp.slice();
             }
             return cube;
         }
-        console.log(doMoves([5, 3, 5, 5, 5, 3, 5, 3, 5, 5, 5, 3, 5, 3, 5, 5, 5, 3, 5, 3, 5, 5, 5, 3, 5, 3, 5, 5, 5, 3]));
+        function solve(state, fn, bn, goal = solved) { // returns one solution of length <= fn+bn.
+            let forward = reachable(state, fn);
+            let backward = reachable(goal, bn);
+            for (let fdreachable of forward.keys()) {
+                if (backward.has(fdreachable)) {
+                    return convert(forward.get(fdreachable)[1] + invert(backward.get(fdreachable)[1]));
+                }
+            }
+        }
+        function solveInput(state = solved, fn = 5, bn = 5) {
+            const scr = prompt("Scramble:");
+            alert(solve(doMoves(scr, state), fn, bn, state));
+        }
 
     </script>
-
 </body>
 
 </html>
