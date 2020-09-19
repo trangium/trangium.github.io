@@ -136,7 +136,7 @@
         var b2Cube = [10, 1, 2, 3, 4, 5, 7, 6, 8, 9, 0, 11, 18, 19, 14, 15, 16, 17, 12, 13];
 
         var cubeOri = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3];
-        var moveFaces = [uCube, rCube, fCube, dCube, lCube, bCube];
+        var moveFaces = [uCube, rCube, dCube, fCube, lCube, bCube];
         var moveStr = ['U', 'R', 'F', 'D', 'L', 'B'];
         var typeStr = ["", "2", "'"];
         var moveTypes = [3, 3, 3, 3, 3, 3];
@@ -189,7 +189,7 @@
         }
         function neighbors(state) {
             let neigh = [];
-            for (let i = 0; i < distinctMoves; i++) {
+            for (let i = 0; i < 6; i++) {
                 neigh[i] = [];
                 congloMult(state, moveset[i], neigh[i]);
             }
