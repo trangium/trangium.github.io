@@ -17,7 +17,7 @@
         }
 
         class Puzzle {
-            mult (start, move, result) {
+            static mult (start, move, result) {
                 for (let p = 0; p < this.pcCount; p++) {
                     let temp = (start[move[p] & this.posMask] + (move[p] & this.oriMask));
                     let tempOri = this.cubeOri[temp & this.posMask];
@@ -53,6 +53,18 @@
                         invCounter--;
                         this.inverse.push(invCounter);
                         this.moveType.push(i);
+                    }
+                }
+                this.validPairs = [];
+                for (let move1=0; move1<this.moves.length; move1++) {
+                    this.validPairs[move1] = [];
+                    for (let move2=0; move2<this.moves.length; move2++) {
+                        let prod1 = [];
+                        let prod2 = [];
+                        this.mult(this.moves[move1], this.moves[move2], prod1);
+                        this.mult(this.moves[move2], this.moves[move1], prod2);
+                        // Compares if A B = B A. Two moves of the same type are never valid (like B B2), and two commuting moves of different types are only valid in one way (exactly one of U D2 and D2 U are valid)
+                        if (arraysEqual(prod1, prod2)) { this.validPairs[move1][move2] = (move1 < move2) } else { this.validPairs[move1][move2] = true } 
                     }
                 }
             }
