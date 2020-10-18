@@ -3,11 +3,12 @@
 
 <head>
     <meta charset="utf-8" />
-    <title>TORCS2 Prototype</title>
+    <title>Subsolver Prototype</title>
 </head>
 
 <body>
     <script>
+        "use strict"
         function arraysEqual(arr1,arr2) {
             for (let i=0; i<arr1.length; i++) {
                 if (arr1[i] !== arr2[i]) {return false}
@@ -19,7 +20,7 @@
         function congloMult (ac, bc, prod) {
             for (let p = 0; p < pcCount; p++) {
                 let temp = (ac[bc[p] & posMask] + (bc[p] & oriMask));
-                let tempOri = cubeOri[temp & posMask]
+                let tempOri = cubeOri[temp & posMask] // this line has not been tested yet!
                 prod[p] = temp < tempOri << posBits ? temp : temp - (tempOri << posBits);
             }
         }
@@ -36,9 +37,11 @@
         // movegroup definition 
         let u1 = [3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14, 16, 17, 18, 19]; let r1 = [0, 4, 2, 3, 9, 5, 6, 1, 8, 7, 10, 11, 12, 46, 81, 15, 16, 50, 77, 19]; let f1 = [0, 1, 37, 3, 34, 40, 6, 7, 36, 9, 10, 11, 12, 13, 47, 80, 49, 78, 18, 19]; let d1 = [0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10, 12, 13, 14, 15, 19, 16, 17, 18]; let l1 = [0, 1, 2, 6, 4, 3, 11, 7, 8, 9, 10, 5, 83, 13, 14, 44, 79, 17, 18, 48]; let b1 = [39, 1, 2, 3, 4, 5, 32, 42, 8, 9, 38, 11, 45, 82, 14, 15, 16, 17, 51, 76];
         let r2 = [0, 9, 2, 3, 7, 5, 6, 4, 8, 1, 10, 11, 12, 17, 18, 15, 16, 13, 14, 19];
-        let clockwiseMoves = [u1, r1, d1];
+        let clockwiseMoves = [u1, r1, f1, d1, l1, b1];
         let inverses = [];
         let moves = [];
+
+        // defines all versions of the move, like U, U2, and U'
         for (let i=0; i<clockwiseMoves.length; i++) {
             moves.push(clockwiseMoves[i]);
             while (true) {
@@ -163,7 +166,7 @@
             if (pruneTable.has(strConv(cube))) {return readPrun(pruneTable, cube)}
             let attempt = [0];
             do {
-                cubeAttempt = execute(cube, attempt);
+                let cubeAttempt = execute(cube, attempt);
                 if (pruneTable.has(strConv(cubeAttempt))) {
                     return attempt.concat(readPrun(pruneTable, cubeAttempt));
                 }
@@ -222,6 +225,13 @@
             return e(2)&&c2(15)&&e(11)&&c2(16)&&c1(19)
         }
 
+        function sscMirSolved(cube) {
+            function e(n) {return cube[n]>3&&cube[n]<8}
+            function c1(n) {return cube[n]>31&&cube[n]<64}
+            function c2(n) {return cube[n]>63}
+            return (e(2)&&c2(15)&&e(11)&&c2(16)&&c1(19))||(e(0)&&c1(12)&&e(11)&&c2(16)&&c1(19))
+        }
+
         function randomRUD() {
             let cb = solved.slice();
             let parity = 0;
@@ -271,7 +281,7 @@
                 }
             }
             for (let i=12; i<20; i++) {
-                let r=Math.floor(Math.random()*i)
+                let r=Math.floor(Math.random()*(i-12))+12
                 if (i!=r) {
                     let temp = cb[r]
                     cb[r] = cb[i]
@@ -282,10 +292,35 @@
             return cb
         }
         function twoPairSolved(cube) {
-            function s(n, k=n) {return cube[n] == k}
+            function s(n, k) {return cube[k] == n}
             function augEd(n, k) {return n+k<12?n+k:n+k-4}
             function augCo(n, k) {return n+k<20?n+k:n+k-4}
-            for (let i=0; i<4; i++) { s(augEd(9, i))&&s(augEd(11, i))&&s(augCo(17, i))&&s(augCo(19, i)) }
+            for (let i=0; i<4; i++) { if (s(augEd(9, i), 9)&&s(augEd(11, i), 11)&&s(augCo(18, i), 18)&&s(augCo(19, i), 19)) {return true} }
+            return false
+        }
+
+        function twoPairESolved(cube) {
+            function s(n, k) {return cube[k] == n}
+            function augEd(n, k) {return n+k<12?n+k:n+k-4}
+            function augCo(n, k) {return n+k<20?n+k:n+k-4}
+            for (let i=0; i<4; i++) { if (s(augEd(9, i), 9)&&s(augEd(11, i), 11)&&s(augCo(18, i), 18)&&s(augCo(19, i), 19)&&s(4, 4)) {return true} }
+            return false
+        }
+
+        function twoPairRSolved(cube) {
+            function s(n, k) {return cube[k] == n}
+            function augEd(n, k) {return n+k<12?n+k:n+k-4}
+            function augCo(n, k) {return n+k<20?n+k:n+k-4}
+            for (let i=0; i<4; i++) { if (s(augEd(8, i), 8)&&s(augEd(10, i), 10)&&s(augCo(16, i), 16)&&s(augCo(19, i), 19)) {return true} }
+            return false
+        }        
+        
+        function twoPairRESolved(cube) {
+            function s(n, k) {return cube[k] == n}
+            function augEd(n, k) {return n+k<12?n+k:n+k-4}
+            function augCo(n, k) {return n+k<20?n+k:n+k-4}
+            for (let i=0; i<4; i++) { if (s(augEd(8, i), 8)&&s(augEd(10, i), 10)&&s(augCo(16, i), 16)&&s(augCo(19, i), 19)&&s(4, 4)) {return true} }
+            return false
         }
         
     </script>

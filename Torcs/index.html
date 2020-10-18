@@ -3,12 +3,65 @@
 
 <head>
     <meta charset="utf-8" />
-    <title>TORCS Prototype</title>
+    <title>Subsolver Prototype</title>
 </head>
 
 <body>
     <script>
-        // at some point, create an object oriented version of TORCS
+        "use strict";
+        function arraysEqual(arr1,arr2) {
+            for (let i=0; i<arr1.length; i++) {
+                if (arr1[i] !== arr2[i]) {return false}
+            }
+            return true
+        }
+
+        class Puzzle {
+            mult (start, move, result) {
+                for (let p = 0; p < this.pcCount; p++) {
+                    let temp = (start[move[p] & this.posMask] + (move[p] & this.oriMask));
+                    let tempOri = this.cubeOri[temp & this.posMask];
+                    result[p] = temp < tempOri << this.posBits ? temp : temp - (tempOri << this.posBits);
+                }
+            }
+            constructor (cubeOri, clockwiseMoves, solvedState=null) {
+                this.cubeOri = cubeOri;
+                this.pcCount = cubeOri.length; // 20
+                this.posBits = Math.ceil(Math.log2(this.pcCount)) // 5; number of bits needed to store piece (without orientation)
+                this.posMask = (1 << this.posBits) - 1; // 31
+                this.oriMask = ((1 << Math.ceil(Math.log2(Math.max(...cubeOri)))) - 1) << this.posBits; // 3 * 32 = 96
+                if (solvedState === null) {
+                    this.solved = [];
+                    for (let i=0; i<this.pcCount; i++) {this.solved[i] = i}
+                } else {this.solved = solvedState}
+                this.state = solvedState.slice();
+                this.moves = [];
+                this.inverse = [];
+                this.moveType = [];
+                for (let i=0; i<clockwiseMoves.length; i++) { // initialize the moves array, inverse array, and moveType array
+                    this.moves.push(clockwiseMoves[i]); // put the clockwise version of the move in 
+                    while (true) {
+                        this.moves.push([]);
+                        this.mult(this.moves[this.moves.length-2],clockwiseMoves[i],this.moves[this.moves.length-1]); // put the repeated moves in (U2, U')
+                        if (arraysEqual(this.moves[this.moves.length-1],this.solved)) { // break if repeated move was the solved state
+                            this.moves.pop();
+                            break;
+                        }
+                    }
+                    let invCounter = this.moves.length;
+                    while (this.inverse.length < this.moves.length) { // initializes the inverses array and moveTypes array for each new element in the moves array
+                        invCounter--;
+                        this.inverse.push(invCounter);
+                        this.moveType.push(i);
+                    }
+                }
+            }
+        }
+        let u1 = [3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14, 16, 17, 18, 19]; let r1 = [0, 4, 2, 3, 9, 5, 6, 1, 8, 7, 10, 11, 12, 46, 81, 15, 16, 50, 77, 19]; let f1 = [0, 1, 37, 3, 34, 40, 6, 7, 36, 9, 10, 11, 12, 13, 47, 80, 49, 78, 18, 19]; let d1 = [0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10, 12, 13, 14, 15, 19, 16, 17, 18]; let l1 = [0, 1, 2, 6, 4, 3, 11, 7, 8, 9, 10, 5, 83, 13, 14, 44, 79, 17, 18, 48]; let b1 = [39, 1, 2, 3, 4, 5, 32, 42, 8, 9, 38, 11, 45, 82, 14, 15, 16, 17, 51, 76];
+        let cube3x3 = new Puzzle(
+            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3], 
+            [u1, r1, f1, d1, l1, b1],
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
     </script>
 </body>
 
