@@ -17,7 +17,7 @@
         }
 
         class Puzzle {
-            static mult (start, move, result) {
+            mult (start, move, result) {
                 for (let p = 0; p < this.pcCount; p++) {
                     let temp = (start[move[p] & this.posMask] + (move[p] & this.oriMask));
                     let tempOri = this.cubeOri[temp & this.posMask];
