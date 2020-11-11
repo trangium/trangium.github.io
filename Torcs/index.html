@@ -34,11 +34,9 @@
                     this.solved = [];
                     for (let i=0; i<this.pcCount; i++) {this.solved[i] = i}
                 } else {this.solved = solvedState}
-                this.state = solvedState.slice();
-                this.moves = [];
-                this.inverse = [];
-                this.moveType = [];
-                for (let i=0; i<clockwiseMoves.length; i++) { // initialize the moves array, inverse array, and moveType array
+                this.moves = []; // clockwise, counter, and double moves
+                this.inverse = []; // mapping of inverse moves
+                for (let i=0; i<clockwiseMoves.length; i++) { // initialize the moves array and inverse array
                     this.moves.push(clockwiseMoves[i]); // put the clockwise version of the move in 
                     while (true) {
                         this.moves.push([]);
@@ -52,11 +50,10 @@
                     while (this.inverse.length < this.moves.length) { // initializes the inverses array and moveTypes array for each new element in the moves array
                         invCounter--;
                         this.inverse.push(invCounter);
-                        this.moveType.push(i);
                     }
                 }
                 this.validPairs = [];
-                for (let move1=0; move1<this.moves.length; move1++) {
+                for (let move1=0; move1<this.moves.length; move1++) { // initialize the valid pairs array
                     this.validPairs[move1] = [];
                     for (let move2=0; move2<this.moves.length; move2++) {
                         let prod1 = [];
@@ -69,11 +66,29 @@
                 }
             }
         }
+        class State extends Puzzle {
+            constructor (cubeOri, clockwiseMoves, solvedState=null, state=null) {
+                super(cubeOri, clockwiseMoves, solvedState)
+                if (state === null) {this.state = this.solvedState} else {this.state = state}
+            }
+            apply (sequence) {
+                let tempCube = [];
+                for (let i=0; i<sequence.length; i++) {
+                    this.mult(this.state, this.moves[sequence[i]], tempCube);
+                    this.state = tempCube.slice();
+                }
+            }
+        }
         let u1 = [3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14, 16, 17, 18, 19]; let r1 = [0, 4, 2, 3, 9, 5, 6, 1, 8, 7, 10, 11, 12, 46, 81, 15, 16, 50, 77, 19]; let f1 = [0, 1, 37, 3, 34, 40, 6, 7, 36, 9, 10, 11, 12, 13, 47, 80, 49, 78, 18, 19]; let d1 = [0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10, 12, 13, 14, 15, 19, 16, 17, 18]; let l1 = [0, 1, 2, 6, 4, 3, 11, 7, 8, 9, 10, 5, 83, 13, 14, 44, 79, 17, 18, 48]; let b1 = [39, 1, 2, 3, 4, 5, 32, 42, 8, 9, 38, 11, 45, 82, 14, 15, 16, 17, 51, 76];
         let cube3x3 = new Puzzle(
             [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3], 
             [u1, r1, f1, d1, l1, b1],
             [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
+        // NEW PLAN: puzzles create puzzleStates
+        /*
+        puzzles have a valid pairs array, define a mult function, have all puzzle variables like pcCount, have a defined moveset, can create puzzleStates, and can create pruneTables
+        puzzleStates can be solved and use the mult function
+        */
     </script>
 </body>
 
