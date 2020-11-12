@@ -40,52 +40,58 @@
         //let clockwiseMoves = [u1, r1, f1, d1, l1, b1];
         let u1 = [3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14, 16, 17, 18, 19, 20, 21, 22];
         let r1 = [0, 4, 2, 3, 9, 5, 6, 1, 8, 7, 10, 11, 12, 46, 81, 15, 16, 50, 77, 19, 20, 21, 22];
-        let m3 = [34, 1, 40, 3, 4, 5, 6, 7, 42, 9, 32, 11, 12, 13, 14, 15, 16, 17, 18, 19, 22, 21, 52];
+        let f1 = [0, 1, 37, 3, 34, 40, 6, 7, 36, 9, 10, 11, 12, 13, 47, 80, 49, 78, 18, 19, 20, 21, 22];
+        let m1 = [42, 1, 32, 3, 4, 5, 6, 7, 34, 9, 40, 11, 12, 13, 14, 15, 16, 17, 18, 19, 54, 21, 20];
         let s1 = [0, 35, 2, 43, 4, 5, 6, 7, 8, 33, 10, 41, 12, 13, 14, 15, 16, 17, 18, 19, 53, 20, 22];
         let rw1 = [34, 4, 40, 3, 9, 5, 6, 1, 42, 7, 32, 11, 12, 46, 81, 15, 16, 50, 77, 19, 22, 21, 52];
-        let clockwiseMoves = [u1, r1, rw1];
         let inverses = [];
         let moves = [];
+        let validPairs = [];
+        let moveStr = [];
 
-        // defines all versions of the move, like U, U2, and U'
-        for (let i=0; i<clockwiseMoves.length; i++) {
-            moves.push(clockwiseMoves[i]);
-            while (true) {
-                moves.push([]);
-                congloMult(moves[moves.length-2],clockwiseMoves[i],moves[moves.length-1])
-                if (arraysEqual(moves[moves.length-1],solved)) {
-                    moves.pop();
-                    break;
+        function movegroup(clockwiseMoves, notation) {
+            // defines all versions of the move, like U, U2, and U'
+            for (let i=0; i<clockwiseMoves.length; i++) {
+                moves.push(clockwiseMoves[i]);
+                let a = 0;
+                while (true) {
+                    moves.push([]);
+                    congloMult(moves[moves.length-2],clockwiseMoves[i],moves[moves.length-1])
+                    moveStr.push(notation[i]+[" ","2 ","' "][a]);
+                    a += 1;
+                    if (arraysEqual(moves[moves.length-1],solved)) {
+                        moves.pop();
+                        break;
+                    }
+                }
+                let invCounter = moves.length;
+                while (inverses.length < moves.length) {
+                    invCounter--;
+                    inverses.push(invCounter);
                 }
             }
-            let invCounter = moves.length;
-            while (inverses.length < moves.length) {
-                invCounter--;
-                inverses.push(invCounter);
-            }
-        }
 
-        // find pairs of moves that are valid together, like R' B. Non-examples include R R2, or one of F B and B F.
-        var validPairs = [];
-        for (let move1=0; move1<moves.length; move1++) {
-            validPairs[move1] = [];
-            for (let move2=0; move2<moves.length; move2++) {
-                let prod1 = [];
-                let prod2 = [];
-                congloMult(moves[move1], moves[move2], prod1);
-                congloMult(moves[move2], moves[move1], prod2);
-                if (arraysEqual(prod1, prod2)) {
-                    validPairs[move1][move2] = (move1 < move2)
-                    for (let i=0; i<moves.length; i++) {
-                        if (arraysEqual(prod1, moves[i])) {
+            // find pairs of moves that are valid together, like R' B. Non-examples include R R2, or one of F B and B F.
+            for (let move1=0; move1<moves.length; move1++) {
+                validPairs[move1] = [];
+                for (let move2=0; move2<moves.length; move2++) {
+                    let prod1 = [];
+                    let prod2 = [];
+                    congloMult(moves[move1], moves[move2], prod1);
+                    congloMult(moves[move2], moves[move1], prod2);
+                    if (arraysEqual(prod1, prod2)) {
+                        validPairs[move1][move2] = (move1 < move2)
+                        for (let i=0; i<moves.length; i++) {
+                            if (arraysEqual(prod1, moves[i])) {
+                                validPairs[move1][move2] = false
+                            }
+                        }
+                        if (arraysEqual(prod1, solved)) {
                             validPairs[move1][move2] = false
                         }
+                    } else {
+                        validPairs[move1][move2] = true
                     }
-                    if (arraysEqual(prod1, solved)) {
-                        validPairs[move1][move2] = false
-                    }
-                } else {
-                    validPairs[move1][move2] = true
                 }
             }
         }
@@ -177,7 +183,7 @@
                 if (pruneTable.has(strConv(cubeAttempt))) {
                     let solution = attempt.concat(readPrun(pruneTable, cubeAttempt));
                     let solStr = "";
-                    for (let i=0; i<solution.length; i++) {solStr += ["U ","U2 ","U' ","R ","R2 ","R' ","r ","r2 ","r' "][solution[i]]}
+                    for (let i=0; i<solution.length; i++) {solStr += moveStr[solution[i]]}
                     console.log(solStr);
                 }
             } while (advance(attempt) <= maxDepth)
@@ -192,7 +198,7 @@
             } while (advance(attempt) <= maxDepth)
         }
 
-
+        movegroup([u1, m1],['U', 'M']);
         
     </script>
 </body>
