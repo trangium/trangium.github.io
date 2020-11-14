@@ -4,9 +4,60 @@
 <head>
     <meta charset="utf-8" />
     <title>Subsolver Prototype</title>
+    <style>
+    .button {
+    border: none;
+    color: white;
+    padding: 16px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    transition-duration: 0.4s;
+    cursor: pointer;
+    }
+
+    .button1 {
+    background-color: white;
+    color: black;
+    border: 2px solid #4CAF50;
+    }
+
+    .button1:hover {
+    background-color: #4CAF50;
+    color: white;
+    }
+    </style>
 </head>
 
 <body>
+    <button class="button button1" onclick="solveInput()">Solve</button>
+    <div style="font-family:verdana;font-size:18px">
+        <br>Movegroup:<br>
+        <input id="U" type="checkbox" checked>
+        <label> U</label><br>
+        <input id="R" type="checkbox" checked>
+        <label> R</label><br>
+        <input id="F" type="checkbox" checked>
+        <label> F</label><br>
+        <input id="D" type="checkbox">
+        <label> D</label><br>
+        <input id="L" type="checkbox">
+        <label> L</label><br>
+        <input id="B" type="checkbox">
+        <label> B</label><br>
+        <input id="M" type="checkbox">
+        <label> M</label><br>
+        <input id="S" type="checkbox">
+        <label> S</label><br>
+        <input id="E" type="checkbox">
+        <label> E</label><br>
+        <input id="r" type="checkbox">
+        <label> r</label><br>
+    </div>
+    
+
     <script>
         "use strict"
         function arraysEqual(arr1,arr2) {
@@ -35,21 +86,27 @@
         for (let i=0; i<pcCount; i++) {solved[i] = i}
 
         // movegroup definition 
-        //let u1 = [3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14, 16, 17, 18, 19]; let r1 = [0, 4, 2, 3, 9, 5, 6, 1, 8, 7, 10, 11, 12, 46, 81, 15, 16, 50, 77, 19]; let f1 = [0, 1, 37, 3, 34, 40, 6, 7, 36, 9, 10, 11, 12, 13, 47, 80, 49, 78, 18, 19]; let d1 = [0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10, 12, 13, 14, 15, 19, 16, 17, 18]; let l1 = [0, 1, 2, 6, 4, 3, 11, 7, 8, 9, 10, 5, 83, 13, 14, 44, 79, 17, 18, 48]; let b1 = [39, 1, 2, 3, 4, 5, 32, 42, 8, 9, 38, 11, 45, 82, 14, 15, 16, 17, 51, 76];
-        //let r2 = [0, 9, 2, 3, 7, 5, 6, 4, 8, 1, 10, 11, 12, 17, 18, 15, 16, 13, 14, 19];
-        //let clockwiseMoves = [u1, r1, f1, d1, l1, b1];
         let u1 = [3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14, 16, 17, 18, 19, 20, 21, 22];
         let r1 = [0, 4, 2, 3, 9, 5, 6, 1, 8, 7, 10, 11, 12, 46, 81, 15, 16, 50, 77, 19, 20, 21, 22];
         let f1 = [0, 1, 37, 3, 34, 40, 6, 7, 36, 9, 10, 11, 12, 13, 47, 80, 49, 78, 18, 19, 20, 21, 22];
+        let d1 = [0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10, 12, 13, 14, 15, 19, 16, 17, 18, 20, 21, 22]; 
+        let l1 = [0, 1, 2, 6, 4, 3, 11, 7, 8, 9, 10, 5, 83, 13, 14, 44, 79, 17, 18, 48, 20, 21, 22]; 
+        let b1 = [39, 1, 2, 3, 4, 5, 32, 42, 8, 9, 38, 11, 45, 82, 14, 15, 16, 17, 51, 76, 20, 21, 22];
         let m1 = [42, 1, 32, 3, 4, 5, 6, 7, 34, 9, 40, 11, 12, 13, 14, 15, 16, 17, 18, 19, 54, 21, 20];
         let s1 = [0, 35, 2, 43, 4, 5, 6, 7, 8, 33, 10, 41, 12, 13, 14, 15, 16, 17, 18, 19, 53, 20, 22];
+        let e1 = [0, 1, 2, 3, 37, 38, 39, 36, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 53];
+        let r2 = []; congloMult(r1, r1, r2);
         let rw1 = [34, 4, 40, 3, 9, 5, 6, 1, 42, 7, 32, 11, 12, 46, 81, 15, 16, 50, 77, 19, 22, 21, 52];
-        let inverses = [];
-        let moves = [];
-        let validPairs = [];
-        let moveStr = [];
+        let possibleMoves = [u1,r1,f1,d1,l1,b1,m1,s1,e1,rw1];
+        let moveStrList = ['U','R','F','D','L','B','M','S','E','r'];
+        let moveAmt = ["","2","'"]
+        let inverses, moves, validPairs, moveStr;
 
         function movegroup(clockwiseMoves, notation) {
+            inverses = [];
+            moves = [];
+            validPairs = [];
+            moveStr = [];
             // defines all versions of the move, like U, U2, and U'
             for (let i=0; i<clockwiseMoves.length; i++) {
                 moves.push(clockwiseMoves[i]);
@@ -181,12 +238,15 @@
             do {
                 let cubeAttempt = execute(cube, attempt);
                 if (pruneTable.has(strConv(cubeAttempt))) {
-                    let solution = attempt.concat(readPrun(pruneTable, cubeAttempt));
-                    let solStr = "";
-                    for (let i=0; i<solution.length; i++) {solStr += moveStr[solution[i]]}
-                    console.log(solStr);
+                    return attempt.concat(readPrun(pruneTable, cubeAttempt));
                 }
             } while (advance(attempt) <= maxDepth)
+        }
+
+        function movesToStr(sequence) {
+            let solStr = "";
+            for (let i=0; i<sequence.length; i++) {solStr += moveStr[sequence[i]]}
+            return solStr;
         }
 
         function customSolve(cube, solvedParam, maxDepth=Infinity) {
@@ -198,8 +258,37 @@
             } while (advance(attempt) <= maxDepth)
         }
 
-        movegroup([u1, m1],['U', 'M']);
-        
+        function executeStr(cube, sequence) {
+            let tempCube = [];
+            let splitSeq = sequence.split(" ");
+            for (let j=0; j<splitSeq.length; j++) {
+                let moveInd = moveStrList.indexOf(splitSeq[j][0]);
+                if (moveInd != -1) {
+                    let repeat = moveAmt.indexOf(splitSeq[j].slice(1))+1
+                    for (let i=0; i<repeat; i++) {
+                        congloMult(cube,possibleMoves[moveInd],tempCube)
+                        cube = tempCube.slice();
+                    }
+                }
+            }
+            return cube;
+        }
+
+        function solveInput() {
+            let inputMoves = [];
+            let inputMoveStr = [];
+            for (let i=0; i<possibleMoves.length; i++) {
+                if (document.getElementById(moveStrList[i]).checked) {
+                    inputMoves.push(possibleMoves[i]);
+                    inputMoveStr.push(moveStrList[i]);
+                }
+            }
+            movegroup(inputMoves,inputMoveStr);
+            let cube = executeStr(solved, prompt("State generator:"));
+            let solution = solve(cube, createPrun(5), 6);
+            if (solution !== undefined) {alert(movesToStr(solution))} else {alert("No solutions found")}
+        }
+
     </script>
 </body>
 
