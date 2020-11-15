@@ -32,29 +32,40 @@
 </head>
 
 <body>
-    <button class="button button1" onclick="solveInput()">Solve</button>
-    <div style="font-family:verdana;font-size:18px">
+    <div style="font-family:calibri;font-size:24px">
+        <button style="font-family:calibri;font-size:24px" class="button button1" onclick="solveInput()">Solve</button><br>
         <br>Movegroup:<br>
         <input id="U" type="checkbox" checked>
-        <label> U</label><br>
+        <label> U&nbsp;</label>
         <input id="R" type="checkbox" checked>
-        <label> R</label><br>
+        <label> R&nbsp;</label>
         <input id="F" type="checkbox" checked>
-        <label> F</label><br>
+        <label> F&nbsp;</label>
         <input id="D" type="checkbox">
-        <label> D</label><br>
+        <label> D&nbsp;</label>
         <input id="L" type="checkbox">
-        <label> L</label><br>
+        <label> L&nbsp;</label>
         <input id="B" type="checkbox">
-        <label> B</label><br>
-        <input id="M" type="checkbox">
-        <label> M</label><br>
-        <input id="S" type="checkbox">
-        <label> S</label><br>
-        <input id="E" type="checkbox">
-        <label> E</label><br>
+        <label> B&nbsp;</label><br>
+        <input id="u" type="checkbox">
+        <label> u&nbsp;</label>
         <input id="r" type="checkbox">
-        <label> r</label><br><br>
+        <label> r&nbsp;</label>
+        <input id="d" type="checkbox">
+        <label> f&nbsp;</label>
+        <input id="f" type="checkbox">
+        <label> d&nbsp;</label>
+        <input id="l" type="checkbox">
+        <label> l&nbsp;</label>
+        <input id="b" type="checkbox">
+        <label> b&nbsp;</label><br>
+        <input id="M" type="checkbox">
+        <label> M&nbsp;</label>
+        <input id="S" type="checkbox">
+        <label> S&nbsp;</label>
+        <input id="E" type="checkbox">
+        <label> E&nbsp;</label>
+        <br><br>
         Set Prune Depth: <br>
         <input type="range" value="5" max="15" oninput="prunedepth.value = this.value">
         <output id="prunedepth">5</output><br><br>
@@ -84,7 +95,7 @@
         }
 
         // cube definition and congloMult variables
-        let cubeOri = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2]; // [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3];
+        let cubeOri = [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2];
         let pcCount = cubeOri.length; // 20
         let posBits = Math.ceil(Math.log2(pcCount)) // 5; number of bits needed to store piece (without orientation)
         let posMask = (1 << posBits) - 1; // 31
@@ -102,10 +113,14 @@
         let m1 = [42, 1, 32, 3, 4, 5, 6, 7, 34, 9, 40, 11, 12, 13, 14, 15, 16, 17, 18, 19, 54, 21, 20];
         let s1 = [0, 35, 2, 43, 4, 5, 6, 7, 8, 33, 10, 41, 12, 13, 14, 15, 16, 17, 18, 19, 53, 20, 22];
         let e1 = [0, 1, 2, 3, 37, 38, 39, 36, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 22, 53];
-        let r2 = []; congloMult(r1, r1, r2);
+        let uw1 = [3, 0, 1, 2, 39, 36, 37, 38, 8, 9, 10, 11, 15, 12, 13, 14, 16, 17, 18, 19, 20, 54, 21];
         let rw1 = [34, 4, 40, 3, 9, 5, 6, 1, 42, 7, 32, 11, 12, 46, 81, 15, 16, 50, 77, 19, 22, 21, 52];
-        let possibleMoves = [u1,r1,f1,d1,l1,b1,m1,s1,e1,rw1];
-        let moveStrList = ['U','R','F','D','L','B','M','S','E','r'];
+        let fw1 = [0, 35, 37, 43, 34, 40, 6, 7, 36, 33, 10, 41, 12, 13, 47, 80, 49, 78, 18, 19, 53, 20, 22];
+        let dw1 = [0, 1, 2, 3, 37, 38, 39, 36, 11, 8, 9, 10, 12, 13, 14, 15, 19, 16, 17, 18, 20, 22, 53];
+        let lw1 = [42, 1, 32, 6, 4, 3, 11, 7, 34, 9, 40, 5, 83, 13, 14, 44, 79, 17, 18, 48, 54, 21, 20];
+        let bw1 = [39, 41, 2, 33, 4, 5, 32, 42, 8, 43, 38, 35, 45, 82, 14, 15, 16, 17, 51, 76, 21, 52, 22];
+        let possibleMoves = [u1,r1,f1,d1,l1,b1,m1,s1,e1,uw1,rw1,fw1,dw1,lw1,bw1];
+        let moveStrList = ['U','R','F','D','L','B','M','S','E','u','r','f','d','l','b'];
         let moveAmt = ["","2","'"]
         let inverses, moves, validPairs, moveStr;
 
@@ -240,7 +255,7 @@
         }
 
         function* solve(cube, pruneTable, pruneDepth, maxDepth=Infinity) {
-            if (pruneTable.has(strConv(cube))) {return readPrun(pruneTable, cube)}
+            if (pruneTable.has(strConv(cube))) {yield readPrun(pruneTable, cube)}
             let attempt = [0];
             do {
                 let cubeAttempt = execute(cube, attempt);
