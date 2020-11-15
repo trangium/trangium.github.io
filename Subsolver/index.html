@@ -54,9 +54,16 @@
         <input id="E" type="checkbox">
         <label> E</label><br>
         <input id="r" type="checkbox">
-        <label> r</label><br>
+        <label> r</label><br><br>
+        Set Prune Depth: <br>
+        <input type="range" value="5" max="15" oninput="prunedepth.value = this.value">
+        <output id="prunedepth">5</output><br><br>
+        Set Search Depth: <br>
+        <input type="range" value="6" max="15" oninput="searchdepth.value = this.value">
+        <output id="searchdepth">6</output><br><br>
+        Solutions:<br>
+        <p id="solutions"></p>
     </div>
-    
 
     <script>
         "use strict"
@@ -232,13 +239,16 @@
             return alg;
         }
 
-        function solve(cube, pruneTable, maxDepth=Infinity) {
+        function* solve(cube, pruneTable, pruneDepth, maxDepth=Infinity) {
             if (pruneTable.has(strConv(cube))) {return readPrun(pruneTable, cube)}
             let attempt = [0];
             do {
                 let cubeAttempt = execute(cube, attempt);
                 if (pruneTable.has(strConv(cubeAttempt))) {
-                    return attempt.concat(readPrun(pruneTable, cubeAttempt));
+                    let prunResult = readPrun(pruneTable, cubeAttempt);
+                    if (validPairs[attempt[attempt.length-1]][prunResult[0]] && prunResult.length == pruneDepth) {
+                        yield attempt.concat(prunResult);
+                    }
                 }
             } while (advance(attempt) <= maxDepth)
         }
@@ -285,8 +295,10 @@
             }
             movegroup(inputMoves,inputMoveStr);
             let cube = executeStr(solved, prompt("State generator:"));
-            let solution = solve(cube, createPrun(5), 6);
-            if (solution !== undefined) {alert(movesToStr(solution))} else {alert("No solutions found")}
+            document.getElementById("solutions").innerHTML = "";
+            for (let solution of solve(cube, createPrun(parseInt(document.getElementById("prunedepth").value)), parseInt(document.getElementById("prunedepth").value), parseInt(document.getElementById("searchdepth").value))) {
+                document.getElementById("solutions").innerHTML += movesToStr(solution) + "<br>";
+            }
         }
 
     </script>
