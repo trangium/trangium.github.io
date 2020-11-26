@@ -5,49 +5,21 @@
 </head>
 
 <body>
-    <div style="font-family: 'Century Gothic', 'MS Sans Serif', arial; font-size: 14px; text-align:left; line-height:150%; margin:0px; color:#000000; clear:both;">
-        The sandwich method! <br>
-        This isn't new. Some people call this the belt method.<br>
-        I don't use this method, but here goes! <br><br>
-        Layer separation (0) <br>
-        <ol>
-            <li>You should plan a 2x2x3 + 2 E-edges in inspection</li>
-            <li>Then do the rest of separation with just R, U, and F moves (for EO)</li>
-        </ol>
-        Canonical Sandwich (1)<br>
-        <ol>
-            <li>Separate the layers - D edges in D, E edges <strong>solved</strong> in E, and U edges in U</li>
-            <li>OLL + PLL on D - Note that there can be parity cases that are not normal OLLs / PLLs, increasing the number of OLLs to 347 and the number of PLLs to 43. OLL would almost certainly be done in two looks.</li>
-            <li>OLL + PLL on U - Normal OLL (57 algs) / PLL (21 algs)</li>
-        </ol>
-        Concurrent Sandwich (2) <br>
-        <ol>
-            <li>Separate the layers - Same as in Canonical</li>
-            <li>Orient edges on both layers</li>
-            <li>Orient corners on both layers</li>
-            <li>Position corners on both layers</li>
-            <li>Position edges on both layers</li>
-        </ol>
-        EO Sandwich (3) <br>
-        <ol>
-            <li>EO, zz-style</li>
-            <li>Separate the layers without breaking EO</li>
-            <li>Continue in the same fashion as Concurrent</li>
-        </ol>
-        Belt Sandwich (4) <br>
-        <ol>
-            <li>EO-Belt</li>
-            <li>Separate the layers using only U, D, R2, L2, F2, and B2 moves</li>
-            <li>Continue in the same fashion as Concurrent</li>
-        </ol>
-        3/4 Sandwich (5) <br>
-        <ol>
-            <li>EO + 3/4 belt</li>
-            <li>Separate the layers <strong>minus one corner</strong> without breaking the 3/4-belt</li>
-            <li>Insert the last corner with the last E-edge with either R' U R, R' U2 R, or r' U r' F' r2 to avoid "parity"</li>
-            <li>COLL on both layers</li>
-            <li>Position edges on both layers</li>
-        </ol>
+    <div style="font-family: 'Century Gothic', 'MS Sans Serif', arial; font-size: 16px; text-align:left; line-height:150%; margin:0px; color:#000000; clear:both;">
+        The Belt method has been 'invented' many times before, and it is generally accepted to be a bad method. 
+        Here is my attempt at a belt method that is better than the normal belt method. <br><br>
+        The first step is, obviously, to create a belt along the E slice. This usually takes around 6 moves. <br><br>
+        The second step is to orient all the corners in one algorithm. There are around 150 cases for this step, and it averages about 11 moves, including U and D setup moves. <br><br>
+        The third step is to position all the corners in one algorithm. There are around 200 cases for this step, and it averages about 12 moves, including U and D setup moves. Many of the algorithms use only R2, U, and D moves, especially the shorter ones. In fact, five cases are only three moves long! After completing this step, there will only be 8 edges left to solve. <br><br>
+        The fourth step is to position the DL and DR edges intuitively. This averages about 5 moves. After this step, the cube can be solved with only M and U moves. <br><br>
+        The final step is to solve the last 6 edges like in Roux. This averages about 15 moves. <br><br>
+        Total: About 350 algorithms and 49 moves on average. Recognition for the algorithmic steps is pretty bad, so I don't think this method would be viable. At least it's better than the normal belt method. <br><br>
+        Example solve: U' L2 R2 D R2 B2 D U2 R2 U2 L' F' L2 R' U F' D U2 B' L2 F' U' <br>
+        F' U D L' U R' D F' // Belt (8/8) <br>
+        U R U' D R' U2 D R U' D2 R' // CO (11/19) <br>
+        D R2 U' R2 D' R2 U R2 // CP (8/27) <br>
+        D M' D' M D' // DLDR (5/32) <br>
+        M' U M U2 M U M' U M U' M' U' M' U2 M U' M2 U2 M' U2 M' // LSE (21/53)
     </div>
 </body>
 
