@@ -47,7 +47,7 @@
                 <th>Input: One alg per line</th>
             </tr>
             <tr>
-                <th><textarea id="output" rows="28" cols="26" readonly style="text-align: right"></textarea> </th>
+                <th><textarea id="output" rows="28" cols="27" readonly style="text-align: right"></textarea> </th>
                 <th><textarea id="input" rows="28" cols="66"></textarea></th>
             </tr>
         </table>
@@ -686,6 +686,8 @@
             for (let i=0; i<splitInput.length; i++) {
                 output.value += algSpeed(splitInput[i],document.getElementById("ignoreError").checked,document.getElementById("ignoreAUF").checked) + "\n"
             }
+            input.rows = Math.max(28,splitInput.length+1)
+            output.rows = Math.max(28,splitInput.length+1)
         }
 
         function customParseFloat(x) {
