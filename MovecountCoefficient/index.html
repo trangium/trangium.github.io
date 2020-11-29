@@ -109,9 +109,16 @@
                             break;
                         case "U":
                             if (rWrist == 0 && (rThumb[0] + 2.25 <= speed || rThumb[1] != "top") && rIndex[1] != "m") {
-                                speed += overwork(rIndex, "home");
-                                speed++;
-                                rIndex = [speed, "uflick"];
+                                if (overwork(rIndex, "home") <= overwork(rMiddle, "home")) {
+                                    speed += overwork(rIndex, "home");
+                                    speed++;
+                                    rIndex = [speed, "uflick"];
+                                } else {
+                                    speed += overwork(rMiddle, "home");
+                                    speed++;
+                                    rIndex = [speed, "uflick"];
+                                    rMiddle = [speed, "uflick"];                        
+                                }
                             } else if (rWrist == 1 && lWrist == 0) {
                                 speed += overwork(lIndex, "uflick");
                                 speed++;
@@ -132,9 +139,16 @@
                             break;
                         case "U'":
                             if (lWrist == 0 && (lThumb[0] + 2.25 <= speed || lThumb[1] != "top") && lIndex[1] != "m") {
-                                speed += overwork(lIndex, "home");
-                                speed++;
-                                lIndex = [speed, "uflick"];
+                                if (overwork(lIndex, "home") <= overwork(lMiddle, "home")) {
+                                    speed += overwork(lIndex, "home");
+                                    speed++;
+                                    lIndex = [speed, "uflick"];
+                                } else {
+                                    speed += overwork(lMiddle, "home");
+                                    speed++;
+                                    lIndex = [speed, "uflick"];
+                                    lMiddle = [speed, "uflick"];                        
+                                }
                             } else if (lWrist == 1 && rWrist == 0) {
                                 speed += overwork(rIndex, "uflick");
                                 speed++;
@@ -599,7 +613,7 @@
                         }
                     }
                 }
-                return [-1, speed]
+                return [-1, speed, lGrip, rGrip]
             }
             let splitSeq = sequence.split(" ");
             let trueSplitSeq = [];
@@ -686,8 +700,8 @@
             for (let i=0; i<splitInput.length; i++) {
                 output.value += algSpeed(splitInput[i],document.getElementById("ignoreError").checked,document.getElementById("ignoreAUF").checked) + "\n"
             }
-            input.rows = Math.max(28,splitInput.length+1)
-            output.rows = Math.max(28,splitInput.length+1)
+            input.rows = Math.max(28,splitInput.length+1) // UNCOMMENT THIS
+            output.rows = Math.max(28,splitInput.length+1) // UNCOMMENT THIS
         }
 
         function customParseFloat(x) {
@@ -712,7 +726,17 @@
                 document.getElementById("output").value += sortList[i][1] + "\n";
                 document.getElementById("input").value += sortList[i][0] + "\n";
             }
+            console.log(topFive()) // remove this
         }
+
+        function good(alg) {
+            let splitAlg = alg.split("  ")[0].split(" ");
+            if (splitAlg[splitAlg.length-1][0]=="D") {
+                splitAlg.pop()
+            }
+            return (splitAlg[splitAlg.length-1][0]!="U")
+        }
+
     </script>
 </body>
 

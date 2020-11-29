@@ -72,16 +72,9 @@
         <output id="prunedepth">5</output><br><br>
         Set Search Depth: <br>
         <input type="range" value="6" max="15" oninput="searchdepth.value = this.value">
-        <output id="searchdepth">6</output><br><br>
-        <button style="font-family:courier new;font-size:24px" class="button button1" id="partial cube button" onclick="togglePartialCube()">Hide Partial Cube Settings</button><br>
-        <div id="partial cube">
-            <br>Position These Pieces: <br>
-            <textarea id="position" name="position!" rows="4" cols="50"></textarea><br><br>
-            Orient These Pieces: <br>
-            <textarea id="orient" rows="4" cols="50"></textarea>
-        </div><br>
+        <output id="searchdepth">6</output><br>
+        <br><input id="ignoreauf" type="checkbox" checked> Ignore AUF in speed calculation<br><br>
         <table id="solutions" cellspacing="0" cellpadding="3" dir="ltr" border="1"></table>
-        <textarea id="tdrrud" rows="20" cols="38"></textarea>
     </div>
 
     <script>
@@ -862,8 +855,29 @@
                 return [-1,speed]
             }
             let splitSeq = sequence.split(" ");
+            if (document.getElementById("ignoreauf").checked) {
+                if (splitSeq.length>=1) {
+                    if (splitSeq[0][0]=="U") {
+                        splitSeq.shift()
+                    } else if (splitSeq.length >= 2) {
+                        if (splitSeq[0][0].toLowerCase()=="d" && splitSeq[1][0]=="U") {
+                            splitSeq[1] = splitSeq[0]
+                            splitSeq.shift()
+                        }
+                    }
+                }
+                if (splitSeq.length>=1) {
+                    if (splitSeq[splitSeq.length-1][0]=="U") {
+                        splitSeq.pop()
+                    } else if (splitSeq.length >= 2) {
+                        if (splitSeq[splitSeq.length-1][0].toLowerCase()=="d" && splitSeq[splitSeq.length-2][0]=="U") {
+                            splitSeq[splitSeq.length-2] = splitSeq[splitSeq.length-1]
+                            splitSeq.pop()
+                        }
+                    }
+                }
+            }
             let tests = [test(splitSeq,0,0,0),test(splitSeq,0,-1,0.35),test(splitSeq,0,1,0.35),test(splitSeq,-1,0,0.35),test(splitSeq,1,0,0.35)]
-            console.log(tests)
             while (true) {
                 let bestTest = tests[0]
                 for (let i=1; i<tests.length; i++) {
@@ -897,29 +911,6 @@
                 }
                 splitSeq = splitSeq.slice(bestTest[0]);
             }
-        }
-
-        function multiSolve(cube,pruneTable,pruneDepth,maxDepth,goal=solved,solutions=[],bestSpeed=Infinity,tolerance=1.2) {
-            for (let solution of solve(cube,pruneTable,pruneDepth,maxDepth,goal)) {
-                let solutionStr = movesToStr(solution);
-                let solutionSpeedStr = solutionStr
-                if (solutionStr[0] == "U") {
-                    solutionSpeedStr = solutionStr.slice(solutionStr.indexOf(" ")+1)
-                   
-                }
-                let speed = algSpeed(solutionSpeedStr)
-                if (speed <= bestSpeed*tolerance) {
-                    solutions.push([solutionStr,speed]);
-                    if (speed < bestSpeed) {bestSpeed = speed} // to do: remove commuting moves such as D U D'
-                }
-            }
-            let goodSolutions = [];
-            for (let i=0; i<solutions.length; i++) {
-                if (solutions[i][1]<=bestSpeed*tolerance) {
-                    goodSolutions.push(solutions[i])
-                }
-            }
-            return goodSolutions.sort((x,y)=>(x[1]>y[1]?1:-1))
         }
 
         // html-side functions
@@ -956,17 +947,6 @@
                 }
             }
             nextSolution()  
-        }
-
-        function togglePartialCube() {
-            let x = document.getElementById("partial cube")
-            if (x.style.display === "none") {
-                x.style.display = "block";
-                document.getElementById("partial cube button").innerHTML = "Hide partial cube settings"
-            } else {
-                x.style.display = "none";
-                document.getElementById("partial cube button").innerHTML = "Show partial cube settings"
-            }
         }
 
     </script>
