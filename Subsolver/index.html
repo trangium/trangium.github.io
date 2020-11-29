@@ -361,51 +361,65 @@
                             speed += 1.65;
                             break;
                         case "U":
-                            if (rWrist==0 && (rThumb[0]+2.25<=speed || rThumb[1]!="top") && rIndex[1] != "m") {
-                                speed += overwork(rIndex,"home");
-                                speed++;
-                                rIndex = [speed,"uflick"];
-                            } else if (rWrist==1 && lWrist==0) {
-                                speed += overwork(lIndex,"uflick");
-                                speed++;
-                                lIndex = [speed,"home"];
-                            } else if (lWrist==0) {
-                                if (lIndex[1] == "uflick") {
-                                    speed += overwork(lIndex,"eido",1.75);
-                                    speed = Math.max(speed,lOhCool+2.5);
+                            if (rWrist == 0 && (rThumb[0] + 2.25 <= speed || rThumb[1] != "top") && rIndex[1] != "m") {
+                                if (overwork(rIndex, "home") <= overwork(rMiddle, "home")) {
+                                    speed += overwork(rIndex, "home");
+                                    speed++;
+                                    rIndex = [speed, "uflick"];
                                 } else {
-                                    speed += overwork(lIndex,"eido",2.75);
+                                    speed += overwork(rMiddle, "home");
+                                    speed++;
+                                    rIndex = [speed, "uflick"];
+                                    rMiddle = [speed, "uflick"];                        
+                                }
+                            } else if (rWrist == 1 && lWrist == 0) {
+                                speed += overwork(lIndex, "uflick");
+                                speed++;
+                                lIndex = [speed, "home"];
+                            } else if (lWrist == 0) {
+                                if (lIndex[1] == "uflick") {
+                                    speed += overwork(lIndex, "eido", 1.75);
+                                    speed = Math.max(speed, lOhCool + 2.5);
+                                } else {
+                                    speed += overwork(lIndex, "eido", 2.75);
                                 }
                                 speed++;
-                                lIndex = [speed,"uflick"];
+                                lIndex = [speed, "uflick"];
                                 lOhCool = speed;
                             } else {
-                                return [j,speed,lWrist,rWrist,Math.max(lThumb[0],lIndex[0],lMiddle[0],lRing[0]),Math.max(rThumb[0],rIndex[0],rMiddle[0],rRing[0])]
+                                return [j, speed, lWrist, rWrist, Math.max(lThumb[0], lIndex[0], lMiddle[0], lRing[0]), Math.max(rThumb[0], rIndex[0], rMiddle[0], rRing[0])]
                             }
                             break;
                         case "U'":
-                            if (lWrist==0 && (lThumb[0]+2.25<=speed || lThumb[1]!="top") && lIndex[1] != "m") {
-                                speed += overwork(lIndex,"home");
-                                speed++;
-                                lIndex = [speed,"uflick"];
-                            } else if (lWrist==1 && rWrist==0) {
-                                speed += overwork(rIndex,"uflick");
-                                speed++;
-                                rIndex = [speed,"home"];
-                            } else if (rWrist==0) {
-                                if (rIndex[1] == "uflick") {
-                                    speed += overwork(rIndex,"eido",1.75);
-                                    speed = Math.max(speed,rOhCool+2.5);
+                            if (lWrist == 0 && (lThumb[0] + 2.25 <= speed || lThumb[1] != "top") && lIndex[1] != "m") {
+                                if (overwork(lIndex, "home") <= overwork(lMiddle, "home")) {
+                                    speed += overwork(lIndex, "home");
+                                    speed++;
+                                    lIndex = [speed, "uflick"];
                                 } else {
-                                    speed += overwork(rIndex,"eido",2.75);
+                                    speed += overwork(lMiddle, "home");
+                                    speed++;
+                                    lIndex = [speed, "uflick"];
+                                    lMiddle = [speed, "uflick"];                        
+                                }
+                            } else if (lWrist == 1 && rWrist == 0) {
+                                speed += overwork(rIndex, "uflick");
+                                speed++;
+                                rIndex = [speed, "home"];
+                            } else if (rWrist == 0) {
+                                if (rIndex[1] == "uflick") {
+                                    speed += overwork(rIndex, "eido", 1.75);
+                                    speed = Math.max(speed, rOhCool + 2.5);
+                                } else {
+                                    speed += overwork(rIndex, "eido", 2.75);
                                 }
                                 speed++;
-                                rIndex = [speed,"uflick"];
+                                rIndex = [speed, "uflick"];
                                 rOhCool = speed;
                             } else {
-                                return [j,speed,lWrist,rWrist,Math.max(lThumb[0],lIndex[0],lMiddle[0],lRing[0]),Math.max(rThumb[0],rIndex[0],rMiddle[0],rRing[0])]
+                                return [j, speed, lWrist, rWrist, Math.max(lThumb[0], lIndex[0], lMiddle[0], lRing[0]), Math.max(rThumb[0], rIndex[0], rMiddle[0], rRing[0])]
                             }
-                            break;  
+                            break;
                         case "U2":
                             if (rWrist==0 && (lIndex[1] == "m" || lWrist!=0 || (Math.max(overwork(rIndex,"home"),overwork(rMiddle,"home"),overwork(rRing,"u2grip"))<=Math.max(overwork(lIndex,"home"),overwork(lMiddle,"home"),overwork(lRing,"u2grip"))))) {
                                 speed += overwork(rIndex,"home");
