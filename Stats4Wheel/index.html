@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Stats 4-Wheel</title>
+    <style>
+        .button {
+            border: none;
+            color: white;
+            padding: 16px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            transition-duration: 0.4s;
+            cursor: pointer;
+        }
+
+        .button1 {
+            background-color: white;
+            color: black;
+            border: 2px solid #000000;
+        }
+
+        .button1:hover {
+            background-color: #000000;
+            color: white;
+        }
+        textarea {
+            resize: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div style="font-family:arial;font-size:17px">
+        <button style="font-family:arial;font-size:17px" class="button button1"
+            onclick="getStat()"><strong>Get Blank Statistic</strong></button>
+        <button style="font-family:arial;font-size:17px" class="button button1"
+            onclick="getAns()"><strong>Get Answer</strong></button>
+    </div> <br><br>
+    <div style="font-family:arial;font-size:17px" id="display"><br></div><br><br>
+    <div style="font-family:arial;font-size:32px">
+    Guess 1: <textarea rows=1 cols=8 id="g1"></textarea><br><br>
+    Guess 2: <textarea rows=1 cols=8 id="g2"></textarea><br>
+    </div><br><br>
+    <div style="font-family:arial;font-size:17px" id="result"></div>
+
+    <script>
+        let statData = `According to standard 3, the average car cannot see pavement up to ___ feet directly behind the vehicle.
+48
+According to standard 3, the average car cannot see pavement up to ___ feet directly to the right of the vehicle.
+9
+According to standard 3, the average car cannot see pavement up to ___ feet directly to the left of the vehicle.
+3
+According to standard 3, the average car cannot see pavement up to ___ feet directly in front of the vehicle.
+16
+It is illegal to park within ___ feet of an intersection.
+20
+It is illegal to park within ___ feet of a fire hydrant.
+15
+It is illegal to park within ___ feet of fire trucks equipment stopped to answer an alarm.
+500
+According to standard 3, when parallel parking, you should select a space at least ___ feet longer than your vehicle.
+5
+A disabled person who lets non-disabled people use their parking permit can be fined ___ dollars.
+500
+To obtain a handicapped parking placard a doctor must certify that you are unable to walk more than ___ yards without assistance.
+200
+Accoording to NHTSA, ___ percent of crashes are caused by speeding drivers.
+55
+In Virginia in 2015, ___ persons were killed in alcohol-related crashes.
+245
+According to Standard 4, drivers should search at least ___ seconds ahead for signs, vehicles, and potential hazards.'
+20
+Paracentral vision spans ___ degrees of your visual field.
+8
+The average stopping distance for a car driving 25 mph on dry and level pavement is ___ feet.
+85
+The average stopping distance for a car driving 45 mph on dry and level pavement is ___ feet.
+195
+The average stopping distance for a car driving 65 mph on dry and level pavement is ___ feet.
+344
+___ percent of fatal crashes occur at intersections.
+33
+At 50 mph in ideal driving conditions, a following distance of ___ seconds is sufficient.
+4
+At 40 mph in ideal driving conditions, a following distance of ___ seconds is sufficient.
+3
+Roundabouts reduce fatal crashes compared to regular intersections by ___ percent.
+90
+Dirt on the lens of headlights can reduce light by up to ___ percent.
+90
+Mopeds cannot be driven on roads with a speed limit greater than ___ mph.
+35
+The front No Zone of a truck extends for up to ___ feet.
+20
+At 55 mph, the stopping distance for a tractor trailer is ___ feet.
+312
+In ___ percent of fatal crashes between cars and large trucks, the car driver is at fault.
+70
+__ percent of work zone fatalities are motorists.
+80
+According to Standard 6, your body takes ___ minutes or longer to eliminate one drink from your system.
+90
+Nationally, ___ percent of teens drive while under the influence of alcohol.
+10
+Texting while driving makes it ___ times as likely to be involved in a crash.
+23
+On average, someone who is texting while driving will travel ___ feet without looking at the road.
+380
+Being on a phone makes it ___ times as likely to be involved in a crash.
+4
+___ percent of fatal road crashes are due to distracted driving.
+84
+___ percent of drivers aged 18 to 34 admitted to using a cell phone while driving.
+67
+___ percent of drivers aged 45 to 54 admitted to using a cell phone while driving.
+53
+___ percent of Americans admit to having fallen asleep while driving.
+36
+According to the NHTSA, ___ thousand police-reported crashes are due to drowsy driving.
+100
+According to a national survey, in a 30-day period, ___ percent of high school students have ridden in a vehicle where the driver has been drinking alcohol.
+28.5
+___ percent of pedestrians at least 16 years old that were killed in traffic accidents were intoxicated.
+33
+A driver under the influence of both alcohol and marijuana is ___ times as likely to get involved in a crash.
+24
+According to standard 6, if you accidentally kill someone in a traffic accident when you are drunk, you could face up to ___ years in prison.
+20
+According to the AAA foundation, young children are ___ times more distracting than adults as passengers.
+4
+According to the AAA foundation, infants are ___ times more distracting than adults as passengers.
+8`.split('\n')
+
+        let qOrder = [];
+
+        function fill(rsort) {
+            for (let idx = 0; idx < 43; idx++) {rsort.push(idx)}
+            for (let idx = 0; idx < rsort.length; idx++) {
+                let swpIdx = idx + Math.floor(Math.random() * (rsort.length - idx));
+                let tmp = rsort[idx];
+                rsort[idx] = rsort[swpIdx];
+                rsort[swpIdx] = tmp;
+            }
+        }
+        fill(qOrder)
+
+        function getStat() {
+            if (qOrder.length == 0) {fill(qOrder)}
+            let q = qOrder.pop()
+            document.getElementById('display').innerHTML = statData[q*2]
+            document.getElementById('g1').value = "" 
+            document.getElementById('g2').value = ""
+            document.getElementById('result').innerHTML = ""
+        }
+        function getAns() {
+            let stat = document.getElementById('display').innerHTML
+            let ind = statData.indexOf(stat);
+            let answerStr = statData[ind+1];
+            let answer = parseFloat(answerStr);
+            document.getElementById('display').innerHTML = stat.replace("___","<strong>"+answerStr+"</strong>")
+            try {
+                let g1 = parseFloat(document.getElementById('g1').value)
+                let g2 = parseFloat(document.getElementById('g2').value)
+                console.log(g1)
+                if (g1 === g2) {
+                    if (g1 === answer) {
+                        document.getElementById('result').innerHTML = "Both guessers were right!<br><br>- Guessers get 2 points<br>- Evaluators who thought the guessers were right get 1 point"
+                    } else {
+                        document.getElementById('result').innerHTML = "Both guessers were wrong.<br><br>- Guessers get 0 points<br>- Evaluators who thought the guessers were wrong get 1 point"
+                    }
+                } else {
+                    if (Math.abs(g1-answer) < Math.abs(g2-answer)) {
+                        document.getElementById('result').innerHTML = "Guesser 1 was closer!<br><br>- Guesser 1 gets 1 point<br>- Evaluators who thought that Guesser 1 was closer get 1 point"
+                    } else if (Math.abs(g1-answer) > Math.abs(g2-answer)) {
+                        document.getElementById('result').innerHTML = "Guesser 2 was closer!<br><br>- Guesser 2 gets 1 point<br>- Evaluators who thought that Guesser 2 was closer get 1 point"
+                    } else {
+                        document.getElementById('result').innerHTML = "Both Guessers were equally close! <br><br>- Both guessers get 1 point<br>- All evaluators get 1 point"
+                    }
+                }
+            } catch {}
+        }
+
+    </script>
+
+</body>
+</html>

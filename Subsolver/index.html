@@ -963,6 +963,56 @@
             nextSolution()  
         }
 
+        function randomState() {
+            let posParity = 0;
+            let edgeParity = 0;
+            let cornerParity = 0;
+            let cube = solved;
+            function swap(arr,x,y) {
+                let temp = arr[x]
+                arr[x] = arr[y]
+                arr[y] = temp
+                posParity++;
+            }
+            for (let i=0; i<12; i++) {
+                let j = Math.floor(Math.random()*(i+1))
+                if (j!=i) {
+                    swap(cube,i,j)
+                }
+            }
+            for (let i=12; i<20; i++) {
+                let j = 12+Math.floor(Math.random()*(i-11))
+                if (j!=i) {
+                    swap(cube,i,j)
+                }
+            }
+            for (let i=0; i<12; i++) {
+                if (Math.random()>=1/2) {
+                    cube[i] += 32;
+                    edgeParity += 1;
+                }
+            }
+            for (let i=12; i<20; i++) {
+                if (Math.random()>=2/3) {
+                    cube[i] += 32;
+                    cornerParity += 1;
+                } else if (Math.random()>=1/2) {
+                    cube[i] += 64;
+                    cornerParity += 2;
+                }
+            }
+            if (posParity%2 == 1) {
+                swap(cube,0,1)
+            }
+            if (edgeParity%2 == 1) {
+                cube[0] = (cube[0]+32)%64
+            }
+            cube[12] = (cube[12]+(32*(cornerParity%3)))%96
+            return cube
+        }
+
+        
+
     </script>
 </body>
 
