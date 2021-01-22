@@ -49,7 +49,29 @@
     <div style="font-family:arial;font-size:17px" id="result"></div>
 
     <script>
-        let statData = `According to standard 3, the average car cannot see pavement up to ___ feet directly behind the vehicle.
+        let statData = `According to standard 1, over ___ percent of people fail the learner's permit exam.
+50
+If you are less than 18 years old and you fail the learner's permit exam, you must wait at least ___ days before trying again.
+15
+One of the requirements to hold a driver's license is that you must have practiced driving with your learner's permit for at least ___ hours.
+45
+One of the requirements to hold a driver's license is that you must have practiced driving after sunset with your learner's permit for at least ___ hours.
+15
+In Virginia, driver's licenses must be renewed every ___ years.
+8
+According to standard 1, ___ percent of car crash fatalities involving teen drivers were not teens.
+67
+If a teen drives with two or more teen passengers, they are ___ times as likely to get into a fatal crash.
+5
+In Virginia, ___ consecutive unexcused absences could result in a license suspension.
+10
+According to standard 1, you should not travel more than ___ feet in a shared left turn lane.
+150
+The head restraint should be no more than ___ inches away from the head.
+4
+A tire is considered significantly underflated if the tire pressure is at least ___ percent below the recommended tire pressure.
+25 
+According to standard 3, the average car cannot see pavement up to ___ feet directly behind the vehicle.
 48
 According to standard 3, the average car cannot see pavement up to ___ feet directly to the right of the vehicle.
 9
@@ -123,8 +145,8 @@ ___ percent of Americans admit to having fallen asleep while driving.
 36
 According to the NHTSA, ___ thousand police-reported crashes are due to drowsy driving.
 100
-According to a national survey, in a 30-day period, ___ percent of high school students have ridden in a vehicle where the driver has been drinking alcohol.
-28.5
+For drivers aged 16-20, driving while having a BAC of .08% makes it ___ times as likely to die in a crash.
+17
 ___ percent of pedestrians at least 16 years old that were killed in traffic accidents were intoxicated.
 33
 A driver under the influence of both alcohol and marijuana is ___ times as likely to get involved in a crash.
@@ -139,7 +161,7 @@ According to the AAA foundation, infants are ___ times more distracting than adu
         let qOrder = [];
 
         function fill(rsort) {
-            for (let idx = 0; idx < 43; idx++) {rsort.push(idx)}
+            for (let idx = 0; idx < 54; idx++) {rsort.push(idx)}
             for (let idx = 0; idx < rsort.length; idx++) {
                 let swpIdx = idx + Math.floor(Math.random() * (rsort.length - idx));
                 let tmp = rsort[idx];
