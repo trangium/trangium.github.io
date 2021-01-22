@@ -173,12 +173,16 @@ According to the AAA foundation, infants are ___ times more distracting than adu
                     } else {
                         document.getElementById('result').innerHTML = "Both guessers were wrong.<br><br>- Guessers get 0 points<br>- Evaluators who thought the guessers were wrong get 1 point"
                     }
+                } else if (g1 === answer) {
+                    document.getElementById('result').innerHTML = "Guesser 1 was right!<br><br>- Guesser 1 gets 2 points<br>- Evaluators who thought that Guesser 1 was closer get 1 point"
+                } else if (g2 === answer) {
+                    document.getElementById('result').innerHTML = "Guesser 2 was right!<br><br>- Guesser 2 gets 2 points<br>- Evaluators who thought that Guesser 2 was closer get 1 point"
                 } else {
                     if (Math.abs(g1-answer) < Math.abs(g2-answer)) {
                         document.getElementById('result').innerHTML = "Guesser 1 was closer!<br><br>- Guesser 1 gets 1 point<br>- Evaluators who thought that Guesser 1 was closer get 1 point"
                     } else if (Math.abs(g1-answer) > Math.abs(g2-answer)) {
                         document.getElementById('result').innerHTML = "Guesser 2 was closer!<br><br>- Guesser 2 gets 1 point<br>- Evaluators who thought that Guesser 2 was closer get 1 point"
-                    } else {
+                    } else if (Math.abs(g1-answer) === Math.abs(g2-answer)){
                         document.getElementById('result').innerHTML = "Both Guessers were equally close! <br><br>- Both guessers get 1 point<br>- All evaluators get 1 point"
                     }
                 }
