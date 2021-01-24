@@ -698,10 +698,10 @@
             let input = document.getElementById("input");
             let splitInput = input.value.split("\n");
             for (let i=0; i<splitInput.length; i++) {
-                output.value += algSpeed(splitInput[i],document.getElementById("ignoreError").checked,document.getElementById("ignoreAUF").checked) + "\n"
+                output.value += algSpeed(splitInput[i].replaceAll("2'","2"),document.getElementById("ignoreError").checked,document.getElementById("ignoreAUF").checked) + "\n"
             }
-            input.rows = Math.max(28,splitInput.length+1) // UNCOMMENT THIS
-            output.rows = Math.max(28,splitInput.length+1) // UNCOMMENT THIS
+            input.rows = Math.max(28,splitInput.length+1)
+            output.rows = Math.max(28,splitInput.length+1)
         }
 
         function customParseFloat(x) {
@@ -726,7 +726,6 @@
                 document.getElementById("output").value += sortList[i][1] + "\n";
                 document.getElementById("input").value += sortList[i][0] + "\n";
             }
-            console.log(topFive()) // remove this
         }
 
         function good(alg) {
