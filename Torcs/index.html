@@ -17,6 +17,7 @@
         }
 
         class Puzzle {
+            // executes one move on specified start cube and outputs in result cube.
             mult (start, move, result) {
                 for (let p = 0; p < this.pcCount; p++) {
                     let temp = (start[move[p] & this.posMask] + (move[p] & this.oriMask));
@@ -24,16 +25,23 @@
                     result[p] = temp < tempOri << this.posBits ? temp : temp - (tempOri << this.posBits);
                 }
             }
-            constructor (cubeOri, clockwiseMoves, solvedState=null) {
+            
+            constructor (cubeOri, clockwiseMoves, moveStr, solvedState=null) {
+                // initialize cube constants
                 this.cubeOri = cubeOri;
                 this.pcCount = cubeOri.length; // 20
                 this.posBits = Math.ceil(Math.log2(this.pcCount)) // 5; number of bits needed to store piece (without orientation)
                 this.posMask = (1 << this.posBits) - 1; // 31
                 this.oriMask = ((1 << Math.ceil(Math.log2(Math.max(...cubeOri)))) - 1) << this.posBits; // 3 * 32 = 96
+                this.totalBits = Math.ceil(Math.log2(this.oriMask)); // 7
+                this.moveStr = moveStr;
+
                 if (solvedState === null) {
                     this.solved = [];
                     for (let i=0; i<this.pcCount; i++) {this.solved[i] = i}
                 } else {this.solved = solvedState}
+
+                // initialize moves in all directions (ex. clockwise, counter, and double) and inverse mapping
                 this.moves = []; // clockwise, counter, and double moves
                 this.inverse = []; // mapping of inverse moves
                 for (let i=0; i<clockwiseMoves.length; i++) { // initialize the moves array and inverse array
@@ -52,6 +60,8 @@
                         this.inverse.push(invCounter);
                     }
                 }
+
+                // initialize valid pairs grid
                 this.validPairs = [];
                 for (let move1=0; move1<this.moves.length; move1++) { // initialize the valid pairs array
                     this.validPairs[move1] = [];
@@ -61,34 +71,207 @@
                         this.mult(this.moves[move1], this.moves[move2], prod1);
                         this.mult(this.moves[move2], this.moves[move1], prod2);
                         // Compares if A B = B A. Two moves of the same type are never valid (like B B2), and two commuting moves of different types are only valid in one way (exactly one of U D2 and D2 U are valid)
-                        if (arraysEqual(prod1, prod2)) { this.validPairs[move1][move2] = (move1 < move2) } else { this.validPairs[move1][move2] = true } 
+                        if (arraysEqual(prod1, prod2)) { 
+                            this.validPairs[move1][move2] = (move1 < move2);
+                            if (arraysEqual(prod1, this.solved)) {
+                                this.validPairs[move1][move2] = false;
+                            }
+                            for (let m=0; m<this.moves.length; m++) {
+                                if (arraysEqual(prod1, this.moves[m])) {
+                                    this.validPairs[move1][move2] = false;
+                                }
+                            }
+                        } else { 
+                            this.validPairs[move1][move2] = true;
+                        } 
+                    }
+                }
+
+                // initialize prunetable (empty upon initialization)
+                this.pruneTable = new Map();
+                this.pruneDepth = 0;
+            }
+
+            // returns next valid move given previous move. For example, U U2 is invalid, but U R is valid.
+            nextValid(prevMove, move) {
+                while (move < this.pcCount) {
+                    move += 1;
+                    if (this.validPairs[prevMove][move]) {
+                        return move;
+                    }
+                }
+                return -1
+            }
+        
+            // Convert a puzzle array like [2, 1, 6, 0, 5, 4, 3, 7] into a compact string. The totalBits is the number of bits to allocate per number. Takes place of strConv.
+            compressArr(list) {
+                if (this.totalBits < 7) {
+                    let string = "";
+                    let charVal = list[0];
+                    let remainingBits = 7-this.totalBits;
+                    for (let i=1; i<list.length; i++) {
+                        if (remainingBits >= this.totalBits) {
+                            charVal *= 2**this.totalBits;
+                            charVal += list[i];
+                            remainingBits -= this.totalBits
+                        } else {
+                            charVal *= 2**remainingBits;
+                            let value2 = list[i]&&(2**(this.totalBits-remainingBits)-1)
+                            string += String.fromCharCode(charVal+(list[i]>>(this.totalBits-remainingBits)));
+                            charVal = value2;
+                            remainingBits += 7-this.totalBits;
+                        }
+                    }
+                    return string
+                } else if (this.totalBits > 7) {
+                    let string = "";
+                    let i = 0;
+                    let remainingBits = this.totalBits;
+                    let currentNum = list[0];
+                    while (true) {
+                        if (remainingBits >= 7) {
+                            remainingBits -= 7
+                            let first7bits = currentNum >> (remainingBits)
+                            string += String.fromCharCode(first7bits);
+                            currentNum -= (first7bits << (remainingBits));
+                        } else {
+                            i++
+                            remainingBits = this.totalBits-(7-remainingBits)
+                            let firstnbits = list[i] >> (remainingBits)
+                            string += String.fromCharCode(currentNum*2**(this.totalBits-remainingBits)+firstnbits);
+                            if (i >= list.length) {return string}
+                            currentNum = list[i] - (firstnbits << remainingBits); 
+                        }
+                    }
+                } else {
+                    let string = "";
+                    for (let i=0; i<list.length; i++) {
+                        string += String.fromCharCode(list[i])
+                    }
+                    return string;
+                }
+            }
+        
+            // advances an array of moves to the next valid array. returns the length of the array.
+            advance(arr) {
+                let moveInd = arr.length-1;
+                while (moveInd < arr.length) {
+                    if (moveInd) {
+                        arr[moveInd] = this.nextValid(arr[moveInd-1],arr[moveInd])
+                    } else {
+                        arr[0] = arr[0]+1;
+                        if (arr[0] == this.moves.length) {
+                            arr[0] = 0;
+                            let newLength = arr.length+1
+                            for (let i=1; i<newLength; i++) {
+                                arr[i] = this.nextValid(arr[i-1],-1)
+                            }
+                            // console.log("Finished depth "+(newLength-1));
+                            return newLength
+                        }
+                    }
+                    if (arr[moveInd] == -1) {moveInd--} else {moveInd++}
+                }
+                return arr.length
+            }
+
+            // executes sequence on specified starting state
+            execute(start, sequence) {
+                let tempCube = [];
+                for (let j=0; j<sequence.length; j++) {
+                    this.mult(start, this.moves[sequence[j]],tempCube)
+                    start = tempCube.slice();
+                }
+                return start
+            }
+
+            // convert a sequence of moves, internally represented by a string of numbers, into human-readable text
+            moveListToStr(list) {
+                let result = "";
+                for (let i=0; i<list.length; i++) {
+                    result += this.moveStr[list[i]];
+                    if (i != list.length-1) {
+                        result += " ";
+                    }
+                }
+                return result
+            }
+
+            // convert a human-readable algorithm into a string of numbers
+            moveStrToList(alg) {
+                let result = [];
+                let algSplit = alg.split(" ");
+                for (let i=0; i<algSplit.length; i++) {
+                    if (algSplit[i] != "") {
+                        let moveNum = this.moveStr.indexOf(algSplit[i]);
+                        if (moveNum != -1) {
+                            result.push(moveNum);
+                        } else {
+                            throw "Invalid input";
+                        }
+                    }
+                }
+                return result
+            }
+            
+            // create a prune table
+            createPrun(maxDepth) {
+                let tempTable = new Map();
+                let attempt = [0];
+                let depth = 1;
+                while (depth <= maxDepth) {
+                    let cubeStr = this.compressArr(this.execute(this.solved, attempt));
+                    if (!(tempTable.has(cubeStr))) {tempTable.set(cubeStr, depth)}
+                    depth = this.advance(attempt);
+                }
+                this.pruneTable = tempTable;
+                this.pruneDepth = maxDepth;
+            }
+
+            // read all solutions from a given state under the prune table's depth
+            *readPrun(state, partialSolve=[], maxDepth=this.pruneDepth) { // maxDepth should be the same as the prune table's maxDepth
+                for (let m=0; m<this.moves.length; m++) {
+                    if (partialSolve.length == 0 || this.validPairs[partialSolve[partialSolve.length-1]][m]) {
+                        let nextState = this.execute(state, [m]);
+                        let nextDistance = this.pruneTable.get(this.compressArr(nextState));
+                        if (arraysEqual(nextState, this.solved)) {
+                            let fullSolve = partialSolve.concat(m);
+                            yield * [fullSolve];
+                        } else if (nextDistance < maxDepth) { // false if nextDistance is undefined
+                            yield * this.readPrun(nextState, partialSolve.concat(m), maxDepth-1);
+                        }
                     }
                 }
             }
-        }
-        class State extends Puzzle {
-            constructor (cubeOri, clockwiseMoves, solvedState=null, state=null) {
-                super(cubeOri, clockwiseMoves, solvedState)
-                if (state === null) {this.state = this.solvedState} else {this.state = state}
+
+            *solve(state, searchDepth, goal=this.solved) {
+                yield * this.readPrun(state);
+                let attempt = [0];
+                let depth = 1;
+                while (depth <= searchDepth) {
+                    let nextState = this.execute(state, attempt);
+                    if (this.pruneTable.get(this.compressArr(nextState)) == this.pruneDepth) {
+                        yield * this.readPrun(nextState, attempt);
+                    }
+                    depth = this.advance(attempt);
+                }                
             }
-            apply (sequence) {
-                let tempCube = [];
-                for (let i=0; i<sequence.length; i++) {
-                    this.mult(this.state, this.moves[sequence[i]], tempCube);
-                    this.state = tempCube.slice();
-                }
-            }
+
         }
+        
         let u1 = [3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14, 16, 17, 18, 19]; let r1 = [0, 4, 2, 3, 9, 5, 6, 1, 8, 7, 10, 11, 12, 46, 81, 15, 16, 50, 77, 19]; let f1 = [0, 1, 37, 3, 34, 40, 6, 7, 36, 9, 10, 11, 12, 13, 47, 80, 49, 78, 18, 19]; let d1 = [0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10, 12, 13, 14, 15, 19, 16, 17, 18]; let l1 = [0, 1, 2, 6, 4, 3, 11, 7, 8, 9, 10, 5, 83, 13, 14, 44, 79, 17, 18, 48]; let b1 = [39, 1, 2, 3, 4, 5, 32, 42, 8, 9, 38, 11, 45, 82, 14, 15, 16, 17, 51, 76];
         let cube3x3 = new Puzzle(
             [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3], 
             [u1, r1, f1, d1, l1, b1],
-            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
-        // NEW PLAN: puzzles create puzzleStates
-        /*
-        puzzles have a valid pairs array, define a mult function, have all puzzle variables like pcCount, have a defined moveset, can create puzzleStates, and can create pruneTables
-        puzzleStates can be solved and use the mult function
-        */
+            ['U','U2',"U'",'R','R2',"R'",'F','F2',"F'",'D','D2',"D'",'L','L2',"L'",'B','B2',"B'"]);
+        
+        let a = Date.now()
+        let prun5 = cube3x3.createPrun(5);
+        console.log(Date.now()-a);
+
+        let solveTest = cube3x3.solve(cube3x3.execute(cube3x3.solved, cube3x3.moveStrToList("R U R' F' R U R' U' R' F R2 U' R' U'")), 6);
+        // cube3x3.moveListToStr(solveTest.next().value)
+        
     </script>
 </body>
 
