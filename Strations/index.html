@@ -11,7 +11,7 @@
         }
 
         canvas {
-            background: #eee;
+            background: #ee3;
             display: block;
             margin: 0 auto;
         }
@@ -44,10 +44,11 @@
         }
 
         function touchMoveHandler(e) {
+            evt.preventDefault();
             let touch = evt.changedTouches[0];
             let relX = touch.clientX - canvas.offsetLeft;
             let relY = touch.clientY - canvas.offsetTop;
-            moveHandler(relX,relY);
+            moveHandler(200,200);
         }
 
         function moveHandler(x, y) {

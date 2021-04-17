@@ -31,6 +31,9 @@
             input[type=checkbox] {
                 transform: scale(1.3);
             }
+            th, td {
+            padding: 7px;
+            }
         </style>
     </head>
     
@@ -40,19 +43,37 @@
                 onclick="calc()"><strong>Calculate</strong></button> 
             <button style="font-family:courier new;font-size:17px" class="button button1" id="optVisButton"
                 onclick="optionVisibility()"><strong>Show Options</strong></button><br>
+                
             <strong id="options" hidden>
                 <br>
                 <input id="sortByMCC" type="checkbox"><label for="sortByMCC"> Sort algs by movecount coefficient</label><br>
+                <input id="showProgUpdates" type="checkbox" checked><label for="showProgUpdates"> Output progress updates</label><br>
             </strong>
             <br>
-            <table>
+            <table valign="top">
                 <tr>
-                    <th>Puzzle Definition File</th>
-                    <th>Output</th>
+                    <th>
+                        Moves
+                    </th>
+                    <th>
+                        <textarea id="moves-input" rows="16" cols="69"></textarea>
+                    </th>
                 </tr>
                 <tr>
-                    <th><textarea id="input" rows="28" cols="69"></textarea></th>
-                    <th><textarea id="output" rows="28" cols="69" readonly style="text-align: right"></textarea> </th>
+                    <th>
+                        Equivalences
+                    </th>
+                    <th>
+                        <textarea id="equivalences-input" rows="6" cols="69"></textarea>
+                    </th>
+                </tr>
+                <tr>
+                    <th>
+                        Output
+                    </th>
+                    <th>
+                        <textarea id="output" rows="37" cols="69" readonly></textarea>
+                    </th>
                 </tr>
             </table>
         </div>
@@ -71,12 +92,77 @@
                 optVisButton.innerHTML = "<strong>Show Options</strong>";
             }
         }
-        function calc() {
-            let input = document.getElementById("input").value.split('\n');
-            for (let i=0; i<input.length; i++) {
-                let inputLn = input[i];
-                console.log(inputLn);
+        function parsePiece(pieceStr) {
+            let decomp = [];
+            let read = pieceStr[0];
+            for (let i=1; i<pieceStr.length; i++) {
+                let currentChar = pieceStr[i];
+                if ("ABCDEFGHIJKLMNOPQRSTUVWXYZ".includes(currentChar)) {
+                    decomp.push(read);
+                    read = "";
+                }
+                read += currentChar;
             }
+            decomp.push(read);
+            return decomp
+        }
+        function rotateArr(arr,amt) {
+            return arr.slice(amt).concat(arr.slice(0,amt))
+        }
+        function canonicalizePiece(pieceStr) {
+            let parsed = parsePiece(pieceStr)
+            let minV = 0;
+            for (let i=1; i<parsed.length; i++) {
+                if (parsed[i] < parsed[minV]) {
+                    minV = i;
+                }
+            }
+            return rotateArr(parsed,minV).join("")
+        }
+        function calc() {
+            // cubeOri, clockwiseMoves, moveStr, solvedState
+            let moves = document.getElementById("moves-input").value;
+            let pcSet = new Set();
+            {
+                let moveRead = "";
+                let readPieces = false;
+                for (let i=0; i<moves.length; i++) {
+                    let currentChar = moves[i];
+                    if (currentChar == ":") {
+                        readPieces = true;
+                    } else if (currentChar == "\n") {
+                        readPieces = false;
+                    } else if (readPieces && (("ABCDEFGHIJKLMNOPQRSTUVWXYZ".includes(currentChar)) || (currentChar.length > 0 && "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890".includes(currentChar)))) {
+                        moveRead += currentChar;
+                    } else if (readPieces && moveRead != "") {
+
+                        pcSet.add(canonicalizePiece(moveRead));
+                        moveRead = "";
+                    }
+                }
+            }
+            let pcCount = pcSet.size;
+            let oriAdd = 1 << Math.ceil(Math.log2(pcCount));
+            let pcID = new Map();
+
+            {
+                let i=0;
+                for (let item of pcSet) {
+                    let temp = item;
+                    do {
+                        pcID.set(temp, i);
+                        rotateArr(temp, 1);
+                    } while (temp != item)
+                    i++;
+                }
+            }
+
+            let moveList = [];
+            let moveLines = moves.split('\n')
+            for (let i=0; i<moveLines.length; i++) {
+                let moveLn = moveLines[i]
+            }
+            // to do: add actual parsing to determine moves
         }
         // END HTML-SIDE JS
 
@@ -97,7 +183,7 @@
                 }
             }
             
-            constructor (cubeOri, clockwiseMoves, moveStr, solvedState=null) {
+            constructor (cubeOri, clockwiseMoves, clockwiseMoveStr, solvedState=null) {
                 // initialize cube constants
                 this.cubeOri = cubeOri;
                 this.pcCount = cubeOri.length; // 20
@@ -105,7 +191,7 @@
                 this.posMask = (1 << this.posBits) - 1; // 31
                 this.oriMask = ((1 << Math.ceil(Math.log2(Math.max(...cubeOri)))) - 1) << this.posBits; // 3 * 32 = 96
                 this.totalBits = Math.ceil(Math.log2(this.oriMask)); // 7
-                this.moveStr = moveStr;
+                this.moveStr = [];
 
                 this.nullmove = [];
                 for (let i=0; i<this.pcCount; i++) {this.nullmove[i] = i}
@@ -124,6 +210,15 @@
                         if (arraysEqual(this.moves[this.moves.length-1],this.nullmove)) { // break if repeated move was the solved state
                             this.moves.pop();
                             break;
+                        }
+                    }
+                    let order = this.moves.length-this.inverse.length+1;
+                    let currentMove = clockwiseMoveStr.shift();
+                    for (let j=1; j<order; j++) { // Loops once for each added move. Adds the string representation of moves to moveStr.
+                        if (j <= order/2) {
+                            this.moveStr.push(currentMove+(j!=1?j:""));
+                        } else {
+                            this.moveStr.push(currentMove+((order-j)!=1?(order-j):"")+"'");
                         }
                     }
                     let invCounter = this.moves.length;
@@ -360,12 +455,12 @@
         var norm3x3 = new Puzzle(
             [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3], 
             [u, r, f, d, l, b],
-            ['U','U2',"U'",'R','R2',"R'",'F','F2',"F'",'D','D2',"D'",'L','L2',"L'",'B','B2',"B'"]);
+            ['U','R','F','D','L','B']);
 
         var coes3x3 = new Puzzle(
             [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2], 
             [uc, rc, uw],
-            ['U','U2',"U'",'R','R2',"R'",'u','u2',"u'"],
+            ['U','R','u'],
             [0, 0, 0, 0, 4, 4, 4, 4, 8, 8, 8, 8, 12, 12, 12, 12, 16, 16, 16, 16, 20, 20, 20]);
         }
         
@@ -380,7 +475,7 @@
         coes3x3.createPrun(5);
         console.log(Date.now()-b);
 
-        let solve2 = coes3x3.solve(coes3x3.execute(coes3x3.solved, coes3x3.moveStrToList("R' U R2 U R' u2 R U' R2 U' R u2")), 7);
+        let solve2 = coes3x3.solve(coes3x3.execute(coes3x3.solved, coes3x3.moveStrToList("R' U R2 U R' u2 R U' R2 U' R u2 R U2 R' U' R U' R2 U2 R U R' U R")), 7);
         // coes3x3.moveListToStr(solve2.next().value)
 
         
