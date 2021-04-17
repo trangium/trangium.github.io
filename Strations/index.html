@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Strations</title>
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+        }
+
+        canvas {
+            background: #eee;
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+
+<body>
+
+    <canvas id="myCanvas" width="480" height="320"></canvas>
+
+    <script>
+        var canvas = document.getElementById("myCanvas");
+        var ctx = canvas.getContext("2d");
+        var mouseDown = false;
+
+        function mouseDownHandler(e) {
+            mouseDown = true;
+        }
+
+        function mouseUpHandler(e) {
+            mouseDown = false;
+        }
+
+        function mouseMoveHandler(e) {
+            if (mouseDown) {
+                let relX = e.clientX - canvas.offsetLeft;
+                let relY = e.clientY - canvas.offsetTop;
+                moveHandler(relX,relY);
+            }
+        }
+
+        function touchMoveHandler(e) {
+            let touch = evt.changedTouches[0];
+            let relX = touch.clientX - canvas.offsetLeft;
+            let relY = touch.clientY - canvas.offsetTop;
+            moveHandler(relX,relY);
+        }
+
+        function moveHandler(x, y) {
+            ctx.font = "15px Century Gothic";
+            ctx.fillStyle = "#0095DD";
+            ctx.fillText(x+", "+y, 8, 20);
+        }
+
+        function draw() {
+            requestAnimationFrame(draw);
+        }
+
+        document.addEventListener("mousedown", mouseDownHandler, false);
+        document.addEventListener("mouseup", mouseUpHandler, false);
+        document.addEventListener("mousemove", mouseMoveHandler, false);
+        document.addEventListener("touchmove", touchMoveHandler, false);
+
+        draw();
+    </script>
+</body>
+
+</html>
