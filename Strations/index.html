@@ -11,7 +11,7 @@
         }
 
         canvas {
-            background: #639;
+            background: #eee;
             display: block;
             margin: 0 auto;
         }
@@ -26,6 +26,8 @@
         var canvas = document.getElementById("myCanvas");
         var ctx = canvas.getContext("2d");
         var mouseDown = false;
+        var prevX = null;
+        var prevY = null;
 
         function mouseDownHandler(e) {
             mouseDown = true;
@@ -33,6 +35,9 @@
 
         function mouseUpHandler(e) {
             mouseDown = false;
+            ctx.clearRect(0, 0, canvas.width, canvas.height)
+            prevX = null;
+            prevY = null;
         }
 
         function mouseMoveHandler(e) {
@@ -50,10 +55,20 @@
         }
 
         function moveHandler(x, y) {
-            ctx.fillStyle = "#000000";
-            ctx.beginPath();
-            ctx.arc(x, y, 13, 0, 2 * Math.PI);
-            ctx.fill();
+            if (prevX == null) {
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                ctx.fill();
+            } else {
+                ctx.beginPath();
+                ctx.lineCap = "round";
+                ctx.lineWidth = 8;
+                ctx.moveTo(prevX,prevY);
+                ctx.lineTo(x,y);
+                ctx.stroke();
+            }
+            prevX = x;
+            prevY = y;
         }
 
         function draw() {
