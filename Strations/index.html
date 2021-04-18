@@ -28,6 +28,7 @@
         var mouseDown = false;
         var prevX = null;
         var prevY = null;
+        var path = [];
 
         function mouseDownHandler(e) {
             mouseDown = true;
@@ -78,9 +79,9 @@
         document.addEventListener("mousedown", mouseDownHandler, false);
         document.addEventListener("mouseup", mouseUpHandler, false);
         document.addEventListener("mousemove", mouseMoveHandler, false);
-        document.addEventListener("touchstart", touchStartHandler, false);
+        document.addEventListener("touchstart", mouseDown, false);
         document.addEventListener("touchmove", touchMoveHandler, false);
-
+        document.addEventListener("touchend", mouseUpHandler, false);
         draw();
     </script>
 </body>
