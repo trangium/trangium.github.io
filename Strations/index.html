@@ -11,7 +11,7 @@
         }
 
         canvas {
-            background: #e3e;
+            background: #e77;
             display: block;
             margin: 0 auto;
         }
@@ -32,6 +32,9 @@
 
         function mouseDownHandler(e) {
             mouseDown = true;
+            ctx.font = "15px Century Gothic";
+            ctx.fillStyle = "#0095DD";
+            ctx.fillText("Destroyed: ", 8, 20);
         }
 
         function mouseUpHandler(e) {
