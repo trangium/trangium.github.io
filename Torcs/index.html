@@ -42,9 +42,9 @@
             <button style="font-family:courier new;font-size:17px" class="button button1"
                 onclick="calc()"><strong>Calculate</strong></button> 
             <button style="font-family:courier new;font-size:17px" class="button button1" id="optVisButton"
-                onclick="optionVisibility()"><strong>Show Options</strong></button><br>
+                onclick="optionVisibility()"><strong>Hide Options</strong></button><br>
                 
-            <strong id="options" hidden>
+            <strong id="options">
                 <br>
                 <input id="sortByMCC" type="checkbox"><label for="sortByMCC"> Sort algs by movecount coefficient</label><br>
                 <input id="showProgUpdates" type="checkbox" checked><label for="showProgUpdates"> Output progress updates</label><br>
@@ -53,7 +53,7 @@
             <table valign="top">
                 <tr>
                     <th>
-                        Moves
+                        Puzzle<br>Definition
                     </th>
                     <th>
                         <textarea id="moves-input" rows="16" cols="69"></textarea>
@@ -61,10 +61,10 @@
                 </tr>
                 <tr>
                     <th>
-                        Equivalences
+                        Input
                     </th>
                     <th>
-                        <textarea id="equivalences-input" rows="6" cols="69"></textarea>
+                        <textarea id="true-input" rows="6" cols="69"></textarea>
                     </th>
                 </tr>
                 <tr>
@@ -81,6 +81,8 @@
         "use strict";
 
         // HTML-SIDE JS
+        let activePuzzle;
+
         function optionVisibility() {
             let options = document.getElementById("options")
             let optVisButton = document.getElementById("optVisButton")
@@ -92,77 +94,135 @@
                 optVisButton.innerHTML = "<strong>Show Options</strong>";
             }
         }
-        function parsePiece(pieceStr) {
-            let decomp = [];
-            let read = pieceStr[0];
-            for (let i=1; i<pieceStr.length; i++) {
-                let currentChar = pieceStr[i];
-                if ("ABCDEFGHIJKLMNOPQRSTUVWXYZ".includes(currentChar)) {
-                    decomp.push(read);
-                    read = "";
-                }
-                read += currentChar;
-            }
-            decomp.push(read);
-            return decomp
-        }
-        function rotateArr(arr,amt) {
-            return arr.slice(amt).concat(arr.slice(0,amt))
-        }
-        function canonicalizePiece(pieceStr) {
-            let parsed = parsePiece(pieceStr)
-            let minV = 0;
-            for (let i=1; i<parsed.length; i++) {
-                if (parsed[i] < parsed[minV]) {
-                    minV = i;
-                }
-            }
-            return rotateArr(parsed,minV).join("")
-        }
-        function calc() {
-            // cubeOri, clockwiseMoves, moveStr, solvedState
-            let moves = document.getElementById("moves-input").value;
-            let pcSet = new Set();
-            {
-                let moveRead = "";
-                let readPieces = false;
-                for (let i=0; i<moves.length; i++) {
-                    let currentChar = moves[i];
-                    if (currentChar == ":") {
-                        readPieces = true;
-                    } else if (currentChar == "\n") {
-                        readPieces = false;
-                    } else if (readPieces && (("ABCDEFGHIJKLMNOPQRSTUVWXYZ".includes(currentChar)) || (currentChar.length > 0 && "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz1234567890".includes(currentChar)))) {
-                        moveRead += currentChar;
-                    } else if (readPieces && moveRead != "") {
 
-                        pcSet.add(canonicalizePiece(moveRead));
-                        moveRead = "";
+        function status(message, textField=document.getElementById("output")) {
+            if (document.getElementById("showProgUpdates").checked) {
+                textField.value += (message+"\n");
+            }
+        }
+
+        function setPuzzle() {
+            // Deal with moves input
+
+            let moves = document.getElementById("moves-input").value;
+            let moveLines = moves.split('\n');
+
+            let pieceList = [];
+            let moveDataList = [];
+
+            let cubeOri = [];
+            let moveList = [];
+            let clockwiseMoveStr = [];
+
+            function parseMove(data) {
+                let cycleList = [];
+                let openParenSplit = data.split("(");
+                for (let i=1; i<openParenSplit.length; i++) {
+                    let cycle = [];
+                    let cycleStr = openParenSplit[i].split(")")[0];
+                    let pieces = cycleStr.split(" ");
+                    for (let j=0; j<pieces.length; j++) {
+                        let pieceData = pieces[j];
+                        if (pieceData != "") {
+                            let suffixLoc = pieceData.indexOf('+')==-1?pieceData.indexOf('-'):pieceData.indexOf('+');
+                            let piece = suffixLoc==-1 ? pieceData : pieceData.slice(0, suffixLoc);
+                            let twist = suffixLoc==-1 ? 0 : parseInt(pieceData.slice(suffixLoc));
+                            let pieceIndex = pieceList.indexOf(piece);
+                            if (pieceIndex == -1) {
+                                pieceList.push(piece);
+                                pieceIndex = pieceList.length-1;
+                                cubeOri.push(piece.replace(/[^A-Z]/g, "").length) // Number of orientations is number of capital letters in piece name
+                            }
+                            cycle.push([pieceIndex, twist]);
+                        }
+                    }
+                    cycleList.push(cycle);
+                }
+                return cycleList;
+            }
+
+            function mod(a, n) { // works with negative a unlike % operator
+                return a - (n * Math.floor(a/n));
+            }
+            
+            for (let ln=0; ln<moveLines.length; ln++) {
+                let line = moveLines[ln].split("//")[0];
+                if (line.includes(":")) {
+                    let cycleStr = moveLines[ln].split(":");
+                    let moveName = cycleStr[0];
+                    clockwiseMoveStr.push(moveName);
+                    let cycleList = parseMove(cycleStr[1]);
+                    moveDataList.push(cycleList)
+                }
+            }
+
+            let oriMult = 2**Math.ceil(Math.log2(pieceList.length));
+
+            for (let m=0; m<moveDataList.length; m++) {
+                let cycleList = moveDataList[m];
+                let move = [];
+                for (let i=0; i<pieceList.length; i++) {move.push(i)}
+                for (let c=0; c<cycleList.length; c++) {
+                    let cycle = cycleList[c];
+                    for (let i=0; i<cycle.length-1; i++) {
+                        let pieceData = cycle[i];
+                        move[cycle[i+1][0]] = cycle[i][0]+oriMult*mod(cycle[i][1],cubeOri[cycle[i][0]]); // there could be bugs here
+                    }
+                    if (cycle.length==1 || (cycle[0][0] != cycle[cycle.length-1][0])) {
+                        move[cycle[0][0]] = cycle[cycle.length-1][0]+oriMult*mod(cycle[cycle.length-1][1],cubeOri[cycle[cycle.length-1][0]]);
                     }
                 }
+                moveList.push(move);
             }
-            let pcCount = pcSet.size;
-            let oriAdd = 1 << Math.ceil(Math.log2(pcCount));
-            let pcID = new Map();
 
-            {
-                let i=0;
-                for (let item of pcSet) {
-                    let temp = item;
-                    do {
-                        pcID.set(temp, i);
-                        rotateArr(temp, 1);
-                    } while (temp != item)
-                    i++;
+            // Deal with equivalences
+            let equivalences = document.getElementById("moves-input").value;
+            let splitEquivalences = equivalences.split('{');
+
+            let solvedState = [];
+            for (let i=0; i<pieceList.length; i++) {solvedState[i] = i}
+            for (let i=1; i<splitEquivalences.length; i++) {
+                let equivSet = splitEquivalences[i].split("}")[0];
+                let equivPieces = equivSet.split(" ");
+                let equivNum = pieceList.indexOf(equivPieces[0]);
+                for (let j=1; j<equivPieces.length; j++) {
+                    solvedState[pieceList.indexOf(equivPieces[j])] = equivNum;
                 }
             }
+            activePuzzle = new Puzzle(cubeOri, moveList, clockwiseMoveStr, solvedState);
+        }
 
-            let moveList = [];
-            let moveLines = moves.split('\n')
-            for (let i=0; i<moveLines.length; i++) {
-                let moveLn = moveLines[i]
+        function calc() {
+            setPuzzle(); // loses efficiency if puzzle has not changed, so update this
+            let inputLines = document.getElementById("true-input").value.split("\n");
+            let searchDepth = Infinity;
+            for (let i=0; i<inputLines.length; i++) {
+                let line = inputLines[i]
+                let splitLine = line.split(" ");
+                for (let j=splitLine.length-1; j>0; j--) {
+                    if (splitLine[j] == "") {
+                        splitLine.pop();
+                    }
+                }
+                let command = splitLine[0].toLowerCase();
+                if (command == "prune") { 
+                    activePuzzle.createPrun(parseInt(splitLine[1]));
+                    status("Pruning complete.")
+                } else if (command == "search") {
+                    searchDepth = parseInt(splitLine[1]);
+                    status("Set search depth to "+splitLine[1]);
+                } else if (command == "solve") {
+                    let solve = activePuzzle.solve(activePuzzle.execute(activePuzzle.solved, activePuzzle.moveStrToList(splitLine.slice(1).join(" "))), searchDepth);
+                    function nextSolution() {
+                        let solution = solve.next();
+                        if (solution.done == false) {
+                            document.getElementById("output").value += activePuzzle.moveListToStr(solution.value)+"\n";
+                            requestAnimationFrame(nextSolution);
+                        }
+                    }
+                    nextSolution();
+                }
             }
-            // to do: add actual parsing to determine moves
         }
         // END HTML-SIDE JS
 
@@ -452,10 +512,10 @@
         let lw = [42, 1, 32, 6, 4, 3, 11, 7, 34, 9, 40, 5, 83, 13, 14, 44, 79, 17, 18, 48, 54, 21, 20];
         let bw = [39, 41, 2, 33, 4, 5, 32, 42, 8, 43, 38, 35, 45, 82, 14, 15, 16, 17, 51, 76, 21, 52, 22];
 
-        var norm3x3 = new Puzzle(
+        var ruf3x3 = new Puzzle(
             [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3], 
-            [u, r, f, d, l, b],
-            ['U','R','F','D','L','B']);
+            [u, r, f],
+            ['U','R','F']);
 
         var coes3x3 = new Puzzle(
             [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2], 
@@ -471,11 +531,11 @@
         // let solveTest = norm3x3.solve(norm3x3.execute(norm3x3.solved, norm3x3.moveStrToList("R U R' F' R U R' U' R' F R2 U' R'")), 6);
         // norm3x3.moveListToStr(solveTest.next().value)
 
-        let b = Date.now()
-        coes3x3.createPrun(5);
-        console.log(Date.now()-b);
+        //let b = Date.now()
+        //ruf3x3.createPrun(7);
+        //console.log(Date.now()-b);
 
-        let solve2 = coes3x3.solve(coes3x3.execute(coes3x3.solved, coes3x3.moveStrToList("R' U R2 U R' u2 R U' R2 U' R u2 R U2 R' U' R U' R2 U2 R U R' U R")), 7);
+        //let solve2 = ruf3x3.solve(ruf3x3.execute(ruf3x3.solved, ruf3x3.moveStrToList("R U R' U' R' F R2 U' R' U' R U R' F'")), 7);
         // coes3x3.moveListToStr(solve2.next().value)
 
         
