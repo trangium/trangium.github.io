@@ -332,51 +332,11 @@
         
             // Convert a puzzle array like [2, 1, 6, 0, 5, 4, 3, 7] into a compact string. The totalBits is the number of bits to allocate per number. Takes place of strConv.
             compressArr(list) {
-                if (this.totalBits < 7) {
-                    let string = "";
-                    let charVal = list[0];
-                    let remainingBits = 7-this.totalBits;
-                    for (let i=1; i<list.length; i++) {
-                        if (remainingBits >= this.totalBits) {
-                            charVal *= 2**this.totalBits;
-                            charVal += list[i];
-                            remainingBits -= this.totalBits
-                        } else {
-                            charVal *= 2**remainingBits;
-                            let value2 = list[i]&&(2**(this.totalBits-remainingBits)-1)
-                            string += String.fromCharCode(charVal+(list[i]>>(this.totalBits-remainingBits)));
-                            charVal = value2;
-                            remainingBits += 7-this.totalBits;
-                        }
-                    }
-                    return string
-                } else if (this.totalBits > 7) {
-                    let string = "";
-                    let i = 0;
-                    let remainingBits = this.totalBits;
-                    let currentNum = list[0];
-                    while (true) {
-                        if (remainingBits >= 7) {
-                            remainingBits -= 7
-                            let first7bits = currentNum >> (remainingBits)
-                            string += String.fromCharCode(first7bits);
-                            currentNum -= (first7bits << (remainingBits));
-                        } else {
-                            i++
-                            remainingBits = this.totalBits-(7-remainingBits)
-                            let firstnbits = list[i] >> (remainingBits)
-                            string += String.fromCharCode(currentNum*2**(this.totalBits-remainingBits)+firstnbits);
-                            if (i >= list.length) {return string}
-                            currentNum = list[i] - (firstnbits << remainingBits); 
-                        }
-                    }
-                } else {
-                    let string = "";
-                    for (let i=0; i<list.length; i++) {
-                        string += String.fromCharCode(list[i])
-                    }
-                    return string;
+                let string = "";
+                for (let i=0; i<list.length; i++) {
+                    string += String.fromCharCode(list[i]);
                 }
+                return string;
             }
         
             // advances an array of moves to the next valid array. returns the length of the array.
