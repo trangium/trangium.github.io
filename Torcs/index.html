@@ -41,6 +41,8 @@
         <div style="font-family:courier new;font-size:17px">
             <button style="font-family:courier new;font-size:17px" class="button button1"
                 onclick="calc()"><strong>Calculate</strong></button> 
+            <button style="font-family:courier new;font-size:17px" class="button button1"
+                onclick="clearOutput()"><strong>Clear Output</strong></button> 
             <button style="font-family:courier new;font-size:17px" class="button button1" id="optVisButton"
                 onclick="optionVisibility()"><strong>Hide Options</strong></button><br>
                 
@@ -53,18 +55,10 @@
             <table valign="top">
                 <tr>
                     <th>
-                        Puzzle<br>Definition
-                    </th>
-                    <th>
-                        <textarea id="moves-input" rows="16" cols="69"></textarea>
-                    </th>
-                </tr>
-                <tr>
-                    <th>
                         Input
                     </th>
                     <th>
-                        <textarea id="true-input" rows="6" cols="69"></textarea>
+                        <textarea id="true-input" rows="16" cols="69" spellcheck="false"></textarea>
                     </th>
                 </tr>
                 <tr>
@@ -72,7 +66,7 @@
                         Output
                     </th>
                     <th>
-                        <textarea id="output" rows="37" cols="69" readonly></textarea>
+                        <textarea id="output" rows="26" cols="69" spellcheck="false" readonly></textarea>
                     </th>
                 </tr>
             </table>
@@ -104,7 +98,7 @@
         function setPuzzle() {
             // Deal with moves input
 
-            let moves = document.getElementById("moves-input").value;
+            let moves = document.getElementById("true-input").value;
             let moveLines = moves.split('\n');
 
             let pieceList = [];
@@ -131,7 +125,7 @@
                             if (pieceIndex == -1) {
                                 pieceList.push(piece);
                                 pieceIndex = pieceList.length-1;
-                                cubeOri.push(piece.replace(/[^A-Z]/g, "").length) // Number of orientations is number of capital letters in piece name
+                                cubeOri.push(Math.max(1,piece.replace(/[^A-Z]/g, "").length)); // Number of orientations is number of capital letters in piece name, but 1 minimum
                             }
                             cycle.push([pieceIndex, twist]);
                         }
@@ -176,9 +170,7 @@
             }
 
             // Deal with equivalences
-            let equivalences = document.getElementById("moves-input").value;
-            let splitEquivalences = equivalences.split('{');
-
+            let splitEquivalences = moves.split('{');
             let solvedState = [];
             for (let i=0; i<pieceList.length; i++) {solvedState[i] = i}
             for (let i=1; i<splitEquivalences.length; i++) {
@@ -190,10 +182,16 @@
                 }
             }
             activePuzzle = new Puzzle(cubeOri, moveList, clockwiseMoveStr, solvedState);
+            return pieceList;
+        }
+
+        function removeBrackets(s) { // Removes (), {}, and []
+            return s.replace(/\(|\)|\[|\]|{|}/g, "");
         }
 
         function calc() {
-            setPuzzle(); // loses efficiency if puzzle has not changed, so update this
+            let startTime = Date.now();
+            let pieceList = setPuzzle(); // loses efficiency if puzzle has not changed, so update this
             let inputLines = document.getElementById("true-input").value.split("\n");
             let searchDepth = Infinity;
             for (let i=0; i<inputLines.length; i++) {
@@ -212,18 +210,30 @@
                     searchDepth = parseInt(splitLine[1]);
                     status("Set search depth to "+splitLine[1]);
                 } else if (command == "solve") {
-                    let solve = activePuzzle.solve(activePuzzle.execute(activePuzzle.solved, activePuzzle.moveStrToList(splitLine.slice(1).join(" "))), searchDepth);
+                    let solve = activePuzzle.solve(activePuzzle.execute(activePuzzle.solved, activePuzzle.moveStrToList(removeBrackets(splitLine.slice(1).join(" ")))), searchDepth);
                     function nextSolution() {
                         let solution = solve.next();
                         if (solution.done == false) {
                             document.getElementById("output").value += activePuzzle.moveListToStr(solution.value)+"\n";
                             requestAnimationFrame(nextSolution);
+                        } else {
+                            status("Solving completed in "+(Date.now()-startTime)+" milliseconds");
                         }
                     }
                     nextSolution();
+                } else if (command == "unique-orient") {
+                    for (let i=2; i<splitLine.length; i++) {
+                        let pieceIndex = pieceList.indexOf(removeBrackets(splitLine[i]));
+                        if (pieceIndex !== -1) {activePuzzle.cubeOri[pieceIndex] = splitLine[1]};
+                    }
                 }
             }
         }
+
+        function clearOutput() {
+            document.getElementById("output").value = "";
+        }
+
         // END HTML-SIDE JS
 
         function arraysEqual(arr1,arr2) {
@@ -239,7 +249,7 @@
                 for (let p = 0; p < this.pcCount; p++) {
                     let temp = (start[move[p] & this.posMask] + (move[p] & this.oriMask));
                     let tempOri = this.cubeOri[temp & this.posMask];
-                    result[p] = temp < tempOri << this.posBits ? temp : temp - (tempOri << this.posBits);
+                    result[p] = temp % (tempOri << this.posBits);
                 }
             }
             
@@ -473,9 +483,10 @@
         let bw = [39, 41, 2, 33, 4, 5, 32, 42, 8, 43, 38, 35, 45, 82, 14, 15, 16, 17, 51, 76, 21, 52, 22];
 
         var ruf3x3 = new Puzzle(
-            [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3], 
+            [1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3], 
             [u, r, f],
-            ['U','R','F']);
+            ['U','R','F'],
+            [0, 0, 0, 0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
 
         var coes3x3 = new Puzzle(
             [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 2, 2, 2], 
