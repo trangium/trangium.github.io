@@ -7,6 +7,7 @@ self.onmessage = function (msg) {
     input = msg.data.input;
     showProgUpdates = msg.data.showProgUpdates;
     calc();
+    postMessage("::STOP::");
 };
 
 function status(message, alwaysShow=false) {

@@ -40,7 +40,7 @@
     <body>
         <div style="font-family:courier new;font-size:17px">
             <button style="font-family:courier new;font-size:17px" class="button button1"
-                onclick="calc()"><strong>Calculate</strong></button> 
+                onclick="calc()" id="calc-button"><strong>Start Search</strong></button> 
             <button style="font-family:courier new;font-size:17px" class="button button1"
                 onclick="clearOutput()"><strong>Clear Output</strong></button> 
             <button style="font-family:courier new;font-size:17px" class="button button1" id="optVisButton"
@@ -48,7 +48,6 @@
                 
             <strong id="options">
                 <br>
-                <input id="sortByMCC" type="checkbox"><label for="sortByMCC"> Sort algs by movecount coefficient</label><br>
                 <input id="showProgUpdates" type="checkbox" checked><label for="showProgUpdates"> Output progress updates</label><br>
             </strong>
             <br>
@@ -72,14 +71,29 @@
             </table>
         </div>
     <script>
-        
-        function calc() {
-            w = new Worker("worker.js");
-            w.postMessage({input: document.getElementById("true-input").value, showProgUpdates: document.getElementById("showProgUpdates").checked}); // start computation
+        let w;
 
-            w.onmessage = function(event) {
-                document.getElementById("output").value += event.data+"\n";
+        function calc() {
+            if (document.getElementById("calc-button").innerText == "Start Search") {
+                document.getElementById("calc-button").innerHTML = "<strong>Stop Search</strong>";
+                w = new Worker("worker.js");
+                w.postMessage({input: document.getElementById("true-input").value, showProgUpdates: document.getElementById("showProgUpdates").checked}); // start computation
+
+                w.onmessage = function(event) {
+                    if (event.data === "::STOP::") {
+                        stopSearch();
+                    } else {
+                        document.getElementById("output").value += event.data+"\n";
+                    }
+                }
+            } else {
+                stopSearch();
             }
+        }
+
+        function stopSearch() {
+            w.terminate();
+            document.getElementById("calc-button").innerHTML = "<strong>Start Search</strong>";
         }
 
         function optionVisibility() {
