@@ -3,7 +3,6 @@ let input;
 let showProgUpdates;
 
 self.onmessage = function (msg) {
-    console.log("d")
     input = msg.data.input;
     showProgUpdates = msg.data.showProgUpdates;
     calc();
@@ -147,11 +146,8 @@ function calc() {
                 if (pieceIndex !== -1) {activePuzzle.cubeOri[pieceIndex] = splitLine[1]};
             }
         } else if (command == "subgroup") {
-            let generators = [];
-            for (let i=1; i<splitLine.length; i++) {
-                generators.push(removeBrackets(splitLine[i]));
-            }
-            activePuzzle.setSubgroup(generators);
+            let generators = removeBrackets(splitLine.slice(1).join(" ")).replace(" ","").split(",");
+            activePuzzle = activePuzzle.setSubgroup(generators);
         }
     }
 }
@@ -220,10 +216,6 @@ class Puzzle {
             }
         }
 
-        this.nextPossibleMove = [];
-        for (let i=0; i<this.moves.length; i++) {this.nextPossibleMove[i] = i+1}
-        this.nextPossibleMove[this.moves.length] = 0;
-
         // initialize valid pairs grid
         this.validPairs = [];
         for (let move1=0; move1<this.moves.length; move1++) { // initialize the valid pairs array
@@ -257,12 +249,13 @@ class Puzzle {
 
     // returns next valid move given previous move. For example, U U2 is invalid, but U R is valid.
     nextValid(prevMove, move) {
-        while (true) {
-            move = this.nextPossibleMove[move];
-            if (move == this.moves.length || this.validPairs[prevMove][move]) {
+        while (move < this.pcCount) {
+            move += 1;
+            if (this.validPairs[prevMove][move]) {
                 return move;
             }
         }
+        return -1;
     }
 
     // Convert a puzzle array like [2, 1, 6, 0, 5, 4, 3, 7] into a compact string. The totalBits is the number of bits to allocate per number. Takes place of strConv.
@@ -281,18 +274,18 @@ class Puzzle {
             if (moveInd) {
                 arr[moveInd] = this.nextValid(arr[moveInd-1],arr[moveInd])
             } else {
-                arr[0] = this.nextPossibleMove[arr[0]];
+                arr[0] = arr[0]+1;
                 if (arr[0] == this.moves.length) {
-                    arr[0] = this.nextPossibleMove[this.moves.length];
+                    arr[0] = 0;
                     let newLength = arr.length+1
                     for (let i=1; i<newLength; i++) {
-                        arr[i] = this.nextValid(arr[i-1],this.moves.length)
+                        arr[i] = this.nextValid(arr[i-1],-1)
                     }
                     status("Finished depth "+(newLength-1));
                     return newLength
                 }
             }
-            if (arr[moveInd] == this.moves.length) {moveInd--} else {moveInd++}
+            if (arr[moveInd] == -1) {moveInd--} else {moveInd++}
         }
         return arr.length
     }
@@ -339,7 +332,7 @@ class Puzzle {
     // create a prune table
     createPrun(maxDepth) {
         let tempTable = new Map();
-        let attempt = [this.nextPossibleMove[this.moves.length]];
+        let attempt = [0];
         let depth = 1;
         while (depth <= maxDepth) {
             let cubeStr = this.compressArr(this.execute(this.solved, attempt));
@@ -366,7 +359,7 @@ class Puzzle {
         }
     }
 
-    *solve(state, searchDepth, goal=this.solved) {
+    *solve(state, searchDepth) {
         yield * this.readPrun(state);
         let attempt = [0];
         let depth = 1;
@@ -380,32 +373,11 @@ class Puzzle {
     }
 
     setSubgroup(generators) {
-        // nextPossibleMove
-        let movesInGroup = [];
+        let genArray = [];
         for (let i=0; i<generators.length; i++) {
-            let gen = this.moveStr.indexOf(generators[i]);
-            let start = this.nullmove;
-            while(true) {
-                let result = [];
-                this.mult(start, this.moves[gen], result)
-                start = result.slice();
-                // check the move number of the result
-                for (let j=0; j<this.moves.length; j++) {
-                    if (arraysEqual(this.moves[j],result)) {
-                        movesInGroup.push(j)
-                        break
-                    }
-                }
-                if (arraysEqual(result, this.nullmove)) {
-                    break
-                }
-            }
+            let gen = generators[i];
+            genArray.push(this.execute(this.solved, this.moveStrToList(gen)));
         }
-        movesInGroup.sort((a, b) => a - b);
-        this.nextPossibleMove[this.moves.length] = movesInGroup[0];
-        this.nextPossibleMove[movesInGroup[movesInGroup.length-1]] = this.moves.length;
-        for (let i=0; i<movesInGroup.length-1; i++) {
-            this.nextPossibleMove[movesInGroup[i]] = movesInGroup[i+1];
-        }
+        return new Puzzle(this.cubeOri, genArray, generators, this.solvedState);
     }
 }
