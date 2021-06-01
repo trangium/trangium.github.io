@@ -813,25 +813,34 @@
                 }
                 if (bestTest[0] == -1) { return Math.round(bestTest[1] * 10) / 10 }
                 tests = [];
+
+                let prevMoveType = bestTest[0] >= 1 ? splitSeq[bestTest[0] - 1][0] : " ";
+                let prev2Type = bestTest[0] >= 2 ? splitSeq[bestTest[0] - 2][0] : " ";
+                let doubleRegrip = false;
+
+                if ((bestTest[2] > 1 || bestTest[2] < -1) && (bestTest[3] > 1 || bestTest[3] < -1)) {
+                    doubleRegrip = true;
+                }
+
                 for (let leftWrist = -1; leftWrist < 2; leftWrist++) {
                     for (let rightWrist = -1; rightWrist < 2; rightWrist++) {
                         let leftMatch = (bestTest[2] == leftWrist);
                         let rightMatch = (bestTest[3] == rightWrist);
-                        if (["X","x","Y","y","Z","z"].includes(splitSeq[bestTest[0] - 1][0])) { // rotation handling
+                        if (["X","x","Y","y","Z","z"].includes(prevMoveType)) { // rotation handling
                             tests.push(test(splitSeq.slice(bestTest[0]), leftWrist, rightWrist, bestTest[1]));
                         }
-                        else if (!(leftMatch) || !(rightMatch)) {
-                            let penalty = 2;
-                            if (leftMatch) {
+                        else if (!(leftMatch) || !(rightMatch) || doubleRegrip) {
+                            let penalty = doubleRegrip?4+addRegrip:2;
+                            if (leftMatch || doubleRegrip) {
                                 let rHandLatency = Math.max(0, 2 - (bestTest[1] - bestTest[5])); // time between last right hand motion and now
                                 let rMoveLatency;
-                                if (splitSeq[bestTest[0] - 1][0] == "R" || (bestTest[0] >= 2 && splitSeq[bestTest[0] - 2][0] == "R") || splitSeq[bestTest[0] - 1][0] == "r" || (bestTest[0] >= 2 && splitSeq[bestTest[0] - 2][0] == "r")) { rMoveLatency = 1 } else { rMoveLatency = 0 }
+                                if (prevMoveType == "R" || prev2Type == "R" || prevMoveType == "r" || prev2Type == "r") { rMoveLatency = 1 } else { rMoveLatency = 0 }
                                 penalty = Math.max(rHandLatency, rMoveLatency)
                                 tests.push(test(splitSeq.slice(bestTest[0]), leftWrist, rightWrist, bestTest[1] + penalty + addRegrip))
-                            } else if (rightMatch) {
+                            } else if (rightMatch || doubleRegrip) {
                                 let lHandLatency = Math.max(0, 2 - (bestTest[1] - bestTest[4])); // time between last right hand motion and now
                                 let lMoveLatency;
-                                if (splitSeq[bestTest[0] - 1][0] == "L" || (bestTest[0] >= 2 && splitSeq[bestTest[0] - 2][0] == "L") || splitSeq[bestTest[0] - 1][0] == "l" || (bestTest[0] >= 2 && splitSeq[bestTest[0] - 2][0] == "l")) { lMoveLatency = 1 } else { lMoveLatency = 0 }
+                                if (prevMoveType == "L" || prev2Type == "L" || prevMoveType == "l" || prev2Type == "l") { lMoveLatency = 1 } else { lMoveLatency = 0 }
                                 penalty = Math.max(lHandLatency, lMoveLatency)
                                 tests.push(test(splitSeq.slice(bestTest[0]), leftWrist, rightWrist, bestTest[1] + penalty + addRegrip))
                             }
