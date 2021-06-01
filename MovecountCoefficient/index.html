@@ -160,7 +160,6 @@
                 }
                 for (let j = 0; j < splitSeq.length; j++) {
                     let move = splitSeq[j];
-                    console.log(move);
                     let normalMove = move.toUpperCase();
                     let prevMove = (j==0?" ":splitSeq[j-1]).toUpperCase();
                     if (prevSpeed !== null) {
@@ -183,7 +182,7 @@
                             break;
                         case "R2":
                             if (rWrist >= 1 && lWrist < 1) { rWrist = -1 } else if (lWrist > -1) { rWrist += 2 } else { return [j, speed, lWrist, (rWrist>0)?rWrist-2:rWrist+2, Math.max(lThumb[0], lIndex[0], lMiddle[0], lRing[0]), Math.max(rThumb[0], rIndex[0], rMiddle[0], rRing[0])] }
-                            speed += 1.65*wristMult;
+                            speed += double*wristMult;
                             break;
                         case "U":
                             if (rWrist == 0 && (rThumb[0] + overWorkMult <= speed || rThumb[1] != "top") && rIndex[1] != "m") {
@@ -238,7 +237,7 @@
                                 } else {
                                     speed += overwork(rIndex, "eido", 1.25*overWorkMult);
                                 }
-                                speed += 1.15(pushMult);
+                                speed += 1.15*pushMult;
                                 rIndex = [speed, "uflick"];
                                 rOhCool = speed;
                             } else {
@@ -432,7 +431,7 @@
                             break;
                         case "L2":
                             if (lWrist >= 1 && rWrist < 1) { lWrist = -1 } else if (rWrist > -1) { lWrist += 2 } else { return [j, speed, (lWrist>0)?lWrist-2:lWrist+2, rWrist, Math.max(lThumb[0], lIndex[0], lMiddle[0], lRing[0]), Math.max(rThumb[0], rIndex[0], rMiddle[0], rRing[0])] }
-                            speed += 1.65*wristMult;
+                            speed += double*wristMult;
                             break;
                         case "B":
                             if (rWrist == 1) {
@@ -812,7 +811,6 @@
                     else if (compTest[0] > bestTest[0] && bestTest[0] != -1) { bestTest = compTest }
                     else if (compTest[0] == bestTest[0] && compTest[1] < bestTest[1] && bestTest[0] != -1) { bestTest = compTest }
                 }
-                console.log(bestTest)
                 if (bestTest[0] == -1) { return Math.round(bestTest[1] * 10) / 10 }
                 tests = [];
                 for (let leftWrist = -1; leftWrist < 2; leftWrist++) {
