@@ -830,7 +830,7 @@
                             tests.push(test(splitSeq.slice(bestTest[0]), leftWrist, rightWrist, bestTest[1]));
                         }
                         else if (!(leftMatch) || !(rightMatch) || doubleRegrip) {
-                            let penalty = doubleRegrip?4+addRegrip:2;
+                            let penalty = doubleRegrip?(rotation*double):2; // double regrips should be exceedingly rare, so penalty would almost always equal 2
                             if (leftMatch || doubleRegrip) {
                                 let rHandLatency = Math.max(0, 2 - (bestTest[1] - bestTest[5])); // time between last right hand motion and now
                                 let rMoveLatency;
