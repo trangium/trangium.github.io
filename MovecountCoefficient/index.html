@@ -334,8 +334,10 @@
                                 lThumb = [speed, "leftu"];
                             } else if (lWrist == 0 && grip == -1) {
                                 speed += overwork(lThumb, "bottom");
+                                speed += overwork(lIndex, "top");
                                 if (prevMove[0] == "D") {speed += 2.05} else {speed += 1.25};
                                 lThumb = [speed, "top"]
+                                lIndex = [speed, "top"] 
                             } else if (rWrist == 0 && lWrist == 0 && move == "f") {
                                 speed += overwork(rIndex,"uflick");
                                 speed += overwork(rMiddle,"home");
@@ -376,8 +378,10 @@
                                 rThumb = [speed, "rightu"];
                             } else if (rWrist == 0 && grip == 1) {
                                 speed += overwork(rThumb, "bottom")
+                                speed += overwork(rIndex, "top");
                                 if (prevMove[0] == "D") {speed += 2.05} else {speed += 1.25};
-                                rThumb = [speed, "top"]                            
+                                rThumb = [speed, "top"]
+                                rIndex = [speed, "top"]     
                             } else if (lWrist == 0 && rWrist == 0 && move == "f'") {
                                 speed += overwork(lIndex,"uflick");
                                 speed += overwork(lMiddle,"home");
@@ -831,17 +835,17 @@
                         }
                         else if (!(leftMatch) || !(rightMatch) || doubleRegrip) {
                             let penalty = doubleRegrip?(rotation*double):2; // double regrips should be exceedingly rare, so penalty would almost always equal 2
+                            let rMoveLatency;
+                            if (prevMoveType == "R" || prev2Type == "R" || prevMoveType == "r" || prev2Type == "r") { rMoveLatency = 1 } else { rMoveLatency = 0 }
+                            let lMoveLatency;
+                            if (prevMoveType == "L" || prev2Type == "L" || prevMoveType == "l" || prev2Type == "l") { lMoveLatency = 1 } else { lMoveLatency = 0 }
                             if (leftMatch || doubleRegrip) {
                                 let rHandLatency = Math.max(0, 2 - (bestTest[1] - bestTest[5])); // time between last right hand motion and now
-                                let rMoveLatency;
-                                if (prevMoveType == "R" || prev2Type == "R" || prevMoveType == "r" || prev2Type == "r") { rMoveLatency = 1 } else { rMoveLatency = 0 }
-                                penalty = Math.max(rHandLatency, rMoveLatency)
+                                penalty = Math.max(rHandLatency, rMoveLatency, lMoveLatency*2)
                                 tests.push(test(splitSeq.slice(bestTest[0]), leftWrist, rightWrist, bestTest[1] + penalty + addRegrip))
                             } else if (rightMatch || doubleRegrip) {
                                 let lHandLatency = Math.max(0, 2 - (bestTest[1] - bestTest[4])); // time between last right hand motion and now
-                                let lMoveLatency;
-                                if (prevMoveType == "L" || prev2Type == "L" || prevMoveType == "l" || prev2Type == "l") { lMoveLatency = 1 } else { lMoveLatency = 0 }
-                                penalty = Math.max(lHandLatency, lMoveLatency)
+                                penalty = Math.max(lHandLatency, lMoveLatency, rMoveLatency*2)
                                 tests.push(test(splitSeq.slice(bestTest[0]), leftWrist, rightWrist, bestTest[1] + penalty + addRegrip))
                             }
                         }
