@@ -329,9 +329,11 @@
                                 lIndex = [speed, "home"]
                             } else if (lWrist == -1 && grip == -1) {
                                 speed += overwork(lThumb, "top", 0.9*overWorkMult)
+                                speed += overwork(lIndex, "top");
                                 if (prevMove[0] == "D") {speed += 1.8} else {speed += 1};
                                 lWrist++;
                                 lThumb = [speed, "leftu"];
+                                lIndex = [speed, "top"];
                             } else if (lWrist == 0 && grip == -1) {
                                 speed += overwork(lThumb, "bottom");
                                 speed += overwork(lIndex, "top");
@@ -373,9 +375,11 @@
                                 rIndex = [speed, "home"]
                             } else if (rWrist == -1 && grip == 1) {
                                 speed += overwork(rThumb, "top", 0.9*overWorkMult)
+                                speed += overwork(rIndex, "top");
                                 if (prevMove[0] == "D") {speed += 1.8} else {speed += 1};
                                 rWrist++;
                                 rThumb = [speed, "rightu"];
+                                rIndex = [speed, "top"]
                             } else if (rWrist == 0 && grip == 1) {
                                 speed += overwork(rThumb, "bottom")
                                 speed += overwork(rIndex, "top");
