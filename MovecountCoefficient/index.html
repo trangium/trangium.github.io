@@ -105,12 +105,19 @@
                             <input type="range" value="2.25" max="5" step="0.05" oninput="p8.value = this.value">
                             <output id="p8">2.25</output><br>
                         </th>
+                    </tr>
+                    <tr>
+                        <th>Move Block Penalty:</th>
+                        <th>
+                            <input type="range" value="0.8" min="0" max="3" step="0.05" oninput="p9.value = this.value">
+                            <output id="p9">0.8</output><br>
+                        </th>
                     </tr> 
                     <tr>
                         <th>y/z Rotation:</th>
                         <th>
                             <input type="range" value="3.2" min="1" max="7" step="0.1" oninput="p9.value = this.value">
-                            <output id="p9">3.2</output><br>
+                            <output id="p10">3.2</output><br>
                         </th>
                     </tr>                     
                 </table>
@@ -131,7 +138,7 @@
     <script>
         "use strict"
 
-        function algSpeed(sequence, ignoreErrors=false, ignoreauf=false, wristMult=0.8, pushMult=1.3, ringMult=1.4, destabilize=0.5, addRegrip=1, double=1.65, sesliceMult=1.25, overWorkMult=2.25, rotation=3.2) {
+        function algSpeed(sequence, ignoreErrors=false, ignoreauf=false, wristMult=0.8, pushMult=1.3, ringMult=1.4, destabilize=0.5, addRegrip=1, double=1.65, sesliceMult=1.25, overWorkMult=2.25, moveblock=0.8, rotation=3.2) {
             function test(splitSeq, lGrip, rGrip, speed) {
                 let lThumb = [-1, "home"]; // -1 to represent the time during AUF that you can set your fingers up
                 let lIndex = [-1, "home"];
@@ -198,7 +205,7 @@
                                 }
                             } else if (rWrist == 1 && lWrist == 0) {
                                 speed += overwork(lIndex, "uflick");
-                                if (prevMove == "B'") {speed += 0.8+pushMult} else if (prevMove[0] == "B'") {speed += 0.45+pushMult} else {speed += pushMult}
+                                if (prevMove == "B'") {speed += moveblock+pushMult} else if (prevMove[0] == "B'") {speed += moveblock*0.5+pushMult} else {speed += pushMult}
                                 lIndex = [speed, "home"];
                             } else if (lWrist == 0 && prevMove[0] != "F" && prevMove[0] != "B") {
                                 if (lIndex[1] == "uflick") {
@@ -228,7 +235,7 @@
                                 }
                             } else if (lWrist == 1 && rWrist == 0) {
                                 speed += overwork(rIndex, "uflick");
-                                if (prevMove == "B") {speed += 0.8+pushMult} else if (prevMove[0] == "B'") {speed += 0.45+pushMult} else {speed += pushMult}
+                                if (prevMove == "B") {speed += moveblock+pushMult} else if (prevMove[0] == "B'") {speed += moveblock*0.5+pushMult} else {speed += pushMult}
                                 rIndex = [speed, "home"];
                             } else if (rWrist == 0 && prevMove[0] != "F" && prevMove[0] != "B") {
                                 if (rIndex[1] == "uflick") {
@@ -248,14 +255,14 @@
                             if (rWrist == 0 && (lIndex[1] == "m" || lWrist != 0 || (Math.max(overwork(rIndex, "home"), overwork(rMiddle, "home"), overwork(rRing, "u2grip")) <= Math.max(overwork(lIndex, "home"), overwork(lMiddle, "home"), overwork(lRing, "u2grip"))))) {
                                 speed += overwork(rIndex, "home");
                                 speed += overwork(rMiddle, "home");
-                                speed += overwork(rRing, "u2grip", 0.8*overWorkMult);
+                                speed += overwork(rRing, "u2grip", moveblock*overWorkMult);
                                 speed += double;
                                 rIndex = [speed, "uflick"];
                                 rMiddle = [speed, "uflick"];
                             } else if (lWrist == 0) {
                                 speed += overwork(lIndex, "home");
                                 speed += overwork(lMiddle, "home");
-                                speed += overwork(lRing, "u2grip", 0.8*overWorkMult);
+                                speed += overwork(lRing, "u2grip", moveblock*overWorkMult);
                                 speed += double;
                                 lIndex = [speed, "uflick"];
                                 lMiddle = [speed, "uflick"];
@@ -267,7 +274,7 @@
                             if (lWrist == 0 && (rWrist != 0 || (Math.max(overwork(lRing, "home"), overwork(lMiddle, "home")) <= Math.max(overwork(rRing, "dflick"), overwork(rMiddle, "home"))))) {
                                 speed += overwork(lRing, "home");
                                 speed += overwork(lMiddle, "home");
-                                if (prevMove[0] == "B") {speed += 0.45+ringMult} else {speed += ringMult}
+                                if (prevMove[0] == "B") {speed += moveblock*0.5+ringMult} else {speed += ringMult}
                                 lRing = [speed, "dflick"];
                             } else if (rWrist == 0 && prevMove[0] != "B") {
                                 speed += overwork(rRing, "dflick");
@@ -282,7 +289,7 @@
                             if (rWrist == 0 && (lWrist != 0 || (Math.max(overwork(rRing, "home"), overwork(rMiddle, "home")) <= Math.max(overwork(lRing, "dflick"), overwork(lMiddle, "home"))))) {
                                 speed += overwork(rRing, "home");
                                 speed += overwork(rMiddle, "home");
-                                if (prevMove[0] == "B") {speed += 0.45+ringMult} else {speed += ringMult}
+                                if (prevMove[0] == "B") {speed += moveblock*0.5+ringMult} else {speed += ringMult}
                                 rRing = [speed, "dflick"]
                             } else if (lWrist == 0 && prevMove[0] != "B") {
                                 speed += overwork(lRing, "dflick");
@@ -297,12 +304,12 @@
                             if (rWrist == 0 && (lWrist != 0 || (Math.max(overwork(rMiddle, "home"), overwork(rRing, "home")) <= Math.max(overwork(lMiddle, "home"), overwork(lRing, "home"))))) {
                                 speed += overwork(rMiddle, "home");
                                 speed += overwork(rRing, "home");
-                                if (prevMove[0] == "B") {speed += 0.45+double*ringMult} else {speed += double*ringMult}
+                                if (prevMove[0] == "B") {speed += moveblock*0.5+double*ringMult} else {speed += double*ringMult}
                                 rRing = [speed, "dflick"]
                             } else if (lWrist == 0) {
                                 speed += overwork(lMiddle, "home");
                                 speed += overwork(lRing, "home");
-                                if (prevMove[0] == "B") {speed += 0.45+double*ringMult} else {speed += double*ringMult}
+                                if (prevMove[0] == "B") {speed += moveblock*0.5+double*ringMult} else {speed += double*ringMult}
                                 lRing = [speed, "dflick"]
                             } else {
                                 return [j, speed, lWrist, rWrist, Math.max(lThumb[0], lIndex[0], lMiddle[0], lRing[0]), Math.max(rThumb[0], rIndex[0], rMiddle[0], rRing[0])]
@@ -315,7 +322,7 @@
                                 rIndex = [speed, "uflick"]
                             } else if (lWrist == 1) {
                                 speed += overwork(lRing, "home");
-                                if (prevMove[0] == "D") {speed += 0.45+ringMult} else {speed += 1}
+                                if (prevMove[0] == "D") {speed += moveblock*0.5+ringMult} else {speed += 1}
                                 lRing = [speed, "dflick"];
                             } else if (rWrist == 1 && prevMove[0] != "D") {
                                 speed += overwork(rRing, "dflick");
@@ -361,7 +368,7 @@
                                 lIndex = [speed, "uflick"]
                             } else if (rWrist == 1) {
                                 speed += overwork(rRing, "home");
-                                if (prevMove[0] == "D") {speed += 0.45+ringMult} else {speed += 1}
+                                if (prevMove[0] == "D") {speed += moveblock*0.5+ringMult} else {speed += 1}
                                 rRing = [speed, "dflick"];
                             } else if (lWrist == 1 && prevMove[0] != "D") {
                                 speed += overwork(lRing, "dflick");
@@ -418,12 +425,12 @@
                             } else if (rWrist == 1 && (lWrist != 1 || (Math.max(overwork(rMiddle, "home"), overwork(rRing, "home")) <= Math.max(overwork(lMiddle, "home"), overwork(lRing, "home"))))) {
                                 speed += overwork(rMiddle, "home");
                                 speed += overwork(rRing, "home");
-                                if (prevMove[0] == "D") {speed += double*ringMult+0.45} else {speed += double*ringMult}
+                                if (prevMove[0] == "D") {speed += double*ringMult+moveblock*0.5} else {speed += double*ringMult}
                                 rRing = [speed, "dflick"]
                             } else if (lWrist == 1) {
                                 speed += overwork(lMiddle, "home");
                                 speed += overwork(lRing, "home");
-                                if (prevMove[0] == "D") {speed += double*ringMult+0.45} else {speed += double*ringMult}
+                                if (prevMove[0] == "D") {speed += double*ringMult+moveblock*0.5} else {speed += double*ringMult}
                                 lRing = [speed, "dflick"]
                             } else {
                                 return [j, speed, lWrist, rWrist, Math.max(lThumb[0], lIndex[0], lMiddle[0], lRing[0]), Math.max(rThumb[0], rIndex[0], rMiddle[0], rRing[0])]
@@ -449,7 +456,7 @@
                             } else if (lWrist == -1) {
                                 speed += overwork(lRing, "home");
                                 speed += overwork(lMiddle, "home");
-                                if (prevMove[0] == "U") {speed += 0.45+ringMult} else {speed += ringMult}
+                                if (prevMove[0] == "U") {speed += moveblock*0.5+ringMult} else {speed += ringMult}
                                 lRing = [speed, "dflick"];
                             } else if (lWrist == 1 && prevMove[0] != "U" && prevMove[0] != "D") {
                                 if (lIndex[1] == "uflick") {
@@ -482,7 +489,7 @@
                             } else if (rWrist == -1) {
                                 speed += overwork(rRing, "home");
                                 speed += overwork(rMiddle, "home");
-                                if (prevMove[0] == "U") {speed += 0.45+ringMult} else {speed += ringMult}
+                                if (prevMove[0] == "U") {speed += moveblock*0.5+ringMult} else {speed += ringMult}
                                 rRing = [speed, "dflick"];
                             } else if (rWrist == 1 && prevMove[0] != "U" && prevMove[0] != "D") {
                                 if (rIndex[1] == "uflick") {
@@ -525,19 +532,19 @@
                             } else if (lWrist == -1 && (rWrist != -1 || (Math.max(overwork(rMiddle, "home"), overwork(rRing, "home")) > Math.max(overwork(lMiddle, "home"), overwork(lRing, "home"))))) {
                                 speed += overwork(lMiddle, "home");
                                 speed += overwork(lRing, "home");
-                                if (prevMove[0] == "U") {speed += 0.45+double*ringMult} else {speed += double*ringMult}
+                                if (prevMove[0] == "U") {speed += moveblock*0.5+double*ringMult} else {speed += double*ringMult}
                                 lRing = [speed, "dflick"]
                             } else if (rWrist == -1) {
                                 speed += overwork(rMiddle, "home");
                                 speed += overwork(rRing, "home");
-                                if (prevMove[0] == "U") {speed += 0.45+double*ringMult} else {speed += double*ringMult}
+                                if (prevMove[0] == "U") {speed += moveblock*0.5+double*ringMult} else {speed += double*ringMult}
                                 rRing = [speed, "dflick"]
                             } else {
                                 return [j, speed, lWrist, rWrist, Math.max(lThumb[0], lIndex[0], lMiddle[0], lRing[0]), Math.max(rThumb[0], rIndex[0], rMiddle[0], rRing[0])]
                             }
                             break;
                         case "S":
-                            if (rWrist == 0 && (lWrist != 0 || overwork(rIndex, "top", 1.25*overWorkMult) <= (0.45+pushMult-1)*sesliceMult)) {
+                            if (rWrist == 0 && (lWrist != 0 || overwork(rIndex, "top", 1.25*overWorkMult) <= (moveblock*0.5+pushMult-1)*sesliceMult)) {
                                 speed += overwork(rIndex, "top", 1.25*overWorkMult);
                                 speed += sesliceMult;
                                 rIndex = [speed, "sflick"];
@@ -550,14 +557,14 @@
                                 rMiddle = [speed, "eflick"];
                             } else if (lWrist == 0 && (rWrist == 0 || (rWrist == 1 && (prevMove == "R" || prevMove == "L")))) {
                                 speed += overwork(lIndex, "uflick", 1.25*overWorkMult);
-                                if (prevMove[0] == "U") {speed += 0.45+pushMult*sesliceMult} else {speed += pushMult*sesliceMult}
+                                if (prevMove[0] == "U") {speed += moveblock*0.5+pushMult*sesliceMult} else {speed += pushMult*sesliceMult}
                                 lIndex = [speed, "top"];
                             } else {
                                 return [j, speed, lWrist, rWrist, Math.max(lThumb[0], lIndex[0], lMiddle[0], lRing[0]), Math.max(rThumb[0], rIndex[0], rMiddle[0], rRing[0])];
                             }
                             break;
                         case "S'":
-                            if (lWrist == 0 && (rWrist != 0 || overwork(lIndex, "top", 1.25*overWorkMult) <= (0.45+pushMult-1)*sesliceMult)) {
+                            if (lWrist == 0 && (rWrist != 0 || overwork(lIndex, "top", 1.25*overWorkMult) <= (moveblock*0.5+pushMult-1)*sesliceMult)) {
                                 speed += overwork(lIndex, "top", 1.25*overWorkMult);
                                 speed += sesliceMult;
                                 lIndex = [speed, "sflick"];
@@ -570,7 +577,7 @@
                                 lMiddle = [speed, "eflick"];
                             } else if (rWrist == 0 && (lWrist == 0 || (lWrist == 1 && (prevMove == "R" || prevMove == "L")))) {
                                 speed += overwork(rIndex, "uflick", 1.25*overWorkMult);
-                                if (prevMove[0] == "U") {speed += 0.45+pushMult*sesliceMult} else {speed += pushMult*sesliceMult}
+                                if (prevMove[0] == "U") {speed += moveblock*0.5+pushMult*sesliceMult} else {speed += pushMult*sesliceMult}
                                 rIndex = [speed, "top"];
                             } else {
                                 return [j, speed, lWrist, rWrist, Math.max(lThumb[0], lIndex[0], lMiddle[0], lRing[0]), Math.max(rThumb[0], rIndex[0], rMiddle[0], rRing[0])];
@@ -678,7 +685,7 @@
                                 speed += overwork(lIndex, "m");
                                 speed += overwork(lMiddle, "m");
                                 speed += overwork(lRing, "m");
-                                if (prevMove[0] == "B") {speed += 0.8+double} else {speed += double}
+                                if (prevMove[0] == "B") {speed += moveblock+double} else {speed += double}
                                 lThumb = [speed, "home"];
                                 lIndex = [speed, "m"];
                                 lMiddle = [speed, "mflick"];
@@ -837,7 +844,7 @@
                         if (["X","x","Y","y","Z","z"].includes(prevMoveType)) { // rotation handling
                             tests.push(test(splitSeq.slice(bestTest[0]), leftWrist, rightWrist, bestTest[1]));
                         }
-                        else if (!(leftMatch) || !(rightMatch) || doubleRegrip) {
+                        else {
                             let penalty = doubleRegrip?(rotation*double):2; // double regrips should be exceedingly rare, so penalty would almost always equal 2
                             let rMoveLatency;
                             if (prevMoveType == "R" || prev2Type == "R" || prevMoveType == "r" || prev2Type == "r") { rMoveLatency = 1 } else { rMoveLatency = 0 }
@@ -865,7 +872,7 @@
             let input = document.getElementById("input");
             let splitInput = input.value.split("\n");
             for (let i=0; i<splitInput.length; i++) {
-                output.value += algSpeed(splitInput[i].replaceAll("2'","2"),document.getElementById("ignoreError").checked,document.getElementById("ignoreAUF").checked,parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML)) + "\n"
+                output.value += algSpeed(splitInput[i].replaceAll("2'","2"),document.getElementById("ignoreError").checked,document.getElementById("ignoreAUF").checked,parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML)) + "\n"
             }
             input.rows = Math.max(28,splitInput.length+1)
             output.rows = Math.max(28,splitInput.length+1)
