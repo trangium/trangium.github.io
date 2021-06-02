@@ -116,8 +116,8 @@
                     <tr>
                         <th>y/z Rotation:</th>
                         <th>
-                            <input type="range" value="3.2" min="1" max="7" step="0.1" oninput="p9.value = this.value">
-                            <output id="p10">3.2</output><br>
+                            <input type="range" value="3.5" min="1" max="7" step="0.1" oninput="p10.value = this.value">
+                            <output id="p10">3.5</output><br>
                         </th>
                     </tr>                     
                 </table>
@@ -138,7 +138,7 @@
     <script>
         "use strict"
 
-        function algSpeed(sequence, ignoreErrors=false, ignoreauf=false, wristMult=0.8, pushMult=1.3, ringMult=1.4, destabilize=0.5, addRegrip=1, double=1.65, sesliceMult=1.25, overWorkMult=2.25, moveblock=0.8, rotation=3.2) {
+        function algSpeed(sequence, ignoreErrors=false, ignoreauf=false, wristMult=0.8, pushMult=1.3, ringMult=1.4, destabilize=0.5, addRegrip=1, double=1.65, sesliceMult=1.25, overWorkMult=2.25, moveblock=0.8, rotation=3.5) {
             function test(splitSeq, lGrip, rGrip, speed) {
                 let lThumb = [-1, "home"]; // -1 to represent the time during AUF that you can set your fingers up
                 let lIndex = [-1, "home"];
