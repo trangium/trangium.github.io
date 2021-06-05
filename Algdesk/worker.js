@@ -1,4 +1,5 @@
 let activePuzzle;
+let interpretPuzzle;
 let input;
 let showProgUpdates;
 
@@ -79,7 +80,6 @@ function setPuzzle() {
         for (let c=0; c<cycleList.length; c++) {
             let cycle = cycleList[c];
             for (let i=0; i<cycle.length-1; i++) {
-                let pieceData = cycle[i];
                 move[cycle[i+1][0]] = cycle[i][0]+oriMult*mod(cycle[i][1],cubeOri[cycle[i][0]]); // there could be bugs here
             }
             if (cycle.length==1 || (cycle[0][0] != cycle[cycle.length-1][0])) {
@@ -101,7 +101,10 @@ function setPuzzle() {
             solvedState[pieceList.indexOf(equivPieces[j])] = equivNum;
         }
     }
-    activePuzzle = new Puzzle(cubeOri, moveList, clockwiseMoveStr, solvedState);
+    activePuzzle = new Puzzle(cubeOri.slice(), moveList.slice(), clockwiseMoveStr.slice(), solvedState.slice());
+    interpretPuzzle = new Puzzle(cubeOri.slice(), moveList.slice(), clockwiseMoveStr.slice(), solvedState.slice());
+    console.log(activePuzzle);
+    console.log(interpretPuzzle);
     return pieceList;
 }
 
@@ -130,7 +133,7 @@ function calc() {
             searchDepth = parseInt(splitLine[1]);
             status("Set search depth to "+splitLine[1]);
         } else if (command == "solve") {
-            let solve = activePuzzle.solve(activePuzzle.execute(activePuzzle.solved, activePuzzle.moveStrToList(removeBrackets(splitLine.slice(1).join(" ")))), searchDepth);
+            let solve = activePuzzle.solve(interpretPuzzle.execute(activePuzzle.solved, interpretPuzzle.moveStrToList(removeBrackets(splitLine.slice(1).join(" ")))), searchDepth);
             function nextSolution() {
                 let solution = solve.next();
                 while (solution.done == false) {
@@ -143,11 +146,14 @@ function calc() {
         } else if (command == "unique-orient") {
             for (let i=2; i<splitLine.length; i++) {
                 let pieceIndex = pieceList.indexOf(removeBrackets(splitLine[i]));
-                if (pieceIndex !== -1) {activePuzzle.cubeOri[pieceIndex] = splitLine[1]};
+                if (pieceIndex !== -1) {
+                    activePuzzle.cubeOri[pieceIndex] = parseInt(splitLine[1]);
+                    // interpretPuzzle.cubeOri[pieceIndex] = parseInt(splitLine[1]);
+                }
             }
         } else if (command == "subgroup") {
             let generators = removeBrackets(splitLine.slice(1).join(" ")).replace(" ","").split(",");
-            activePuzzle = activePuzzle.setSubgroup(generators);
+            activePuzzle = interpretPuzzle.setSubgroup(generators);
         }
     }
 }
@@ -322,7 +328,7 @@ class Puzzle {
                 if (moveNum != -1) {
                     result.push(moveNum);
                 } else {
-                    throw "Invalid input";
+                    throw this;
                 }
             }
         }
@@ -376,8 +382,8 @@ class Puzzle {
         let genArray = [];
         for (let i=0; i<generators.length; i++) {
             let gen = generators[i];
-            genArray.push(this.execute(this.solved, this.moveStrToList(gen)));
+            genArray.push(this.execute(this.nullmove, this.moveStrToList(gen)));
         }
-        return new Puzzle(this.cubeOri, genArray, generators, this.solvedState);
+        return new Puzzle(this.cubeOri.slice(), genArray, generators, this.solved.slice());
     }
 }
