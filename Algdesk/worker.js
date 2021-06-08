@@ -1,5 +1,5 @@
-let activePuzzle;
-let interpretPuzzle;
+let subPuzzle;
+let fullPuzzle;
 let input;
 let showProgUpdates;
 
@@ -7,6 +7,7 @@ self.onmessage = function (msg) {
     input = msg.data.input;
     showProgUpdates = msg.data.showProgUpdates;
     calc();
+    console.log(subPuzzle);
     postMessage("::STOP::");
 };
 
@@ -19,7 +20,7 @@ function status(message, alwaysShow=false) {
 function setPuzzle() {
     // Deal with moves input
 
-    let moves = input;
+    let moves = input.puzzle;
     let moveLines = moves.split('\n');
 
     let pieceList = [];
@@ -90,7 +91,7 @@ function setPuzzle() {
     }
 
     // Deal with equivalences
-    let splitEquivalences = moves.split('{');
+    let splitEquivalences = input.ignore.split('{');
     let solvedState = [];
     for (let i=0; i<pieceList.length; i++) {solvedState[i] = i}
     for (let i=1; i<splitEquivalences.length; i++) {
@@ -101,10 +102,8 @@ function setPuzzle() {
             solvedState[pieceList.indexOf(equivPieces[j])] = equivNum;
         }
     }
-    activePuzzle = new Puzzle(cubeOri.slice(), moveList.slice(), clockwiseMoveStr.slice(), solvedState.slice());
-    interpretPuzzle = new Puzzle(cubeOri.slice(), moveList.slice(), clockwiseMoveStr.slice(), solvedState.slice());
-    console.log(activePuzzle);
-    console.log(interpretPuzzle);
+    subPuzzle = new Puzzle(cubeOri.slice(), moveList.slice(), clockwiseMoveStr.slice(), solvedState.slice());
+    fullPuzzle = new Puzzle(cubeOri.slice(), moveList.slice(), clockwiseMoveStr.slice(), solvedState.slice());
     return pieceList;
 }
 
@@ -113,6 +112,42 @@ function removeBrackets(s) { // Removes (), {}, <>, and []
 }
 
 function calc() {
+    let startTime = Date.now();
+    let pieceList = setPuzzle(); // loses efficiency if puzzle has not changed, so update this
+
+    let generators = removeBrackets(input.subgroup).replace(",","").split(" ");
+    if (input.subgroup.replace(" ","").length > 0) {
+        subPuzzle = fullPuzzle.setSubgroup(generators);
+    }
+
+    let lines = input.ignore.split("\n");
+    for (let i=0; i<lines.length; i++) {
+        let line = lines[i];
+        if (line.includes(":")) {
+            let numOri = parseInt(line.split(":")[0]);
+            let orientData = line.split(":")[1].split(" ");
+            for (let i=0; i<orientData.length; i++) {
+                let pieceIndex = pieceList.indexOf(removeBrackets(orientData[i]));
+                if (pieceIndex !== -1) {subPuzzle.cubeOri[pieceIndex] = numOri}
+            }
+        }
+    }
+
+    subPuzzle.createPrun(parseInt(input.prune));
+
+    let solve = subPuzzle.solve(fullPuzzle.execute(subPuzzle.solved, fullPuzzle.moveStrToList(removeBrackets(input.solve))), isNaN(parseInt(input.search))?Infinity:parseInt(input.search));
+    function nextSolution() {
+        let solution = solve.next();
+        while (solution.done == false) {
+            status(subPuzzle.moveListToStr(solution.value),true);
+            solution = solve.next();
+        }
+        status("Solving completed in "+(Date.now()-startTime)+" milliseconds");
+    }
+    nextSolution();
+}
+
+function calcOld() {
     let startTime = Date.now();
     let pieceList = setPuzzle(); // loses efficiency if puzzle has not changed, so update this
     let inputLines = input.split("\n");
@@ -127,17 +162,17 @@ function calc() {
         }
         let command = splitLine[0].toLowerCase();
         if (command == "prune") { 
-            activePuzzle.createPrun(parseInt(splitLine[1]));
+            subPuzzle.createPrun(parseInt(splitLine[1]));
             status("Pruning complete.")
         } else if (command == "search") {
             searchDepth = parseInt(splitLine[1]);
             status("Set search depth to "+splitLine[1]);
         } else if (command == "solve") {
-            let solve = activePuzzle.solve(interpretPuzzle.execute(activePuzzle.solved, interpretPuzzle.moveStrToList(removeBrackets(splitLine.slice(1).join(" ")))), searchDepth);
+            let solve = subPuzzle.solve(fullPuzzle.execute(subPuzzle.solved, fullPuzzle.moveStrToList(removeBrackets(splitLine.slice(1).join(" ")))), searchDepth);
             function nextSolution() {
                 let solution = solve.next();
                 while (solution.done == false) {
-                    status(activePuzzle.moveListToStr(solution.value),true);
+                    status(subPuzzle.moveListToStr(solution.value),true);
                     solution = solve.next();
                 }
                 status("Solving completed in "+(Date.now()-startTime)+" milliseconds");
@@ -147,13 +182,12 @@ function calc() {
             for (let i=2; i<splitLine.length; i++) {
                 let pieceIndex = pieceList.indexOf(removeBrackets(splitLine[i]));
                 if (pieceIndex !== -1) {
-                    activePuzzle.cubeOri[pieceIndex] = parseInt(splitLine[1]);
-                    // interpretPuzzle.cubeOri[pieceIndex] = parseInt(splitLine[1]);
+                    subPuzzle.cubeOri[pieceIndex] = parseInt(splitLine[1]);
                 }
             }
         } else if (command == "subgroup") {
             let generators = removeBrackets(splitLine.slice(1).join(" ")).replace(" ","").split(",");
-            activePuzzle = interpretPuzzle.setSubgroup(generators);
+            subPuzzle = fullPuzzle.setSubgroup(generators);
         }
     }
 }
