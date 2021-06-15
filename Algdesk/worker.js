@@ -1,21 +1,12 @@
 let subPuzzle;
 let fullPuzzle;
 let input;
-let showProgUpdates;
 
 self.onmessage = function (msg) {
-    input = msg.data.input;
-    showProgUpdates = msg.data.showProgUpdates;
+    input = msg.data;
     calc();
-    console.log(subPuzzle);
-    postMessage("::STOP::");
+    postMessage({value: null, type: "stop"});
 };
-
-function status(message, alwaysShow=false) {
-    if (showProgUpdates || alwaysShow) {
-        postMessage(message);
-    }
-}
 
 function setPuzzle() {
     // Deal with moves input
@@ -107,12 +98,10 @@ function setPuzzle() {
     return pieceList;
 }
 
-function removeBrackets(s) { // Removes (), {}, <>, and []
-    return s.replace(/\(|\)|\[|\]|{|}|<|>/g, "");
-}
-
 function calc() {
-    let startTime = Date.now();
+    function removeBrackets(s) { // Removes (), {}, <>, and []
+        return s.replace(/\(|\)|\[|\]|{|}|<|>/g, "");
+    }
     let pieceList = setPuzzle(); // loses efficiency if puzzle has not changed, so update this
 
     let generators = removeBrackets(input.subgroup).replace(",","").split(" ");
@@ -139,57 +128,11 @@ function calc() {
     function nextSolution() {
         let solution = solve.next();
         while (solution.done == false) {
-            status(subPuzzle.moveListToStr(solution.value),true);
+            postMessage({value: subPuzzle.moveListToStr(solution.value), type: "solution"});
             solution = solve.next();
         }
-        status("Solving completed in "+(Date.now()-startTime)+" milliseconds");
     }
     nextSolution();
-}
-
-function calcOld() {
-    let startTime = Date.now();
-    let pieceList = setPuzzle(); // loses efficiency if puzzle has not changed, so update this
-    let inputLines = input.split("\n");
-    let searchDepth = Infinity;
-    for (let i=0; i<inputLines.length; i++) {
-        let line = inputLines[i]
-        let splitLine = line.split(" ");
-        for (let j=splitLine.length-1; j>0; j--) {
-            if (splitLine[j] == "") {
-                splitLine.pop();
-            }
-        }
-        let command = splitLine[0].toLowerCase();
-        if (command == "prune") { 
-            subPuzzle.createPrun(parseInt(splitLine[1]));
-            status("Pruning complete.")
-        } else if (command == "search") {
-            searchDepth = parseInt(splitLine[1]);
-            status("Set search depth to "+splitLine[1]);
-        } else if (command == "solve") {
-            let solve = subPuzzle.solve(fullPuzzle.execute(subPuzzle.solved, fullPuzzle.moveStrToList(removeBrackets(splitLine.slice(1).join(" ")))), searchDepth);
-            function nextSolution() {
-                let solution = solve.next();
-                while (solution.done == false) {
-                    status(subPuzzle.moveListToStr(solution.value),true);
-                    solution = solve.next();
-                }
-                status("Solving completed in "+(Date.now()-startTime)+" milliseconds");
-            }
-            nextSolution();
-        } else if (command == "unique-orient") {
-            for (let i=2; i<splitLine.length; i++) {
-                let pieceIndex = pieceList.indexOf(removeBrackets(splitLine[i]));
-                if (pieceIndex !== -1) {
-                    subPuzzle.cubeOri[pieceIndex] = parseInt(splitLine[1]);
-                }
-            }
-        } else if (command == "subgroup") {
-            let generators = removeBrackets(splitLine.slice(1).join(" ")).replace(" ","").split(",");
-            subPuzzle = fullPuzzle.setSubgroup(generators);
-        }
-    }
 }
 
 // END HTML-SIDE JS
@@ -321,7 +264,7 @@ class Puzzle {
                     for (let i=1; i<newLength; i++) {
                         arr[i] = this.nextValid(arr[i-1],-1)
                     }
-                    status("Finished depth "+(newLength-1));
+                    postMessage({value:1, type: "depthUpdate"});
                     return newLength
                 }
             }
@@ -384,16 +327,18 @@ class Puzzle {
     }
 
     // read all solutions from a given state under the prune table's depth
-    *readPrun(state, partialSolve=[], maxDepth=this.pruneDepth) { // maxDepth should be the same as the prune table's maxDepth
+    *readPrun(state, exactDepth=false, partialSolve=[], maxDepth=this.pruneDepth) { // maxDepth should be the same as the prune table's maxDepth
         for (let m=0; m<this.moves.length; m++) {
             if (partialSolve.length == 0 || this.validPairs[partialSolve[partialSolve.length-1]][m]) {
                 let nextState = this.execute(state, [m]);
                 let nextDistance = this.pruneTable.get(this.compressArr(nextState));
                 if (arraysEqual(nextState, this.solved)) {
-                    let fullSolve = partialSolve.concat(m);
-                    yield * [fullSolve];
+                    if (maxDepth == 1 || !(exactDepth)) {
+                        let fullSolve = partialSolve.concat(m);
+                        yield * [fullSolve];
+                    }
                 } else if (nextDistance < maxDepth) { // false if nextDistance is undefined
-                    yield * this.readPrun(nextState, partialSolve.concat(m), maxDepth-1);
+                    yield * this.readPrun(nextState, exactDepth, partialSolve.concat(m), maxDepth-1);
                 }
             }
         }
@@ -405,8 +350,8 @@ class Puzzle {
         let depth = 1;
         while (depth <= searchDepth) {
             let nextState = this.execute(state, attempt);
-            if (this.pruneTable.get(this.compressArr(nextState)) == this.pruneDepth) {
-                yield * this.readPrun(nextState, attempt);
+            if (this.pruneTable.get(this.compressArr(nextState)) <= this.pruneDepth) {
+                yield * this.readPrun(nextState, true, attempt);
             }
             depth = this.advance(attempt);
         }                
