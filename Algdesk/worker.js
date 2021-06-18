@@ -3,8 +3,11 @@ let fullPuzzle;
 let input;
 
 self.onmessage = function (msg) {
-    input = msg.data;
-    calc();
+    let inputs = msg.data;
+    for (let i=0; i<inputs.length; i++) {
+        input = inputs[i];
+        calc();
+    }
     postMessage({value: null, type: "stop"});
 };
 

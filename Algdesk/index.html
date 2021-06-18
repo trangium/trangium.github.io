@@ -19,7 +19,7 @@
                 cursor: pointer;
                 background-color: white;
                 color: black;
-                border: 2px solid #000000;
+                border: 2px solid #000;
             }
 
             .top-button {
@@ -33,8 +33,14 @@
             }
     
             .button:hover {
-                background-color: #000000;
+                background-color: #000;
                 color: white;
+            }
+
+            button:disabled {
+                opacity: 0.3;
+                cursor: none;
+                pointer-events: none;
             }
 
             input[type=checkbox] {
@@ -87,7 +93,7 @@
     
     <body>
         <div style="font-family:courier new;font-size:18px">
-            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="calc()" id="calc-button"><strong>Start Search</strong></button> 
+            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="searchButtonHandler()" id="calc-button"><strong>Start Search</strong></button> 
             <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="clearOutput()"><strong>Clear Output</strong></button><br>
                 
             <strong><br>
@@ -114,7 +120,7 @@ B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)</textarea><br><br>
                             <th style="vertical-align: bottom">Search</th>
                             <th style="vertical-align: bottom">Subgroup</th>
                             <th>
-                                <button style="font-family:courier new;font-size:17px" class="button add-subgroup" onclick="subgroupButtonHandler(this)"><strong>+</strong></button>
+                                <button style="font-family:courier new; font-size:17px" class="button add-subgroup" onclick="subgroupButtonHandler(this)"><strong>+</strong></button>
                             </th>
                         </tr>
                         <tr id="subgroup-row-2">
@@ -122,7 +128,7 @@ B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)</textarea><br><br>
                             <td><textarea class="search" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
                             <td><textarea class="subgroup" rows="1" cols="42" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
                             <td>
-                                <button style="font-family:courier new;font-size:17px" class="button remove-subgroup" onclick="subgroupButtonHandler(this)"><strong>-</strong></button>
+                                <button style="font-family:courier new; font-size:17px" class="button remove-subgroup" disabled onclick="subgroupButtonHandler(this)"><strong>-</strong></button>
                             </td>
                         </tr>
                     </table><br>
@@ -883,76 +889,85 @@ B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)</textarea><br><br>
 
         let work;
         let solveID = 0;
-
         let depth = 1;
         let numSolutions;
-        let nextRowID = 3;
+        let subgroupRowID = 3;
+        let subgroupRows = 1;
 
-        function calc() {
+        function createSolutionTable() {
+            document.getElementById("computation-header").innerHTML = '<th colspan="2" class="output-left">#'+solveID+'<br><span id="progUpdate'+solveID+'"></span></th>' + document.getElementById("computation-header").innerHTML;
+            document.getElementById("solutions-header").innerHTML = '<th class="output-left">&nbsp;Speed&nbsp;<th>&nbsp;Solutions&nbsp;</th></th>' + document.getElementById("solutions-header").innerHTML;
+            document.getElementById("output-data").innerHTML = '<td class="output-left" id="speed'+solveID+'"></td><td id="solutions'+solveID+'"></td>' + document.getElementById("output-data").innerHTML;
+        }
+
+        function getSolveList() {
+            let solveList = [];
+            let pruneDepths = document.querySelectorAll(".prune");
+            let searchDepths = document.querySelectorAll(".search");
+            let subgroups = document.querySelectorAll(".subgroup");
+
+            for (let i=0; i<pruneDepths.length; i++) {
+                solveList.push(
+                {puzzle: document.getElementById('puzzle').value, 
+                ignore: document.getElementById('ignore').value,
+                subgroup: subgroups[i].value,
+                prune: pruneDepths[i].value,
+                search: searchDepths[i].value,
+                solve: document.getElementById('solve').value}); // start computation
+            }
+            return solveList;
+        }
+
+        function addDataToTable(speed, solution) {
+            if (document.getElementById("sortByMCC").checked) {
+                let splitSpeeds = document.getElementById("speed"+solveID).innerHTML.split("<br>");
+                let index = numSolutions;
+                for (let j=0; j<splitSpeeds.length; j++) {
+                    if (splitSpeeds[j] > speed) {
+                        index = j;
+                        break;
+                    }
+                }
+
+                document.getElementById("speed"+solveID).innerHTML = splice(document.getElementById("speed"+solveID).innerHTML,nthOccurence(document.getElementById("speed"+solveID).innerHTML, index, "<br>"),""+speed+"<br>");
+                document.getElementById("solutions"+solveID).innerHTML = splice(document.getElementById("solutions"+solveID).innerHTML, nthOccurence(document.getElementById("solutions"+solveID).innerHTML, index, "<br>"), solution+"<br>");
+            } else {
+                document.getElementById("speed"+solveID).innerHTML += speed+"<br>"; // bottleneck
+                document.getElementById("solutions"+solveID).innerHTML += solution+"<br>"; // bottleneck
+            }
+        }
+
+        function searchButtonHandler() {
             if (document.getElementById("calc-button").innerText == "Start Search") {
-                document.getElementById("calc-button").innerHTML = "<strong>&nbsp;End Search&nbsp;</strong>";
-                document.getElementById("table-area").hidden = false;
-
-                solveID++;
-                depth = 0;
-                document.getElementById("computation-header").innerHTML = '<th colspan="2" class="output-left">#'+solveID+'<br><span id="progUpdate'+solveID+'"></span></th>' + document.getElementById("computation-header").innerHTML;
-                document.getElementById("solutions-header").innerHTML = '<th class="output-left">&nbsp;Speed&nbsp;<th>&nbsp;Solutions&nbsp;</th></th>' + document.getElementById("solutions-header").innerHTML;
-                document.getElementById("output-data").innerHTML = '<td class="output-left"><textarea id="speed'+solveID+'"></textarea></td><td><textarea id="solutions'+solveID+'"></textarea></td>' + document.getElementById("output-data").innerHTML;
-
-                numSolutions = 0;
-                let pendingMessages = [];
-                work = new Worker("worker.js");
-
-                let pruneDepths = document.querySelectorAll(".prune");
-                let searchDepths = document.querySelectorAll(".search");
-                let subgroups = document.querySelectorAll(".subgroup");
-
-                for (let i=0; i<pruneDepths.length; i++) {
-                    pendingMessages.push(
-                    {puzzle: document.getElementById('puzzle').value, 
-                    ignore: document.getElementById('ignore').value,
-                    subgroup: subgroups[i].value,
-                    prune: pruneDepths[i].value,
-                    search: searchDepths[i].value,
-                    solve: document.getElementById('solve').value}); // start computation
-                }
-
-                function nextMessage() {
-                    if (pendingMessages.length == 0) {
-                        stopSearch();
-                    } else {
-                        work.postMessage(pendingMessages.shift())
-                    }
-                }
-
-                nextMessage();
-
-                work.onmessage = function(event) {
-                    if (event.data.type === "stop") {
-                        nextMessage();
-                    } else if (event.data.type === "depthUpdate" && document.getElementById("showProgUpdates").checked) {
-                        depth++;
-                        document.getElementById("progUpdate"+solveID).innerHTML = "<small>Searching depth "+depth+"</small>";
-                    } else if (event.data.type === "solution") {
-                        let speed = algSpeed(event.data.value, false, true);
-                        let solution = event.data.value;
-                        if (document.getElementById("sortByMCC").checked) {
-                            let splitSpeeds = document.getElementById("speed"+solveID).innerHTML.split("\n");
-                            let index = 0;
-                            let speedInsertIndex = nthOccurence(document.getElementById("speed"+solveID).innerHTML, index, "\n");
-                            let solutionsInsertIndex = nthOccurence(document.getElementById("solutions"+solveID).innerHTML, index, "\n");
-
-                            document.getElementById("speed"+solveID).innerHTML = splice(document.getElementById("speed"+solveID).innerHTML,speedInsertIndex,""+speed+"\n");
-                            document.getElementById("solutions"+solveID).innerHTML = splice(document.getElementById("solutions"+solveID).innerHTML, solutionsInsertIndex, solution+"\n");
-                            numSolutions++;
-                        } else {
-                            //document.getElementById("speed"+solveID).innerHTML += speed+"\n";
-                            document.getElementById("solutions"+solveID).innerHTML += solution+"\n";
-                        }
-                    }
-                }
+                calc();
             } else {
                 stopSearch();
+            }
+        }
+
+        function calc() {
+            solveID++;
+            numSolutions = 0;
+            work = new Worker("worker.js");
+
+            document.getElementById("calc-button").innerHTML = "<strong>&nbsp;End Search&nbsp;</strong>";
+            document.getElementById("table-area").hidden = false;
+
+            createSolutionTable();
+            work.postMessage(getSolveList());
+
+            work.onmessage = function(event) {
+                if (event.data.type === "stop") {
+                    stopSearch();
+                } else if (event.data.type === "depthUpdate" && document.getElementById("showProgUpdates").checked) {
+                    depth++;
+                    document.getElementById("progUpdate"+solveID).innerHTML = "<small>Searching depth "+depth+"</small>";
+                } else if (event.data.type === "solution") {
+                    let speed = algSpeed(event.data.value, false, true);
+                    let solution = event.data.value;
+                    addDataToTable(speed, solution);
+                    numSolutions++;
+                }
             }
         }
 
@@ -980,11 +995,17 @@ B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)</textarea><br><br>
                     <td>
                         <button style="font-family:courier new;font-size:17px" class="button remove-subgroup" onclick="subgroupButtonHandler(this)"><strong>-</strong></button>
                     </td>`;
-                clone.id = "subgroup-row-"+nextRowID;
+                clone.id = "subgroup-row-"+subgroupRowID;
                 tbody.appendChild(clone);
-                nextRowID++;
+                document.querySelector(".remove-subgroup").disabled = false;
+                subgroupRowID++;
+                subgroupRows++;
             } else {
-                e.parentNode.parentNode.remove()
+                e.parentNode.parentNode.remove();
+                subgroupRows--;
+                if (subgroupRows == 1) {
+                    document.querySelector(".remove-subgroup").disabled = true;
+                }
             }
         }
         
