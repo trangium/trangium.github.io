@@ -7,13 +7,12 @@ self.onmessage = function (msg) {
     for (let i=0; i<inputs.length; i++) {
         input = inputs[i];
         calc();
+        postMessage({value: null, type: "reset-depth"})
     }
     postMessage({value: null, type: "stop"});
 };
 
 function setPuzzle() {
-    // Deal with moves input
-
     let moves = input.puzzle;
     let moveLines = moves.split('\n');
 
