@@ -141,8 +141,8 @@
         function replaceDouble(str) {
             let segs = str.split(" "); 
             for (let i=1; i<segs.length; i++) {
-                if (segs[i] === segs[i-1]) {
-                    segs.splice(i-1, 2, segs[i]+"2");
+                if (segs[i] === segs[i-1] && (segs[i].length === 1 || (segs[i].length === 2 && segs[i][1] === "'"))) {
+                    segs.splice(i-1, 2, segs[i][0]+"2");
                 }
             } 
             return segs.join(" ");
