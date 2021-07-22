@@ -138,13 +138,23 @@
     <script>
         "use strict"
 
+        function replaceDouble(str) {
+            let segs = str.split(" "); 
+            for (let i=1; i<segs.length; i++) {
+                if (segs[i] === segs[i-1]) {
+                    segs.splice(i-1, 2, segs[i]+"2");
+                }
+            } 
+            return segs.join(" ");
+        }
+
         function calc() {
             let output = document.getElementById("output");
             output.value = "";
             let input = document.getElementById("input");
             let splitInput = input.value.split("\n");
             for (let i=0; i<splitInput.length; i++) {
-                output.value += algSpeed(splitInput[i].replaceAll("2'","2"),document.getElementById("ignoreError").checked,document.getElementById("ignoreAUF").checked,parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML)) + "\n"
+                output.value += algSpeed(replaceDouble(splitInput[i]).replaceAll("2'","2"),document.getElementById("ignoreError").checked,document.getElementById("ignoreAUF").checked,parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML)) + "\n"
             }
             input.rows = Math.max(28,splitInput.length+1)
             output.rows = Math.max(28,splitInput.length+1)
