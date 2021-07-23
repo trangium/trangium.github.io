@@ -432,7 +432,7 @@ class Puzzle {
     }
 
     // read all solutions from a given state under the prune table's depth
-    *readPrun(state, partialSolve=[], exactDepth=false, maxDepth=this.pruneDepth) { // maxDepth should be the same as the prune table's maxDepth
+    *readPrun(state, partialSolve=[], exactDepth=false, maxDepth=this.pruneDepth+this.adjustCount) { // maxDepth should be the same as the prune table's maxDepth
         for (let m=0; m<this.moves.length; m++) {
             if (partialSolve.length == 0 || this.validPairs[partialSolve[partialSolve.length-1]][m]) {
                 let nextState = this.execute(state, [m]);
@@ -460,6 +460,9 @@ class Puzzle {
                     } else {
                         let prevState = this.execute(nextState, [this.inverse[sequence[sequence.length-1]]]);
                         let prevDistance = this.pruneTable.get(this.compressArr(prevState));
+                        console.log(this.moveListToStr(sequence));
+                        console.log(prevDistance);
+                        console.log(thisDistance);
                         if (prevDistance === undefined || prevDistance <= this.pruneDepth || thisDistance >= prevDistance) {
                             yield * this.readPrun(nextState, sequence, true, Math.max(this.pruneDepth, thisDistance)); // false, address underlying problem
                         }
@@ -522,7 +525,6 @@ class Puzzle {
     }
 
     getReducedSet(states) {
-        console.log(this.adjustMovesTable);
         let reducedStates = new Set();
         let duplicateStates = new Set();
         for (let state of states) {
