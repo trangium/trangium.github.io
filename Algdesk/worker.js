@@ -1,9 +1,12 @@
 self.onmessage = function (msg) {
-    input = msg.data;
-    let [fullPuzzle, subPuzzles] = setPuzzles(input.puzzle, input.ignore, input.subgroups); // loses efficiency if puzzle has not changed, so update this
+    let input = msg.data;
+    let pzlDefFull = input.solve.split(":");
+    let pzlDef = pzlDefFull[pzlDefFull.length-1];
+    let fullAdjust = (pzlDefFull.length === 2) ? parseInt(pzlDefFull[0]) : 0;
+    let [fullPuzzle, subPuzzles] = setPuzzles(input.puzzle, input.ignore, fullAdjust, input.subgroups); // loses efficiency if puzzle has not changed, so update this
 
     let solutionIndex = 1;
-    for (let stateStr of fullPuzzle.getBatchStates(input.solve)) {
+    for (let stateStr of fullPuzzle.getBatchStates(pzlDef)) {
         let state = fullPuzzle.execute(fullPuzzle.solved, fullPuzzle.moveStrToList(stateStr));
         if(!(arraysEqual(fullPuzzle.solved, state))) {
             postMessage({value: solutionIndex, type: "next-state"})
@@ -19,7 +22,7 @@ function calcState(state, subPuzzles) {
         for (let solution of subData.puzzle.solve(state, isNaN(parseInt(subData.search))?Infinity:parseInt(subData.search))) {
             postMessage({value: subData.puzzle.moveListToStr(solution), type: "solution"});
         }
-        postMessage({value: null, type: "reset-depth"})
+        postMessage({value: 0, type: "set-depth"})
     }
 }
 
@@ -27,7 +30,7 @@ function removeBrackets(s) { // Removes (), {}, <>, and []
     return s.replace(/\(|\)|\[|\]|{|}|<|>/g, "");
 }
 
-function setPuzzles(puzzleDef, ignore, subgroups) {
+function setPuzzles(puzzleDef, ignore, fullAdjust, subgroups) {
     let moves = puzzleDef;
     let moveLines = moves.split('\n');
 
@@ -89,7 +92,7 @@ function setPuzzles(puzzleDef, ignore, subgroups) {
         for (let c=0; c<cycleList.length; c++) {
             let cycle = cycleList[c];
             for (let i=0; i<cycle.length-1; i++) {
-                move[cycle[i+1][0]] = cycle[i][0]+oriMult*mod(cycle[i][1],cubeOri[cycle[i][0]]); // there could be bugs here
+                move[cycle[i+1][0]] = cycle[i][0]+oriMult*mod(cycle[i][1],cubeOri[cycle[i][0]]);
             }
             if (cycle.length==1 || (cycle[0][0] != cycle[cycle.length-1][0])) {
                 move[cycle[0][0]] = cycle[cycle.length-1][0]+oriMult*mod(cycle[cycle.length-1][1],cubeOri[cycle[cycle.length-1][0]]);
@@ -111,14 +114,15 @@ function setPuzzles(puzzleDef, ignore, subgroups) {
         }
     }
 
+    // Deal with subgroups
     let fullPuzzle = new Puzzle(cubeOri.slice(), moveList.slice(), clockwiseMoveStr.slice(), solvedState.slice());
     let subPuzzles = [];
     for (let sub of subgroups) {
-        subPuzzles.push({puzzle: getSubPuzzle(pieceList, fullPuzzle, ignore, sub.subgroup, sub.prune), search: sub.search});
+        subPuzzles.push({puzzle: getSubPuzzle(pieceList, fullPuzzle, ignore, sub.subgroup, sub.prune, sub.adjust), search: sub.search});
     }
 
     initCubeOri(fullPuzzle, pieceList, ignore);
-    fullPuzzle.setAdjustMoves(fullPuzzle.moveStrToList("U"));
+    fullPuzzle.setAdjustMoves(fullAdjust);
     
     return [fullPuzzle, subPuzzles];
 }
@@ -138,13 +142,14 @@ function initCubeOri(pzl, pieceList, ignore) {
     }
 }
 
-function getSubPuzzle(pieceList, fullPuzzle, ignore, subgroup, prune) {
+function getSubPuzzle(pieceList, fullPuzzle, ignore, subgroup, prune, adjust) {
     let generators = (subgroup.replace(" ","").length > 0) ? removeBrackets(subgroup).replace(",","").split(" "): fullPuzzle.clockwiseMoveStr;
     let subPuzzle = fullPuzzle.setSubgroup(generators);
 
     initCubeOri(subPuzzle, pieceList, ignore);
 
-    subPuzzle.setAdjustMoves(subPuzzle.moveStrToList("U")); // Do AUF (TODO: Add AUF input field)
+    subPuzzle.setAdjustMoves(adjust); // deal with adjust
+    postMessage({value: 0, type: "set-depth"})
     subPuzzle.createPrun(parseInt(prune));
 
     return subPuzzle;
@@ -318,7 +323,8 @@ class Puzzle {
         return string;
     }
 
-    setAdjustMoves(moveList) {
+    setAdjustMoves(num) {
+        let moveList = this.clockwiseMoveStr.slice(0, num).map(str => this.moveStr.indexOf(str));
         this.adjustCount = moveList.length;
         let adjustMoves = [];
         for (let i=0; i<this.moves.length; i++) {this.adjustMovesTable[i] = false}
@@ -460,9 +466,6 @@ class Puzzle {
                     } else {
                         let prevState = this.execute(nextState, [this.inverse[sequence[sequence.length-1]]]);
                         let prevDistance = this.pruneTable.get(this.compressArr(prevState));
-                        console.log(this.moveListToStr(sequence));
-                        console.log(prevDistance);
-                        console.log(thisDistance);
                         if (prevDistance === undefined || prevDistance <= this.pruneDepth || thisDistance >= prevDistance) {
                             yield * this.readPrun(nextState, sequence, true, Math.max(this.pruneDepth, thisDistance)); // false, address underlying problem
                         }

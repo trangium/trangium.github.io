@@ -6,7 +6,7 @@
         <title>Algdesk</title>
         <style>
             textarea {
-                font-size: 16px;
+                font-size: 1rem;
             }
 
             .button {
@@ -19,17 +19,17 @@
                 cursor: pointer;
                 background-color: white;
                 color: black;
-                border: 2px solid #000;
+                border: 0.125rem solid #000;
             }
 
             .top-button {
-                padding: 16px 28px;
-                margin: 4px 2px;
+                padding: 1rem 1.75rem;
+                margin: 0.25rem 0.125rem;
             }
 
             .add-subgroup, .remove-subgroup {
-                padding: 1px 5px;
-                margin: 0 0;
+                padding: 0.063rem 0.313rem;
+                margin: 0rem 0rem;
             }
     
             .button:hover {
@@ -48,7 +48,7 @@
             }
 
             #input-area tr {
-                height: 30px;
+                height: 1.875rem;
             }
 
             #input-area td, #input-area th {
@@ -59,15 +59,15 @@
 
             #table-area table {
                 border-color: black;
-                border-width: 1px 1px 2px 1px;
+                border-width: 0.063rem 0.063rem 0.125rem 0.063rem;
                 border-style: solid;
             }
 
             #table-area td {
                 border-color: black;
-                border-width: 1px 1px 0 0;
+                border-width: 0.063rem 0.063rem 0 0;
                 border-style: solid;
-                padding: 3px;
+                padding: 0.188rem;
                 height: 1em;
                 text-align: left;
                 vertical-align: top;
@@ -76,16 +76,22 @@
 
             #table-area th {
                 border-color: black;
-                border-width: 1px 1px 0 0;
+                border-width: 0.063rem 0.063rem 0 0;
                 border-style: solid;
-                padding: 3px;
+                padding: 0.188rem;
                 text-align: center;
             }
 
             #table-area .output-left {
                 border-color: black;
-                border-width: 1px 1px 0 1px;
+                border-width: 0.063rem 0.063rem 0 0.063rem;
                 border-style: solid;                
+            }
+
+            #maxSolutions {
+                vertical-align: middle;
+                resize: none;
+                width: 4.5rem;
             }
 
         </style>
@@ -94,30 +100,41 @@
     <body>
         <div style="font-family:courier new;font-size:18px">
             <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="searchButtonHandler()" id="calc-button"><strong>Start Search</strong></button> 
-            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="clearOutput()"><strong>Clear Output</strong></button><br>
+            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="clearOutput()" id="clear-button"><strong>Clear Output</strong></button><br>
                 
             <strong><br>
                 <div id="options">
                     <input id="sortByMCC" type="checkbox"><label for="sortByMCC"> Sort algs by movecount coefficient</label><br>
                     <input id="showProgUpdates" type="checkbox" checked><label for="showProgUpdates"> Output progress updates</label><br><br>
+                    Show top <input type="number" id="maxSolutions" value="100"></input> solutions<br><br>
                 </div>
 
                 <div id="input-area">
                     Puzzle<br>
-                    <textarea id="puzzle" rows="15" cols="72" spellcheck="false">
+                    <textarea id="puzzle" rows="15" cols="84" spellcheck="false">
 U: (UF UL UB UR) (UFR UFL UBL UBR)
 R: (UR BR DR FR) (UFR-1 UBR+1 DBR-1 DFR+1)
 F: (UF+1 FR+1 DF+1 FL+1) (UFR+1 DFR-1 DFL+1 UFL-1)
 D: (DF DR DB DL) (DFR DBR DBL DFL)
 L: (UL FL DL BL) (UFL+1 DFL-1 DBL+1 UBL-1)
-B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)</textarea><br><br>
+B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)
+u: (UF UL UB UR) (UFR UFL UBL UBR) (FR+1 FL+1 BL+1 BR+1) (FB RL+1 FB+1)
+r: (UR BR DR FR) (UFR-1 UBR+1 DBR-1 DFR+1) (UF+1 UB+1 DB+1 DF+1) (FB UD+1 FB+1)
+f: (UF+1 FR+1 DF+1 FL+1) (UFR+1 DFR-1 DFL+1 UFL-1) (UR+1 DR+1 DL+1 UL+1) (UD RL+1 UD+1)
+d: (DF DR DB DL) (DFR DBR DBL DFL) (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)
+l: (UL FL DL BL) (UFL+1 DFL-1 DBL+1 UBL-1) (UF+1 DF+1 DB+1 UB+1) (UD FB+1 UD+1)
+b: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1) (UR+1 UL+1 DL+1 DR+1) (RL UD+1 RL+1)
+M: (UF+1 DF+1 DB+1 UB+1) (UD FB+1 UD+1)
+S: (UR+1 DR+1 DL+1 UL+1) (UD RL+1 UD+1)
+E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                     Unique Orientations & Equivalences<br>
-                    <textarea id="ignore" rows="4" cols="72" spellcheck="false"></textarea><br><br>
+                    <textarea id="ignore" rows="4" cols="84" spellcheck="false"></textarea><br><br>
 
                     <table id="subgroup-table">
                         <tr id="subgroup-row-1">
                             <th style="vertical-align: bottom">Prune</th>
                             <th style="vertical-align: bottom">Search</th>
+                            <th style="vertical-align: bottom">Adjust</th>
                             <th style="vertical-align: bottom">Subgroup</th>
                             <th>
                                 <button style="font-family:courier new; font-size:17px" class="button add-subgroup" onclick="subgroupButtonHandler(this)"><strong>+</strong></button>
@@ -126,6 +143,7 @@ B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)</textarea><br><br>
                         <tr id="subgroup-row-2">
                             <td><textarea class="prune" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
                             <td><textarea class="search" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                            <td><textarea class="adjust" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
                             <td><textarea class="subgroup" rows="1" cols="42" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
                             <td>
                                 <button style="font-family:courier new; font-size:17px" class="button remove-subgroup" disabled onclick="subgroupButtonHandler(this)"><strong>-</strong></button>
@@ -134,7 +152,7 @@ B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)</textarea><br><br>
                     </table><br>
 
                     Scramble<br>
-                    <textarea id="solve" rows="3" cols="72" spellcheck="false"></textarea><br><br>
+                    <textarea id="solve" rows="3" cols="84" spellcheck="false"></textarea><br><br>
                 </div>
             </strong>
             <div id="table-area" hidden>
@@ -157,25 +175,26 @@ B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)</textarea><br><br>
         let subgroupRows = 1;
         let speedBuffer = [];
         let solutionsBuffer = [];
-        let maxSolutions = 100;
 
         function createSolutionTable() {
-            document.getElementById("computation-header").innerHTML = '<th colspan="2" class="output-left">#'+solveID+'<br><span id="progUpdate'+solveID+'"></span></th>' + document.getElementById("computation-header").innerHTML;
-            document.getElementById("solutions-header").innerHTML = '<th class="output-left">&nbsp;Speed&nbsp;<th>&nbsp;Solutions&nbsp;</th></th>' + document.getElementById("solutions-header").innerHTML;
-            document.getElementById("output-data").innerHTML = '<td class="output-left" id="speed'+solveID+'"></td><td id="solutions'+solveID+'"></td>' + document.getElementById("output-data").innerHTML;
+            document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left">#'+solveID+'<br><span id="progUpdate'+solveID+'"></span></th>';
+            document.getElementById("solutions-header").innerHTML += '<th class="output-left">&nbsp;Speed&nbsp;<th>&nbsp;Solutions&nbsp;</th></th>';
+            document.getElementById("output-data").innerHTML += '<td class="output-left" id="speed'+solveID+'"></td><td id="solutions'+solveID+'"></td>';
         }
 
         function getWorkerData() {
             let subgroupData = [];
             let pruneDepths = document.querySelectorAll(".prune");
             let searchDepths = document.querySelectorAll(".search");
+            let adjustments = document.querySelectorAll(".adjust");
             let subgroups = document.querySelectorAll(".subgroup");
 
             for (let i=0; i<pruneDepths.length; i++) {
                 subgroupData.push(
                 {subgroup: subgroups[i].value,
                 prune: pruneDepths[i].value,
-                search: searchDepths[i].value});
+                search: searchDepths[i].value,
+                adjust: adjustments[i].value});
             }
             return {puzzle: document.getElementById('puzzle').value, 
                     ignore: document.getElementById('ignore').value,
@@ -184,13 +203,13 @@ B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)</textarea><br><br>
         }
 
         function appendBuffer() {
-            let solutionsLeft = maxSolutions - document.getElementById("speed"+solveID).innerHTML.split("<br>").length;
+            let solutionsLeft = parseInt(document.getElementById("maxSolutions").value) - document.getElementById("speed"+solveID).innerHTML.split("<br>").length;
             if (solutionsLeft > 0) {
                 document.getElementById("speed"+solveID).innerHTML += speedBuffer.slice(0, solutionsLeft).join("<br>")+"<br>";
                 document.getElementById("solutions"+solveID).innerHTML += solutionsBuffer.slice(0, solutionsLeft).join("<br>")+"<br>";
-                speedBuffer = [];
-                solutionsBuffer = [];
             }
+            speedBuffer = [];
+            solutionsBuffer = [];
         }
 
         function customParseFloat(x) {
@@ -228,7 +247,7 @@ B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)</textarea><br><br>
                 tableNeedle++;   
             }
 
-            for (let i=0; i<Math.min(maxSolutions,tableSpeedList.length+sortedBuffer.length); i++) {
+            for (let i=0; i<Math.min(parseInt(document.getElementById("maxSolutions").value),tableSpeedList.length+sortedBuffer.length); i++) {
                 if (tableNeedle === tableSpeedList.length) {
                     addFromBuffer();
                 } else if (bufferNeedle === sortedBuffer.length) {
@@ -272,6 +291,7 @@ B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)</textarea><br><br>
 
             document.getElementById("calc-button").innerHTML = "<strong>&nbsp;End Search&nbsp;</strong>";
             document.getElementById("table-area").hidden = false;
+            document.getElementById("clear-button").disabled = true;
 
             initNextState();
             addBufferInterval = setInterval(addBufferToTable, 250);
@@ -289,8 +309,8 @@ B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)</textarea><br><br>
                     speedBuffer.push(speed);
                     solutionsBuffer.push(solution);
                     numSolutions++;
-                } else if (event.data.type === "reset-depth") {
-                    depth = 0;
+                } else if (event.data.type === "set-depth") {
+                    depth = event.data.value;
                 } else if (event.data.type === "next-state" && event.data.value > 1) {
                     addBufferToTable();
                     initNextState();
@@ -299,10 +319,11 @@ B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)</textarea><br><br>
         }
 
         function stopSearch() {
-            work.terminate();
             addBufferToTable();
             clearInterval(addBufferInterval);
+            work.terminate();
             document.getElementById("calc-button").innerHTML = "<strong>Start Search</strong>";
+            document.getElementById("clear-button").disabled = false;
             if (document.getElementById("showProgUpdates").checked) {
                 document.getElementById("progUpdate"+solveID).innerHTML = "<small>Search finished</small>";
             }
@@ -312,6 +333,7 @@ B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)</textarea><br><br>
         function clearOutput() {
             document.getElementById("output-table").innerHTML = '<tr id="computation-header"></tr><tr id="solutions-header"></tr><tr id="output-data"></tr>';
             document.getElementById("table-area").hidden = true;
+            solveID = 0;
         }
 
         function subgroupButtonHandler(e) {
@@ -321,6 +343,7 @@ B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)</textarea><br><br>
                 clone.innerHTML = `
                     <td><textarea class="prune" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
                     <td><textarea class="search" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                    <td><textarea class="adjust" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
                     <td><textarea class="subgroup" rows="1" cols="42" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
                     <td>
                         <button style="font-family:courier new;font-size:17px" class="button remove-subgroup" onclick="subgroupButtonHandler(this)"><strong>-</strong></button>
