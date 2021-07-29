@@ -3,7 +3,7 @@
 
     <head>
         <meta charset="utf-8" />
-        <title>Algdesk</title>
+        <title>Batch Solver</title>
         <style>
             textarea {
                 font-size: 1rem;
@@ -105,7 +105,6 @@
             <strong><br>
                 <div id="options">
                     <input id="sortByMCC" type="checkbox"><label for="sortByMCC"> Sort algs by movecount coefficient</label><br>
-                    <input id="showProgUpdates" type="checkbox" checked><label for="showProgUpdates"> Output progress updates</label><br><br>
                     Show top <input type="number" id="maxSolutions" value="100"></input> solutions<br><br>
                 </div>
 
@@ -300,7 +299,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             work.onmessage = function(event) {
                 if (event.data.type === "stop") {
                     stopSearch();
-                } else if (event.data.type === "depthUpdate" && document.getElementById("showProgUpdates").checked) {
+                } else if (event.data.type === "depthUpdate") {
                     depth++;
                     document.getElementById("progUpdate"+solveID).innerHTML = "<small>Searching depth "+depth+"</small>";
                 } else if (event.data.type === "solution") {
@@ -324,9 +323,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             work.terminate();
             document.getElementById("calc-button").innerHTML = "<strong>Start Search</strong>";
             document.getElementById("clear-button").disabled = false;
-            if (document.getElementById("showProgUpdates").checked) {
-                document.getElementById("progUpdate"+solveID).innerHTML = "<small>Search finished</small>";
-            }
+            document.getElementById("progUpdate"+solveID).innerHTML = "<small>Search finished</small>";
             depth = 0;
         }
 
