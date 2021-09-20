@@ -287,7 +287,7 @@
                 starttime = time();
                 finished = false;
                 moveDirection = [0,0];
-            } else {
+            } else if (e.keyCode == 32) {
                 visited = createArray(grid.length,grid[0].length);
                 score = 0;
                 ballx = misclist[listUsed][0];
@@ -338,7 +338,7 @@
     White orbs are worth 1 point, greens and worth 2, and yellows are worth 4. <br>
     The goal is to reach the specified goal as fast as possible. <br>
     Press + to change the level. <br>
-    Press any other key to reset.
+    Press space to reset.
     </center></div>
 </body>
 
