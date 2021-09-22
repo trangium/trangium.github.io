@@ -291,6 +291,8 @@
 
             console.log(weights)
             goal = sum(weights)
+            randStartX = findStart()[0]
+            randStartY = findStart()[1]
             ballx = findStart()[0]
             bally = findStart()[1]
 
@@ -308,7 +310,10 @@
         var moveDirection = [0, 0];
         var moving = false;
         var finished = false;
+
         var randomLevel = 0;
+        var randStartX = 0;
+        var randStartY = 0;
 
         var offset = 0;
 
@@ -493,6 +498,10 @@
                 score = 0;
                 ballx = misclist[listUsed][0];
                 bally = misclist[listUsed][1];
+                if (randomLevel != 0) {
+                    ballx = randStartX
+                    bally = randStartY
+                }
                 starttime = time();
                 finished = false;
                 moveDirection = [0, 0];
