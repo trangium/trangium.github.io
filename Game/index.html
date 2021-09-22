@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8" />
-    <title>Silder v2.7</title>
+    <title>Silder v3.0</title>
     <style>
         * {
             padding: 0;
@@ -23,7 +23,7 @@
     <canvas id="myCanvas" width="512" height="384"></canvas>
 
     <script>
-        alert( ` Directions:
+        alert(` Directions:
         Press the arrow keys or WASD to move in that direction. 
         The ball will keep sliding until it hits a wall.
         The ball can't change direction while it's moving. 
@@ -34,10 +34,10 @@
         var canvas = document.getElementById("myCanvas");
         var ctx = canvas.getContext("2d");
 
-        function rect(color,x,y,w,h) {
+        function rect(color, x, y, w, h) {
             ctx.beginPath();
             ctx.fillStyle = color;
-            ctx.rect(x,y,w,h);
+            ctx.rect(x, y, w, h);
             ctx.fill();
             ctx.closePath();
         }
@@ -46,26 +46,27 @@
         var Y = 'Y';
         var Z = 'Z';
 
-        var weightslist = 
-        [[[0, 0, 1, 1, 1, 1, 1, 1, 1, 1], [0, 2, 1, 2, 2, 2, 0, 2, 2, 1], [1, 1, 1, 2, 1, 1, 2, 1, 1, 1], [1, 2, 1, 0, 2, 4, 4, 2, 2, 1], [1, 1, 1, 2, 2, 0, 0, 2, 2, 1], [1, 1, 1, 2, 2, 4, 0, 1, 1, 1], [1, 1, 1, 2, 4, 2, 4, 2, 2, 0], [1, 2, 1, 2, 0, 2, 2, 2, 2, 2], [1, 1, 1, 1, 2, 1, 2, 1, 1, 2], [1, 1, 0, 2, 2, 1, 2, 1, 2, 0]],
-        [[1, 1, 2, 0, 2, 1, 2, 0, 2, 1, 1, 2], [1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2], [2, 2, 1, 2, 2, 1, 1, 1, 1, 2, 2, 0], [0, 4, 2, 2, 2, 1, 1, 2, 2, 2, 2, 2], [2, 2, 1, 2, 2, 1, 1, 2, 2, 2, 2, 1], [2, 2, 2, 2, 1, 1, 1, 2, 0, 4, 4, 2], [0, 0, 0, 4, 4, 2, 1, 2, 0, 2, 2, 2], [1, 1, 1, 0, 0, 2, 1, 2, 2, 0, 0, 0], [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1], [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 0, 2, 2, 0, 0, 1, 1, 1]],        
-        [[1, 1, 1, 1, 1, 1, 0, 2, 2, 2, 2, 0, 1, 1], [1, 1, 0, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2], [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0], [1, 1, 1, 0, 1, 1, 1, 0, 2, 1, 1, 2, 1, 1], [1, 1, 1, 1, 1, 0, 1, 2, 2, 2, 2, 2, 1, 1], [1, 1, 1, 1, 1, 2, 1, 2, 0, 4, 2, 0, 1, 1], [1, 1, 1, 1, 0, 2, 1, 2, 2, 2, 2, 1, 1, 1], [1, 1, 1, 1, 0, 2, 1, 2, 2, 2, 2, 1, 1, 1], [1, 0, 1, 1, 2, 2, 1, 2, 2, 2, 0, 1, 1, 1], [1, 1, 1, 1, 2, 0, 1, 2, 2, 2, 2, 1, 0, 0], [1, 1, 1, 1, 2, 4, 1, 0, 2, 4, 2, 2, 4, 0], [1, 1, 1, 1, 0, 4, 1, 4, 2, 4, 2, 1, 4, 0], [1, 1, 1, 1, 2, 2, 1, 2, 2, 0, 1, 1, 1, 1], [1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]],
-        [[0, 2, 2, 2, 1, 1, 1, 1, 1, 1], [0, 1, 1, 1, 2, 0, 2, 2, 2, 1], [1, 0, 4, 1, 2, 0, 2, 1, 1, 0], [1, 1, 1, 1, 0, 1, 1, 2, 2, 2], [1, 1, 1, 1, 4, 2, 2, 0, 0, 2], [2, 2, 1, 4, 2, 2, 1, 4, 4, 4], [2, 4, 4, 0, 0, 2, 2, 1, 2, 4], [1, 1, 1, 1, 4, 0, 1, 1, 4, 0], [1, 4, 2, 2, 4, 4, 2, 2, 2, 1], [2, 2, 1, 2, 1, 0, 0, 1, 1, 1]],
-        [[0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0], [1, 2, 1, 1, 0, 1, 2, 0, 1, 2, 0, 1, 2, 1, 1, 1, 1], [1, 4, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 2, 0, 2, 1, 1, 2, 2, 1, 2, 1, 1, 0, 0], [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 4, 2, 2, 1, 2, 4, 0], [1, 4, 2, 2, 2, 2, 2, 1, 1, 2, 2, 2, 2, 2, 4, 2, 0], [1, 2, 1, 2, 2, 2, 2, 1, 1, 2, 0, 1, 2, 1, 2, 4, 1], [1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1], [0, 4, 2, 2, 2, 4, 0, 1, 0, 2, 2, 1, 2, 2, 4, 0, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 4, 1, 2, 1, 1], [1, 2, 1, 2, 2, 2, 1, 1, 2, 4, 2, 1, 4, 1, 2, 1, 1], [1, 2, 1, 1, 2, 2, 1, 1, 1, 2, 1, 1, 2, 1, 2, 1, 1], [1, 4, 1, 2, 2, 4, 1, 1, 1, 1, 4, 1, 0, 2, 1, 1, 0], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 2, 1, 1, 0, 2, 1, 1, 1, 2, 1, 1, 2, 1, 2, 1, 1], [1, 4, 1, 1, 0, 2, 2, 1, 2, 4, 2, 0, 0, 1, 2, 1, 1], [1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0]],
-        [[0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 2, 1, 2, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 2, 1, 2, 4, 1, 4, 2, 2, 4, 1, 1, 0, 1], [1, 2, 1, 1, 4, 1, 4, 2, 2, 4, 1, 1, 4, 1], [1, 2, 1, 1, 2, 1, 2, 2, 2, 0, 1, 1, 1, 1], [1, 0, 1, 1, 2, 1, 4, 2, 2, 2, 1, 1, 4, 0], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [0, 2, 1, 2, 2, 1, 2, 2, 2, 2, 1, 1, 2, 1], [1, 1, 1, 0, 4, 1, 4, 2, 2, 2, 1, 1, 4, 1], [1, 0, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 0, 1], [1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 0, 1, 1, 1, 0, 2, 2, 2, 0, 1, 1, 1]],        ];
-        var misclist = 
-        [[2, 2, 139],
-        [2, 2, 185],
-        [2, 2, 244],
-        [4, 4, 125],
-        [1, 5, 370],
-        [14, 8, 254],
-        ];
+        var weightslist =
+            [[[0, 0, 1, 1, 1, 1, 1, 1, 1, 1], [0, 2, 1, 2, 2, 2, 0, 2, 2, 1], [1, 1, 1, 2, 1, 1, 2, 1, 1, 1], [1, 2, 1, 0, 2, 4, 4, 2, 2, 1], [1, 1, 1, 2, 2, 0, 0, 2, 2, 1], [1, 1, 1, 2, 2, 4, 0, 1, 1, 1], [1, 1, 1, 2, 4, 2, 4, 2, 2, 0], [1, 2, 1, 2, 0, 2, 2, 2, 2, 2], [1, 1, 1, 1, 2, 1, 2, 1, 1, 2], [1, 1, 0, 2, 2, 1, 2, 1, 2, 0]],
+            [[1, 1, 2, 0, 2, 1, 2, 0, 2, 1, 1, 2], [1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 2], [2, 2, 1, 2, 2, 1, 1, 1, 1, 2, 2, 0], [0, 4, 2, 2, 2, 1, 1, 2, 2, 2, 2, 2], [2, 2, 1, 2, 2, 1, 1, 2, 2, 2, 2, 1], [2, 2, 2, 2, 1, 1, 1, 2, 0, 4, 4, 2], [0, 0, 0, 4, 4, 2, 1, 2, 0, 2, 2, 2], [1, 1, 1, 0, 0, 2, 1, 2, 2, 0, 0, 0], [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1], [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 0, 2, 2, 0, 0, 1, 1, 1]],
+            [[1, 1, 1, 1, 1, 1, 0, 2, 2, 2, 2, 0, 1, 1], [1, 1, 0, 2, 1, 1, 1, 1, 1, 1, 1, 2, 1, 2], [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0], [1, 1, 1, 0, 1, 1, 1, 0, 2, 1, 1, 2, 1, 1], [1, 1, 1, 1, 1, 0, 1, 2, 2, 2, 2, 2, 1, 1], [1, 1, 1, 1, 1, 2, 1, 2, 0, 4, 2, 0, 1, 1], [1, 1, 1, 1, 0, 2, 1, 2, 2, 2, 2, 1, 1, 1], [1, 1, 1, 1, 0, 2, 1, 2, 2, 2, 2, 1, 1, 1], [1, 0, 1, 1, 2, 2, 1, 2, 2, 2, 0, 1, 1, 1], [1, 1, 1, 1, 2, 0, 1, 2, 2, 2, 2, 1, 0, 0], [1, 1, 1, 1, 2, 4, 1, 0, 2, 4, 2, 2, 4, 0], [1, 1, 1, 1, 0, 4, 1, 4, 2, 4, 2, 1, 4, 0], [1, 1, 1, 1, 2, 2, 1, 2, 2, 0, 1, 1, 1, 1], [1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]],
+            [[0, 2, 2, 2, 1, 1, 1, 1, 1, 1], [0, 1, 1, 1, 2, 0, 2, 2, 2, 1], [1, 0, 4, 1, 2, 0, 2, 1, 1, 0], [1, 1, 1, 1, 0, 1, 1, 2, 2, 2], [1, 1, 1, 1, 4, 2, 2, 0, 0, 2], [2, 2, 1, 4, 2, 2, 1, 4, 4, 4], [2, 4, 4, 0, 0, 2, 2, 1, 2, 4], [1, 1, 1, 1, 4, 0, 1, 1, 4, 0], [1, 4, 2, 2, 4, 4, 2, 2, 2, 1], [2, 2, 1, 2, 1, 0, 0, 1, 1, 1]],
+            [[0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0], [1, 2, 1, 1, 0, 1, 2, 0, 1, 2, 0, 1, 2, 1, 1, 1, 1], [1, 4, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1], [1, 1, 1, 1, 2, 0, 2, 1, 1, 2, 2, 1, 2, 1, 1, 0, 0], [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 4, 2, 2, 1, 2, 4, 0], [1, 4, 2, 2, 2, 2, 2, 1, 1, 2, 2, 2, 2, 2, 4, 2, 0], [1, 2, 1, 2, 2, 2, 2, 1, 1, 2, 0, 1, 2, 1, 2, 4, 1], [1, 1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1], [0, 4, 2, 2, 2, 4, 0, 1, 0, 2, 2, 1, 2, 2, 4, 0, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 4, 1, 2, 1, 1], [1, 2, 1, 2, 2, 2, 1, 1, 2, 4, 2, 1, 4, 1, 2, 1, 1], [1, 2, 1, 1, 2, 2, 1, 1, 1, 2, 1, 1, 2, 1, 2, 1, 1], [1, 4, 1, 2, 2, 4, 1, 1, 1, 1, 4, 1, 0, 2, 1, 1, 0], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 2, 1, 1, 0, 2, 1, 1, 1, 2, 1, 1, 2, 1, 2, 1, 1], [1, 4, 1, 1, 0, 2, 2, 1, 2, 4, 2, 0, 0, 1, 2, 1, 1], [1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0]],
+            [[0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 2, 1, 2, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 2, 1, 2, 4, 1, 4, 2, 2, 4, 1, 1, 0, 1], [1, 2, 1, 1, 4, 1, 4, 2, 2, 4, 1, 1, 4, 1], [1, 2, 1, 1, 2, 1, 2, 2, 2, 0, 1, 1, 1, 1], [1, 0, 1, 1, 2, 1, 4, 2, 2, 2, 1, 1, 4, 0], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [0, 2, 1, 2, 2, 1, 2, 2, 2, 2, 1, 1, 2, 1], [1, 1, 1, 0, 4, 1, 4, 2, 2, 2, 1, 1, 4, 1], [1, 0, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 0, 1], [1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 2, 1], [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [1, 1, 0, 1, 1, 1, 0, 2, 2, 2, 0, 1, 1, 1]],];
+
+        var misclist =
+            [[2, 2, 139],
+            [2, 2, 185],
+            [2, 2, 244],
+            [4, 4, 125],
+            [1, 5, 370],
+            [14, 8, 254],
+            ];
 
         function initGrid(weights) {
-            var g = createArray(weights.length,weights[0].length);
-            for(let i=0; i<weights.length; i++) {
-                for(let j=0; j<weights[0].length; j++) {
+            var g = createArray(weights.length, weights[0].length);
+            for (let i = 0; i < weights.length; i++) {
+                for (let j = 0; j < weights[0].length; j++) {
                     g[i][j] = (weights[i][j] == 0 ? Z : X);
                 }
             }
@@ -78,14 +79,16 @@
 
             if (arguments.length > 1) {
                 var args = Array.prototype.slice.call(arguments, 1);
-                while(i--) arr[length-1 - i] = createArray.apply(this, args);
+                while (i--) arr[length - 1 - i] = createArray.apply(this, args);
             }
 
             return arr;
         }
+
         function sum(lst) {
-            return lst.reduce((acc, curr) => acc.concat(curr.reduce((memo, number) => memo + number, 0)),[]).reduce((a,b) => a+b, 0);
+            return lst.reduce((acc, curr) => acc.concat(curr.reduce((memo, number) => memo + number, 0)), []).reduce((a, b) => a + b, 0);
         }
+
         function useList(num) {
             listUsed = num;
             weights = weightslist[num];
@@ -93,28 +96,219 @@
             goal = misclist[num][2];
             ballx = misclist[num][0];
             bally = misclist[num][1];
-            for(let i=0; i<grid.length; i++) {
+            for (let i = 0; i < grid.length; i++) {
                 grid[i] = [Y].concat(grid[i]).concat([Y]);
             }
 
             var ys = Array(grid[0].length).fill(Y);
-            grid.splice(0,0,ys);
+            grid.splice(0, 0, ys);
             grid.push(ys);
-            size = Math.round(384/grid.length);
-            half = Math.round(size/2);
-            ballsize = Math.round(half/2);
-            fontsize = Math.round(size*.4);
+            size = Math.round(384 / grid.length);
+            half = Math.round(size / 2);
+            ballsize = Math.round(half / 2);
+            fontsize = Math.round(size * .4);
             gridNum = num;
+        }
+
+        function randLevel(width, height) {
+            const directions = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+            grid = [];
+            for (let x = 0; x < width; x++) {
+                let temp = [];
+                for (let y = 0; y < height; y++) {
+                    if (x == 0 || x == width - 1 || y == 0 || y == height - 1) {
+                        temp[y] = 'Y'
+                    } else {
+                        temp[y] = 'X'
+                    }
+                }
+                grid.push(temp);
             }
+
+            function findStart() {
+                let x = 1
+                let y = 1
+                while (grid[x][y] != 'X') {
+                    x += 1;
+                    if (x >= height - 1) {
+                        x = 1
+                        y += 1
+                    }
+                    if (y >= width) {
+                        return [1, 1];
+                    }
+                }
+                return [x, y];
+            }
+
+            function slide(x, y, direction) {
+                while (grid[x][y] == 'X') {
+                    x += direction[0]
+                    y += direction[1]
+                }
+                return [x - direction[0], y - direction[1]]
+            }
+
+            function multiSlide(x, y) {
+                return directions.map(d => slide(x, y, d))
+            }
+
+            function translate(point) { // this may be the wrong way round
+                return point[0] + "-" + point[1]
+            }
+
+            function untranslate(str) {
+                return str.split("-").map(x => parseInt(x))
+            }
+
+            function findStopPoints(start = [1, 1]) {
+                let knownStopPoints = new Set([translate(start)]);
+                let newlyFound = new Set([translate(start)]);
+                while (newlyFound.size > 0) {
+                    let nextPoints = new Set();
+                    for (let pointStr of newlyFound) {
+                        let m = multiSlide(...untranslate(pointStr));
+                        for (let test of m) {
+                            if (!(knownStopPoints.has(translate(test)))) {
+                                nextPoints.add(translate(test))
+                                knownStopPoints.add(translate(test))
+                            }
+                        }
+                    }
+                    newlyFound = nextPoints
+                }
+                return knownStopPoints
+            }
+
+            function inverseSlide(x, y, stopPoints) {
+                let allowedDirections = []
+                for (let d of directions) {
+                    if (grid[x - d[0]][y - d[1]] != 'X') {
+                        // Search in that direction
+                        let xs = x + d[0]
+                        let ys = y + d[1]
+                        while (grid[xs][ys] == 'X') {
+                            if (stopPoints.has(translate([xs, ys]))) {
+                                allowedDirections.push([xs, ys])
+                            }
+                            xs += d[0]
+                            ys += d[1]
+                        }
+                    }
+                }
+                return allowedDirections
+            }
+
+            function realStopPoints(start = [1, 1]) {
+                let stopPoints = findStopPoints(start)
+                let knownStopPoints = new Set([translate(start)]);
+                let newlyFound = new Set([translate(start)]);
+                while (newlyFound.size > 0) {
+                    let nextPoints = new Set();
+                    for (let pointStr of newlyFound) {
+                        let point = untranslate(pointStr);
+                        let m = inverseSlide(point[0], point[1], stopPoints)
+                        for (let test of m) {
+                            if (!(knownStopPoints.has(translate(test)))) {
+                                nextPoints.add(translate(test))
+                                knownStopPoints.add(translate(test))
+                            }
+                        }
+                    }
+                    newlyFound = nextPoints
+                }
+                return knownStopPoints
+            }
+
+            function impossible(rsp) {
+                let impoList = []
+                for (let x = 0; x < width; x++) {
+                    for (let y = 0; y < height; y++) {
+                        if (!(directions.some(d => (rsp.has(translate(slide(x, y, d)))))) && grid[x][y] == 'X') {
+                            impoList.push([x, y])
+                        }
+                    }
+                }
+                return impoList
+            }
+
+            function randint(min, max) {
+                return Math.floor(Math.random() * (max - min + 1) + min)
+            }
+
+            function switchType(type) {
+                return (type == 'X') ? 'Z' : 'X'
+            }
+
+
+            for (let x = 0; x < width; x++) {
+                for (let y = 0; y < height; y++) {
+                    if (x == 0 || x == width - 1 || y == 0 || y == height - 1) {
+                        grid[x][y] = 'Y'
+                    } else {
+                        grid[x][y] = 'X'
+                    }
+                }
+            }
+            let test = findStart();
+            let impoRecord = impossible(realStopPoints(findStart())).length
+            let count = 0
+            while (true) {
+                count += 1
+                let impoList = impossible(realStopPoints(findStart()))
+                if (impoList.length == 0) {
+                    break
+                }
+                if (count > width * height) {
+                    for (let pt of impoList) {
+                        grid[pt[0]][pt[1]] = 'Z'
+                    }
+                    break
+                }
+                let rx = randint(1, width - 2)
+                let ry = randint(1, height - 2)
+                grid[rx][ry] = switchType(grid[rx][ry])
+                let impoContender = impossible(realStopPoints(findStart())).length
+                if (impoContender < impoRecord) {
+                    impoRecord = impoContender
+                } else {
+                    grid[rx][ry] = switchType(grid[rx][ry])
+                }
+            }
+
+            weights = [];
+            for (let x = 1; x < width-1; x++) {
+                let temp = [];
+                for (let y = 1; y < height-1; y++) {
+                    if (grid[x][y] == 'X') {
+                        temp[y-1] = 1
+                    } else {
+                        temp[y-1] = 0
+                    }
+                }
+                weights.push(temp);
+            }
+
+            console.log(weights)
+            goal = sum(weights)
+            ballx = findStart()[0]
+            bally = findStart()[1]
+
+            size = Math.round(384 / grid.length);
+            half = Math.round(size / 2);
+            ballsize = Math.round(half / 2);
+            fontsize = Math.round(size * .4);
+        }
 
         useList(0);
 
-        var visited = createArray(grid.length,grid[0].length);
+        var visited = createArray(grid.length, grid[0].length);
 
         var score = 0;
-        var moveDirection = [0,0];
+        var moveDirection = [0, 0];
         var moving = false;
         var finished = false;
+        var randomLevel = 0;
 
         var offset = 0;
 
@@ -127,8 +321,8 @@
         var yellow = '#ffff00';
         var black = '#000000';
 
-        var weightcol = new Map([[0,red],[1,white],[2,green],[4,yellow],[8,red]]);
-        var weightsize = new Map([[0,Math.round(size*.1)],[1,Math.round(size*.1)],[2,Math.round(size*.13)],[4,Math.round(size*.16)],[8,Math.round(size*.2)]]);
+        var weightcol = new Map([[0, red], [1, white], [2, green], [4, yellow], [8, red]]);
+        var weightsize = new Map([[0, Math.round(size * .1)], [1, Math.round(size * .1)], [2, Math.round(size * .13)], [4, Math.round(size * .16)], [8, Math.round(size * .2)]]);
 
         var mousex = null;
         var mousey = null;
@@ -141,29 +335,29 @@
             dy = direction[1];
             ballx += dx;
             bally += dy;
-            if (grid[bally][ballx]!=X) {
+            if (grid[bally][ballx] != X) {
                 ballx -= dx;
                 bally -= dy;
                 return false;
             } else {
-                if (!(visited[ballx-1][bally-1])) {
-                    score += weights[bally-1][ballx-1];
-                    visited[ballx-1][bally-1] = 1;
-                    if (score >= goal && !finished){
+                if (!(visited[ballx - 1][bally - 1])) {
+                    score += weights[bally - 1][ballx - 1];
+                    visited[ballx - 1][bally - 1] = 1;
+                    if (score >= goal && !finished) {
                         finished = time();
-                        let timeAchieved = ((finished-starttime)/1000).toFixed(2);
-                        let bestTime = parseFloat(getCookie("fastest"+listUsed));
-                        if (isNaN(bestTime) || bestTime > timeAchieved){
-                            document.cookie = "fastest"+listUsed+"="+timeAchieved+";expires=26 Mar 9999 17:04:51 UTC";
+                        let timeAchieved = ((finished - starttime) / 1000).toFixed(2);
+                        let bestTime = parseFloat(getCookie("fastest" + listUsed));
+                        if ((isNaN(bestTime) || bestTime > timeAchieved) && randomLevel == 0) {
+                            document.cookie = "fastest" + listUsed + "=" + timeAchieved + ";expires=26 Mar 9999 17:04:51 UTC";
                         }
-                    } 
+                    }
                 }
             }
             return (moveDirection[0] != 0 || moveDirection[1] != 0);
         }
 
         function reset(level) {
-            document.cookie = "fastest"+(level-1)+"=0"+";expires=26 Mar 1881 17:04:51 UTC";
+            document.cookie = "fastest" + (level - 1) + "=0" + ";expires=26 Mar 1881 17:04:51 UTC";
         }
 
         function time() {
@@ -177,34 +371,34 @@
         }
         function convert(x) {
             if (x instanceof Array) {
-                return [convert(x[0]),convert(x[1])];
+                return [convert(x[0]), convert(x[1])];
             } else {
-                return size*x+offset;
+                return size * x + offset;
             }
         }
-        function text(col,text_to_write,x,y,size,font) {
-            ctx.font = size+"px "+font;
+        function text(col, text_to_write, x, y, size, font) {
+            ctx.font = size + "px " + font;
             ctx.fillStyle = col;
-            ctx.fillText(text_to_write,x,y);
+            ctx.fillText(text_to_write, x, y);
         }
         function getCookie(cname) {
             var name = cname + "=";
             var decodedCookie = decodeURIComponent(document.cookie);
             var ca = decodedCookie.split(';');
-            for(var i = 0; i <ca.length; i++) {
+            for (var i = 0; i < ca.length; i++) {
                 var c = ca[i];
                 while (c.charAt(0) == ' ') {
-                c = c.substring(1);
+                    c = c.substring(1);
                 }
                 if (c.indexOf(name) == 0) {
-                return c.substring(name.length, c.length);
+                    return c.substring(name.length, c.length);
                 }
             }
             return "N/A";
         }
         function draw() {
-            for (let y=0; y<grid.length; y++) {
-                for (let x=0; x<grid[0].length; x++) {
+            for (let y = 0; y < grid.length; y++) {
+                for (let x = 0; x < grid[0].length; x++) {
                     var tile = grid[y][x];
                     var col = null;
                     if (tile == X) {
@@ -214,28 +408,34 @@
                     } else {
                         col = brown;
                     }
-                    rect(col,convert(x),convert(y),size,size);
-                    if (tile == X && (!(visited[x-1][y-1]))) {
-                        let s = weightsize.get(weights[y-1][x-1]);
-                        let s2 = Math.round(s/2);
-                        rect(weightcol.get(weights[y-1][x-1]),convert(x+.5)-s2,convert(y+.5)-s2,s,s);
+                    rect(col, convert(x), convert(y), size, size);
+                    if (tile == X && (!(visited[x - 1][y - 1]))) {
+                        let s = weightsize.get(weights[y - 1][x - 1]);
+                        let s2 = Math.round(s / 2);
+                        rect(weightcol.get(weights[y - 1][x - 1]), convert(x + .5) - s2, convert(y + .5) - s2, s, s);
                     }
                 }
             }
             ctx.beginPath();
             ctx.fillStyle = dgray;
-            ctx.arc(convert(ballx+.5),convert(bally+.5),ballsize,0,Math.PI*2,true);
+            ctx.arc(convert(ballx + .5), convert(bally + .5), ballsize, 0, Math.PI * 2, true);
             ctx.fill();
             ctx.closePath();
-            text(white,"Level "+(1+listUsed),385,25,25,"Century Gothic");
-            text(white,score,385,55,25,"Century Gothic");
+            text(white, score, 385, 55, 25, "Century Gothic");
             if (finished) {
-                text(green,((finished-starttime)/1000).toFixed(2),385,85,25,"Century Gothic");
+                text(green, ((finished - starttime) / 1000).toFixed(2), 385, 85, 25, "Century Gothic");
             } else {
-                text(yellow,((time()-starttime)/1000).toFixed(2),385,85,25,"Century Gothic");
+                text(yellow, ((time() - starttime) / 1000).toFixed(2), 385, 85, 25, "Century Gothic");
             }
-            text(white,"Goal: "+goal,385,135,20,"Century Gothic"); 
-            text(white,"Best: "+getCookie("fastest"+listUsed),385,165,20,"Century Gothic"); 
+            text(white, "Goal: " + goal, 385, 135, 20, "Century Gothic");
+
+            if (randomLevel == 0) {
+                text(white, "Level " + (1 + listUsed), 385, 25, 25, "Century Gothic");
+                text(white, "Best: " + getCookie("fastest" + listUsed), 385, 165, 20, "Century Gothic");
+            } else {
+                text(white, "Random", 385, 25, 25, "Century Gothic");
+                text(white, "Best: N/A", 385, 165, 20, "Century Gothic");                
+            }
         }
 
         var starttime = time();
@@ -243,35 +443,35 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             moving = move(moveDirection);
             draw();
-            requestAnimationFrame(everyFrame);            
+            requestAnimationFrame(everyFrame);
         }
-        
+
         function upKey() {
             if (!moving) {
-                moveDirection = [0,-1];
+                moveDirection = [0, -1];
             }
         }
 
         function downKey() {
             if (!moving) {
-                moveDirection = [0,1];
+                moveDirection = [0, 1];
             }
         }
 
         function leftKey() {
             if (!moving) {
-                moveDirection = [-1,0];
+                moveDirection = [-1, 0];
             }
         }
 
         function rightKey() {
             if (!moving) {
-                moveDirection = [1,0];
+                moveDirection = [1, 0];
             }
         }
 
         function keyHandler(e) {
-            if (e.keyCode == 37 || e.keyCode == 65){
+            if (e.keyCode == 37 || e.keyCode == 65) {
                 leftKey();
             } else if (e.keyCode == 38 || e.keyCode == 87) {
                 upKey();
@@ -280,27 +480,36 @@
             } else if (e.keyCode == 40 || e.keyCode == 83) {
                 downKey();
             } else if (e.keyCode == 187 || e.keyCode == 189) {
-                if (e.keyCode == 187) {useList((gridNum == weightslist.length-1) ? 0 : gridNum+1)} else {useList((gridNum == 0) ? weightslist.length-1 : gridNum-1)}
-                visited = createArray(grid.length,grid[0].length);
-                weightsize = new Map([[0,Math.round(size*.08)],[1,Math.round(size*.08)],[2,Math.round(size*.12)],[4,Math.round(size*.16)],[8,Math.round(size*.2)]]);
+                if (e.keyCode == 187) { useList((gridNum == weightslist.length - 1) ? 0 : gridNum + 1) } else { useList((gridNum == 0) ? weightslist.length - 1 : gridNum - 1) }
+                visited = createArray(grid.length, grid[0].length);
+                weightsize = new Map([[0, Math.round(size * .08)], [1, Math.round(size * .08)], [2, Math.round(size * .12)], [4, Math.round(size * .16)], [8, Math.round(size * .2)]]);
                 score = 0;
+                randomLevel = 0;
                 starttime = time();
                 finished = false;
-                moveDirection = [0,0];
+                moveDirection = [0, 0];
             } else if (e.keyCode == 32) {
-                visited = createArray(grid.length,grid[0].length);
+                visited = createArray(grid.length, grid[0].length);
                 score = 0;
                 ballx = misclist[listUsed][0];
                 bally = misclist[listUsed][1];
                 starttime = time();
                 finished = false;
-                moveDirection = [0,0];
+                moveDirection = [0, 0];
+            } else if (e.keyCode == 191) {
+                score = 0;
+                randomLevel = 12;
+                randLevel(12, 12);
+                visited = createArray(grid.length, grid[0].length);
+                starttime = time();
+                finished = false;
+                moveDirection = [0, 0];
             }
         }
 
         function mouseMoveHandler(e) {
-            mousex = e.clientX-canvas.offsetLeft;
-            mousey = e.clientY-canvas.offsetTop;
+            mousex = e.clientX - canvas.offsetLeft;
+            mousey = e.clientY - canvas.offsetTop;
             if (400 < mousex < 500 && 200 < mousey < 300) {
                 clickStatus = 1;
             } else {
@@ -309,8 +518,8 @@
         }
 
         function clickHandler(e) {
-            mousex = e.clientX-canvas.offsetLeft;
-            mousey = e.clientY-canvas.offsetTop;
+            mousex = e.clientX - canvas.offsetLeft;
+            mousey = e.clientY - canvas.offsetTop;
             if (400 < mousex < 500 && 200 < mousey < 300) {
                 clicked = 1;
             } else {
@@ -322,24 +531,27 @@
             clicked = 0;
         }
 
-        document.addEventListener("keydown",keyHandler,false);
-        document.addEventListener("mousemove",mouseMoveHandler,false);
-        document.addEventListener("mousedown",clickHandler,false);
-        document.addEventListener("mouseup",releaseHandler,false);
+        document.addEventListener("keydown", keyHandler, false);
+        document.addEventListener("mousemove", mouseMoveHandler, false);
+        document.addEventListener("mousedown", clickHandler, false);
+        document.addEventListener("mouseup", releaseHandler, false);
         everyFrame();
 
     </script>
-<div style="font-family:'Century Gothic', 'MS Sans Serif', 'arial'; font-size:14px; text-align:left; line-height:150%; margin:0px; color:#000000; clear:both;"><center>
-    <br>
-    Directions: <br>
-    Press the arrow keys or WASD to move in that direction. <br>
-    The ball will keep sliding until it hits a wall. <br>
-    The ball can't change direction while it's moving. <br>
-    White orbs are worth 1 point, greens and worth 2, and yellows are worth 4. <br>
-    The goal is to reach the specified goal as fast as possible. <br>
-    Press + or - to change the level. <br>
-    Press space to reset.
-    </center></div>
+    <div
+        style="font-family:'Century Gothic', 'MS Sans Serif', 'arial'; font-size:14px; text-align:left; line-height:150%; margin:0px; color:#000000; clear:both;">
+        <center>
+            <br>
+            Directions: <br>
+            Press the arrow keys or WASD to move in that direction. <br>
+            The ball will keep sliding until it hits a wall. <br>
+            The ball can't change direction while it's moving. <br>
+            White orbs are worth 1 point, greens and worth 2, and yellows are worth 4. <br>
+            The goal is to reach the specified goal as fast as possible. <br>
+            Press + or - to change the level. <br>
+            Press space to reset.
+        </center>
+    </div>
 </body>
 
 </html>
