@@ -149,9 +149,18 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                             </td>
                         </tr>
                     </table><br>
-
                     Scramble<br>
-                    <textarea id="solve" rows="3" cols="84" spellcheck="false"></textarea><br><br>
+                    <textarea id="solve" rows="3" cols="84" spellcheck="false"></textarea><br>
+                    <table id="batch-adjustments">
+                        <tr id="pre-adjust-table">
+                            <th style="vertical-align: bottom">Pre-Adjust</th>
+                            <th style="vertical-align: bottom">Post-Adjust</th>
+                        </tr>
+                        <tr id="post-adjust-table">
+                            <td><textarea id="pre-adjustments" rows="1" cols="14" spellcheck="false">U</textarea>&nbsp;&nbsp;</td>
+                            <td><textarea id="post-adjustments" rows="1" cols="14" spellcheck="false">U</textarea>&nbsp;&nbsp;</td>
+                        </tr>
+                    </table><br><br>
                 </div>
             </strong>
             <div id="table-area" hidden>
@@ -174,6 +183,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
         let subgroupRows = 1;
         let speedBuffer = [];
         let solutionsBuffer = [];
+        let debugVars = [];
 
         function createSolutionTable() {
             document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left">#'+solveID+'<br><span id="progUpdate'+solveID+'"></span></th>';
@@ -198,6 +208,8 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             return {puzzle: document.getElementById('puzzle').value, 
                     ignore: document.getElementById('ignore').value,
                     solve: document.getElementById('solve').value,
+                    preAdjust: document.getElementById('pre-adjustments').value,
+                    postAdjust: document.getElementById('post-adjustments').value,
                     subgroups: subgroupData};
         }
 
@@ -299,6 +311,10 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             work.onmessage = function(event) {
                 if (event.data.type === "stop") {
                     stopSearch();
+                    let msg = event.data.value;
+                    if (msg !== null) {
+                        alert(msg);
+                    }
                 } else if (event.data.type === "depthUpdate") {
                     depth++;
                     document.getElementById("progUpdate"+solveID).innerHTML = "<small>Searching depth "+depth+"</small>";
@@ -313,6 +329,8 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                 } else if (event.data.type === "next-state" && event.data.value > 1) {
                     addBufferToTable();
                     initNextState();
+                } else if (event.data.type === "debug") {
+                    debugVars.push(event.data.value);
                 }
             }
         }

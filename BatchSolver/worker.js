@@ -1,12 +1,11 @@
 self.onmessage = function (msg) {
     let input = msg.data;
-    let pzlDefFull = input.solve.split(":");
-    let pzlDef = pzlDefFull[pzlDefFull.length-1];
-    let fullAdjust = (pzlDefFull.length === 2) ? parseInt(pzlDefFull[0]) : 0;
-    let [fullPuzzle, subPuzzles] = setPuzzles(input.puzzle, input.ignore, fullAdjust, input.subgroups); // loses efficiency if puzzle has not changed, so update this
+    let pzlDef = input.solve;
+    if (pzlDef.includes(":")) {postMessage({value: "Colon notation for indicating adjust moves is deprecated.", type: "stop"})}
+    let [fullPuzzle, subPuzzles] = setPuzzles(input.puzzle, input.ignore, input.subgroups); 
 
     let solutionIndex = 1;
-    for (let stateStr of fullPuzzle.getBatchStates(pzlDef)) {
+    for (let stateStr of fullPuzzle.getBatchStates(pzlDef, input.preAdjust, input.postAdjust)) {
         let state = fullPuzzle.execute(fullPuzzle.solved, fullPuzzle.moveStrToList(stateStr));
         if(!(arraysEqual(fullPuzzle.solved, state))) {
             postMessage({value: solutionIndex, type: "next-state"})
@@ -30,7 +29,7 @@ function removeBrackets(s) { // Removes (), {}, <>, and []
     return s.replace(/\(|\)|\[|\]|{|}|<|>/g, "");
 }
 
-function setPuzzles(puzzleDef, ignore, fullAdjust, subgroups) {
+function setPuzzles(puzzleDef, ignore, subgroups) {
     let moves = puzzleDef;
     let moveLines = moves.split('\n');
 
@@ -122,7 +121,6 @@ function setPuzzles(puzzleDef, ignore, fullAdjust, subgroups) {
     }
 
     initCubeOri(fullPuzzle, pieceList, ignore);
-    fullPuzzle.setAdjustMoves(fullAdjust);
     
     return [fullPuzzle, subPuzzles];
 }
@@ -218,6 +216,7 @@ class Puzzle {
         this.posMask = (1 << this.posBits) - 1; // 31
         this.oriMask = ((1 << Math.ceil(Math.log2(Math.max(...cubeOri)))) - 1) << this.posBits; // 3 * 32 = 96
         this.totalBits = Math.ceil(Math.log2(this.oriMask)); // 7
+        this.clockwiseMoves = clockwiseMoves.slice();
         this.clockwiseMoveStr = clockwiseMoveStr.slice();
         this.moveStr = [];
 
@@ -323,27 +322,33 @@ class Puzzle {
         return string;
     }
 
+    getMoveMultiples(moveNum) {
+        let moveReps = [];
+        let currentRep = moveNum;
+        while (true) {
+            moveReps.push(currentRep);
+            let move = this.execute(this.moves[currentRep], [moveNum]);
+            currentRep = -1;
+            for (let i=0; i<this.moves.length; i++) {
+                if (arraysEqual(this.moves[i], move)) {
+                    currentRep = i;
+                    break;
+                }
+            }
+            if (currentRep === -1) {break}
+        }
+        return moveReps;
+    }
+
     setAdjustMoves(num) {
         let moveList = this.clockwiseMoveStr.slice(0, num).map(str => this.moveStr.indexOf(str));
         this.adjustCount = moveList.length;
         let adjustMoves = [];
         for (let i=0; i<this.moves.length; i++) {this.adjustMovesTable[i] = false}
         for (let moveNum of moveList) {
-            let moveReps = [];
-            let currentRep = moveNum;
-            this.adjustMovesTable[currentRep] = true;
-            while (true) {
-                moveReps.push(currentRep);
-                let move = this.execute(this.moves[currentRep], [moveNum]);
-                currentRep = -1;
-                for (let i=0; i<this.moves.length; i++) {
-                    if (arraysEqual(this.moves[i], move)) {
-                        currentRep = i;
-                        this.adjustMovesTable[currentRep] = true;
-                        break;
-                    }
-                }
-                if (currentRep === -1) {break}
+            let moveReps = this.getMoveMultiples(moveNum);
+            for (let j of moveReps) {
+                this.adjustMovesTable[j] = true;
             }
             adjustMoves.push(moveReps);
         }
@@ -475,6 +480,10 @@ class Puzzle {
         }  
     }
 
+    invert(list) {
+        return list.map(x => this.inverse[x]).reverse();
+    }
+
     setSubgroup(generators) {
         let genArray = [];
         for (let i=0; i<generators.length; i++) {
@@ -510,7 +519,7 @@ class Puzzle {
         let nextStates = new Map();
         while (true) {
             for (let state of newStates.values()) {
-                for (let gen of generators.values()) { // this can be changed; values can be omitted
+                for (let gen of generators) {
                     let prod = state + " " + gen;
                     if (!(states.has(this.compressStr(prod)))) {
                         nextStates.set(this.compressStr(prod), prod);
@@ -527,16 +536,22 @@ class Puzzle {
         return Array.from(states.values());
     }
 
-    getReducedSet(states) {
+    getAdjustFromStr(adjStr) { // helper method for getReducedSet
+        return (adjStr == "") ? [] : cartesian(adjStr.split(" ").map(str => this.getMoveMultiples(this.moveStr.indexOf(str))));
+    }
+
+    getReducedSet(states, preAdjust, postAdjust) {
+        let preAdjustSequences = this.getAdjustFromStr(preAdjust);
+        let postAdjustSequences = this.getAdjustFromStr(postAdjust);
         let reducedStates = new Set();
         let duplicateStates = new Set();
         for (let state of states) {
             let cubeStr = this.compressStr(state)
             if (!(duplicateStates.has(cubeStr))) {
                 reducedStates.add(state);
-                for (let preAdjustment of this.adjustSequences) {
-                    for (let postAdjustment of this.adjustSequences) {
-                        duplicateStates.add(this.compressStr(this.moveListToStr(preAdjustment) + " " + state + " " + this.moveListToStr(postAdjustment)));
+                for (let preAdjustment of preAdjustSequences) {
+                    for (let postAdjustment of postAdjustSequences) {
+                        duplicateStates.add(this.compressStr(this.moveListToStr(postAdjustment) + " " + state + " " + this.moveListToStr(preAdjustment)));
                     }
                 }
             }
@@ -544,7 +559,7 @@ class Puzzle {
         return reducedStates;
     }
 
-    getBatchStates(input) {
+    getBatchStates(input, preAdjust, postAdjust) {
         let parsedInput = parseBatch(input);
         let states = [""];
         for (let i=0; i<parsedInput.length; i++) {
@@ -559,6 +574,6 @@ class Puzzle {
                 states = this.bfs(states, data.split(","));
             }
         }
-        return this.getReducedSet(states);
+        return this.getReducedSet(states, preAdjust, postAdjust);
     }
 }
