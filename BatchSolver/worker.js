@@ -435,7 +435,7 @@ class Puzzle {
         for (let depth=0; depth<=maxDepth; depth++) {
             for (let sequence of this.getAllSequences(depth)) {
                 let cubeStr = this.compressArr(this.execute(this.solved, sequence));
-                if (!(tempTable.has(cubeStr))) {tempTable.set(cubeStr, sequence.length)}
+                if (!(tempTable.has(cubeStr)) || tempTable.get(cubeStr) > sequence.length) {tempTable.set(cubeStr, sequence.length)}
             }
         }
         this.pruneTable = tempTable;
