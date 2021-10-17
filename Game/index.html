@@ -250,7 +250,6 @@
                     }
                 }
             }
-            let test = findStart();
             let impoRecord = impossible(realStopPoints(findStart())).length
             let count = 0
             while (true) {
@@ -290,10 +289,10 @@
             }
 
             goal = sum(weights)
-            randStartX = findStart()[0]
-            randStartY = findStart()[1]
-            ballx = findStart()[0]
-            bally = findStart()[1]
+            randStartX = findStart()[1]
+            randStartY = findStart()[0]
+            ballx = findStart()[1]
+            bally = findStart()[0]
 
             size = Math.round(384 / grid.length);
             half = Math.round(size / 2);
