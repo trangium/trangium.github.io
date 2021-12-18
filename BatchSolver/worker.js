@@ -13,7 +13,7 @@ self.onmessage = function (msg) {
         if(!(arraysEqual(fullPuzzle.solved, state))) {numStates++}
     }
 
-    postMessage({value: numStates, type:"num-states"})
+    postMessage({value: numStates, type: "num-states"})
 
     for (let stateStr of batchStates) {
         let state = fullPuzzle.execute(fullPuzzle.solved, fullPuzzle.moveStrToList(stateStr));

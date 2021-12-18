@@ -245,10 +245,11 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
 
             <div id="statistics">
                 <strong>Statistics</strong><br>
-                Case: <span id="info-this-case">0</span>/<span id="info-num-cases">0</span> (<span id="info-time">0.0 sec/case</span>) <br>
-                MCC: <span id="info-mcc"> 0.0 </span><br>
-                HTM: <span id="info-htm"> 0.0 </span><br>
-                QTM: <span id="info-qtm"> 0.0 </span><br>
+                Case: <span id="info-this-case">0</span>/<span id="info-num-cases">0</span><br>
+                Rate: <span id="info-time">0.00 sec/case</span><br>
+                MCC: <span id="info-mcc"> 0.00 </span><br>
+                HTM: <span id="info-htm"> 0.00 </span><br>
+                QTM: <span id="info-qtm"> 0.00 </span><br>
 
             </div><br>
 
@@ -480,10 +481,9 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
 
             work.onmessage = function(event) {
                 if (event.data.type === "stop") {
-                    updateStats();
                     stopSearch();
                     let msg = event.data.value;
-                    if (msg !== null) {alert(msg)}
+                    if (msg !== null) {alert(msg)} else {updateStats()}
                 } else if (event.data.type === "depthUpdate") {
                     depth++;
                     document.getElementById("progUpdate"+solveID).innerHTML = "<small>Searching depth "+depth+"</small>";
