@@ -103,93 +103,7 @@
     
     <body>
         <div style="font-family:courier new;font-size:18px">
-            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="searchButtonHandler()" id="calc-button"><strong>Start Search</strong></button> 
-            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="clearOutput()" id="clear-button"><strong>Clear Output</strong></button><br>
-                
-            <strong><br>
-                <div id="options">
-                    <input id="sortByMCC" type="checkbox" checked><label for="sortByMCC"> Sort algs by movecount coefficient</label><br>
-                    <input type="checkbox" id="inputVis" onclick="inputVisibility(this)" checked/><label for="inputVis"> Show input fields</label><br>
-                    <input type="checkbox" id="optVis" onclick="optionVisibility(this)" /><label for="optVis"> Show advanced speed options</label><br>
-                    Show top <input type="number" id="maxSolutions" value="100"></input> solutions for each case<br>
-                </div>
-
-                <div id="advanced" hidden>
-                    <br>
-                    <table class="adv-layout">
-                        <tr>
-                            <th>Wrist Turn Multiplier:</th>
-                            <th>
-                                <input type="range" value="0.8" max="1" step="0.05" oninput="p1.value = this.value">
-                                <output id="p1">0.8</output><br>
-                            </th>
-                        </tr>
-                        <tr>
-                            <th>Push Turn Multiplier:</th>
-                            <th>
-                                <input type="range" value="1.3" min="1" max="3" step="0.05" oninput="p2.value = this.value">
-                                <output id="p2">1.3</output><br>
-                            </th>
-                        </tr>
-                        <tr>
-                            <th>Ring Turn Multiplier:</th>
-                            <th>
-                                <input type="range" value="1.4" min="1" max="3" step="0.05" oninput="p3.value = this.value">
-                                <output id="p3">1.4</output><br>
-                            </th>
-                        </tr>
-                        <tr>
-                            <th>Destabilize Penalty:</th>
-                            <th>
-                                <input type="range" value="0.5" max="2" step="0.05" oninput="p4.value = this.value">
-                                <output id="p4">0.5</output><br>
-                            </th>
-                        </tr> 
-                        <tr>
-                            <th>Soft Regrip Penalty:</th>
-                            <th>
-                                <input type="range" value="1" max="4" step="0.05" oninput="p5.value = this.value">
-                                <output id="p5">1</output><br>
-                            </th>
-                        </tr> 
-                        <tr>
-                            <th>Half Turn Multiplier:</th>
-                            <th>
-                                <input type="range" value="1.65" min="1" max="2" step="0.05" oninput="p6.value = this.value">
-                                <output id="p6">1.65</output><br>
-                            </th>
-                        </tr> 
-                        <tr>
-                            <th>S/E Slice Multiplier:</th>
-                            <th>
-                                <input type="range" value="1.25" min="1" max="2" step="0.05" oninput="p7.value = this.value">
-                                <output id="p7">1.25</output><br>
-                            </th>
-                        </tr> 
-                        <tr>
-                            <th>Overwork Penalty:</th>
-                            <th>
-                                <input type="range" value="2.25" max="5" step="0.05" oninput="p8.value = this.value">
-                                <output id="p8">2.25</output><br>
-                            </th>
-                        </tr>
-                        <tr>
-                            <th>Move Block Penalty:</th>
-                            <th>
-                                <input type="range" value="0.8" min="0" max="3" step="0.05" oninput="p9.value = this.value">
-                                <output id="p9">0.8</output><br>
-                            </th>
-                        </tr> 
-                        <tr>
-                            <th>y/z Rotation:</th>
-                            <th>
-                                <input type="range" value="3.5" min="1" max="7" step="0.1" oninput="p10.value = this.value">
-                                <output id="p10">3.5</output><br>
-                            </th>
-                        </tr>                     
-                    </table>
-                </div><br>
-
+            <strong>
                 <div id="input-area">
                     Puzzle<br>
                     <textarea id="puzzle" rows="15" cols="84" spellcheck="false">
@@ -242,10 +156,106 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                             <td><textarea id="pre-adjustments" rows="1" cols="14" spellcheck="false">U</textarea>&nbsp;&nbsp;</td>
                             <td><textarea id="post-adjustments" rows="1" cols="14" spellcheck="false">U</textarea>&nbsp;&nbsp;</td>
                         </tr>
-                    </table><br><br>
+                    </table><br>
                 </div>
+            Options
             </strong>
-            <div id="table-area" hidden>
+            <div id="options">
+                <input id="sortByMCC" type="checkbox" checked><label for="sortByMCC"> Sort algs by movecount coefficient</label><br>
+                <input type="checkbox" id="statVis" onclick="statVisibility(this)" checked/><label for="statVis"> Show statistics</label><br>
+                <input type="checkbox" id="optVis" onclick="optionVisibility(this)" /><label for="optVis"> Show advanced speed options</label><br>
+                Show top <input type="number" id="maxSolutions" value="100"></input> solutions for each case<br>
+            </div>
+
+            <div id="advanced" hidden>
+                <br>
+                <table class="adv-layout">
+                    <tr>
+                        <th>Wrist Turn Multiplier:</th>
+                        <th>
+                            <input type="range" value="0.8" max="1" step="0.05" oninput="p1.value = this.value">
+                            <output id="p1">0.8</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Push Turn Multiplier:</th>
+                        <th>
+                            <input type="range" value="1.3" min="1" max="3" step="0.05" oninput="p2.value = this.value">
+                            <output id="p2">1.3</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Ring Turn Multiplier:</th>
+                        <th>
+                            <input type="range" value="1.4" min="1" max="3" step="0.05" oninput="p3.value = this.value">
+                            <output id="p3">1.4</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Destabilize Penalty:</th>
+                        <th>
+                            <input type="range" value="0.5" max="2" step="0.05" oninput="p4.value = this.value">
+                            <output id="p4">0.5</output><br>
+                        </th>
+                    </tr> 
+                    <tr>
+                        <th>Soft Regrip Penalty:</th>
+                        <th>
+                            <input type="range" value="1" max="4" step="0.05" oninput="p5.value = this.value">
+                            <output id="p5">1</output><br>
+                        </th>
+                    </tr> 
+                    <tr>
+                        <th>Half Turn Multiplier:</th>
+                        <th>
+                            <input type="range" value="1.65" min="1" max="2" step="0.05" oninput="p6.value = this.value">
+                            <output id="p6">1.65</output><br>
+                        </th>
+                    </tr> 
+                    <tr>
+                        <th>S/E Slice Multiplier:</th>
+                        <th>
+                            <input type="range" value="1.25" min="1" max="2" step="0.05" oninput="p7.value = this.value">
+                            <output id="p7">1.25</output><br>
+                        </th>
+                    </tr> 
+                    <tr>
+                        <th>Overwork Penalty:</th>
+                        <th>
+                            <input type="range" value="2.25" max="5" step="0.05" oninput="p8.value = this.value">
+                            <output id="p8">2.25</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Move Block Penalty:</th>
+                        <th>
+                            <input type="range" value="0.8" min="0" max="3" step="0.05" oninput="p9.value = this.value">
+                            <output id="p9">0.8</output><br>
+                        </th>
+                    </tr> 
+                    <tr>
+                        <th>y/z Rotation:</th>
+                        <th>
+                            <input type="range" value="3.5" min="1" max="7" step="0.1" oninput="p10.value = this.value">
+                            <output id="p10">3.5</output><br>
+                        </th>
+                    </tr>                     
+                </table>
+            </div><br>
+
+            <div id="statistics">
+                <strong>Statistics</strong><br>
+                Case: <span id="info-this-case">0</span>/<span id="info-num-cases">0</span> (<span id="info-time">0.0 sec/case</span>) <br>
+                MCC: <span id="info-mcc"> 0.0 </span><br>
+                HTM: <span id="info-htm"> 0.0 </span><br>
+                QTM: <span id="info-qtm"> 0.0 </span><br>
+
+            </div><br>
+
+            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="searchButtonHandler()" id="calc-button"><strong>Start Search</strong></button> 
+            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="clearOutput()" id="clear-button"><strong>Clear Output</strong></button><br>
+
+            <div id="table-area" hidden><br>
                 <strong>Output</strong>
                 <table cellspacing="0" id="output-table">
                     <tr id="computation-header"></tr>
@@ -254,14 +264,15 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                 </table>
             </div>
         </div>
+        <br><br><br><br><br><br><br><br><br>
     <script src="../algSpeed.js"></script>
     <script>
                 
-        function inputVisibility() {
-            if (inputVis.checked) {
-                document.getElementById("input-area").hidden = false;
+        function statVisibility() {
+            if (statVis.checked) {
+                document.getElementById("statistics").hidden = false;
             } else {
-                document.getElementById("input-area").hidden = true;
+                document.getElementById("statistics").hidden = true;
             }
         }
 
@@ -283,6 +294,10 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
         let speedBuffer = [];
         let solutionsBuffer = [];
         let debugVars = [];
+
+        let startTime = Date.now();
+        let isIdle = true;
+        let totalMCC, totalHTM, totalQTM;
 
         function createSolutionTable() {
             document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left">#'+solveID+'<br><span id="progUpdate'+solveID+'"></span></th>';
@@ -313,7 +328,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
         }
 
         function appendBuffer() {
-            let solutionsLeft = parseInt(document.getElementById("maxSolutions").value) - document.getElementById("speed"+solveID).innerHTML.split("<br>").length;
+            let solutionsLeft = parseInt(document.getElementById("maxSolutions").value, 10) - document.getElementById("speed"+solveID).innerHTML.split("<br>").length;
             if (solutionsLeft > 0) {
                 document.getElementById("speed"+solveID).innerHTML += speedBuffer.slice(0, solutionsLeft).join("<br>")+"<br>";
                 document.getElementById("solutions"+solveID).innerHTML += solutionsBuffer.slice(0, solutionsLeft).join("<br>")+"<br>";
@@ -357,7 +372,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                 tableNeedle++;   
             }
 
-            for (let i=0; i<Math.min(parseInt(document.getElementById("maxSolutions").value),tableSpeedList.length+sortedBuffer.length); i++) {
+            for (let i=0; i<Math.min(parseInt(document.getElementById("maxSolutions").value, 10),tableSpeedList.length+sortedBuffer.length); i++) {
                 if (tableNeedle === tableSpeedList.length) {
                     addFromBuffer();
                 } else if (bufferNeedle === sortedBuffer.length) {
@@ -373,7 +388,53 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             solutionsBuffer = [];
         }
 
-        function addBufferToTable() {
+        function getFirstLine(fieldStr) {
+            let firstNew = fieldStr.indexOf("\n");
+            return fieldStr.slice(0,firstNew);
+        }
+
+        function getHTM(move) {
+            return 1;
+        }
+
+        function getQTM(move) {
+            let numericMove = move.replace(/[^0-9\.]/g, ""); // removes all nonnumeric characters from move
+            if (numericMove == "") {return 1} else {return parseInt(numericMove, 10)}
+        }
+
+        function getMoveCount(alg, metric) {
+            if (alg == "") {return NaN} // because if no algs were genned then the stats wouldn't be relevant
+            let splitAlg = alg.split(" ");
+            let count = 0;
+            let insideParen = false;
+            for (let move of splitAlg) {
+                if (move == "") {
+                    continue;
+                } else if (move.includes(")")) {
+                    insideParen = false;
+                } else if (move.includes("(")) {
+                    insideParen = true;
+                } else if (insideParen == false) {
+                    count += metric(move);
+                }
+            }
+            return count;
+        }
+
+        function updateStats() {
+            let numCases = parseInt(document.getElementById("info-this-case").innerHTML, 10)+1;
+            let topSolution = getFirstLine(document.getElementById("solutions"+solveID).innerText);
+            document.getElementById("info-this-case").innerHTML = numCases;
+            document.getElementById("info-time").innerHTML = ((Date.now()-startTime)/numCases/1000).toFixed(2)+" sec/case";
+            totalMCC += parseFloat(getFirstLine(document.getElementById("speed"+solveID).innerText), 10)
+            document.getElementById("info-mcc").innerHTML = (totalMCC/numCases).toFixed(2);
+            totalHTM += getMoveCount(topSolution, getHTM);
+            document.getElementById("info-htm").innerHTML = (totalHTM/numCases).toFixed(2);
+            totalQTM += getMoveCount(topSolution, getQTM);
+            document.getElementById("info-qtm").innerHTML = (totalQTM/numCases).toFixed(2);
+        }
+
+        function addBufferToTable() { // add buffer to table and update statistics
             if (solutionsBuffer.length === 0) {return}
             if (document.getElementById("sortByMCC").checked) {
                 mergeBuffer();
@@ -398,6 +459,16 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
 
         function calc() {
             work = new Worker("worker.js");
+            isIdle = false;
+            startTime = Date.now();
+            totalMCC = totalHTM = totalQTM = 0;
+
+            document.getElementById("info-this-case").innerHTML = 0;
+            document.getElementById("info-num-cases").innerHTML = 0;
+            document.getElementById("info-time").innerHTML = "0.0 sec/case";
+            document.getElementById("info-mcc").innerHTML = "0.00";
+            document.getElementById("info-htm").innerHTML = "0.00";
+            document.getElementById("info-qtm").innerHTML = "0.00";
 
             document.getElementById("calc-button").innerHTML = "<strong>&nbsp;End Search&nbsp;</strong>";
             document.getElementById("table-area").hidden = false;
@@ -409,17 +480,18 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
 
             work.onmessage = function(event) {
                 if (event.data.type === "stop") {
+                    updateStats();
                     stopSearch();
                     let msg = event.data.value;
-                    if (msg !== null) {
-                        alert(msg);
-                    }
+                    if (msg !== null) {alert(msg)}
                 } else if (event.data.type === "depthUpdate") {
                     depth++;
                     document.getElementById("progUpdate"+solveID).innerHTML = "<small>Searching depth "+depth+"</small>";
                 } else if (event.data.type === "solution") {
-                    let speed = algSpeed(event.data.value, false, true, parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML));
                     let solution = event.data.value;
+                    let parenIndex = solution.indexOf(")");
+                    let trimmedSolution = (parenIndex > -1) ? (solution.slice(parenIndex+1)) : solution;
+                    let speed = algSpeed(trimmedSolution, false, true, parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML));
                     speedBuffer.push(speed);
                     solutionsBuffer.push(solution);
                     numSolutions++;
@@ -427,8 +499,12 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                     depth = event.data.value;
                 } else if (event.data.type === "next-state" && event.data.value > 1) {
                     addBufferToTable();
+                    updateStats();
                     initNextState();
-                } else if (event.data.type === "debug") {
+                } else if (event.data.type === "num-states") {
+                    document.getElementById("info-num-cases").innerHTML = event.data.value;
+                }
+                else if (event.data.type === "debug") {
                     debugVars.push(event.data.value);
                 }
             }
@@ -438,6 +514,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             addBufferToTable();
             clearInterval(addBufferInterval);
             work.terminate();
+            isIdle = true;
             document.getElementById("calc-button").innerHTML = "<strong>Start Search</strong>";
             document.getElementById("clear-button").disabled = false;
             document.getElementById("progUpdate"+solveID).innerHTML = "<small>Search finished</small>";

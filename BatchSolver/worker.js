@@ -5,7 +5,17 @@ self.onmessage = function (msg) {
     let [fullPuzzle, subPuzzles] = setPuzzles(input.puzzle, input.ignore, input.subgroups); 
 
     let solutionIndex = 1;
-    for (let stateStr of fullPuzzle.getBatchStates(pzlDef, input.preAdjust, input.postAdjust)) {
+    let batchStates = fullPuzzle.getBatchStates(pzlDef, input.preAdjust, input.postAdjust);
+    let numStates = 0;
+
+    for (let stateStr of batchStates) {
+        let state = fullPuzzle.execute(fullPuzzle.solved, fullPuzzle.moveStrToList(stateStr));
+        if(!(arraysEqual(fullPuzzle.solved, state))) {numStates++}
+    }
+
+    postMessage({value: numStates, type:"num-states"})
+
+    for (let stateStr of batchStates) {
         let state = fullPuzzle.execute(fullPuzzle.solved, fullPuzzle.moveStrToList(stateStr));
         if(!(arraysEqual(fullPuzzle.solved, state))) {
             postMessage({value: solutionIndex, type: "next-state"})
@@ -19,7 +29,7 @@ self.onmessage = function (msg) {
 function calcState(state, subPuzzles) {
     for (let subData of subPuzzles) {
         for (let solution of subData.puzzle.solve(state, isNaN(parseInt(subData.search))?Infinity:parseInt(subData.search))) {
-            postMessage({value: subData.puzzle.moveListToStr(solution), type: "solution"});
+            postMessage({value: subData.puzzle.moveListToStr(solution, true), type: "solution"});
         }
         postMessage({value: 0, type: "set-depth"})
     }
@@ -76,6 +86,9 @@ function setPuzzles(puzzleDef, ignore, subgroups) {
         if (line.includes(":")) {
             let cycleStr = moveLines[ln].split(":");
             let moveName = cycleStr[0];
+            if (!/^[a-z]+$/i.test(moveName)) { // if moveName contains anything that isn't a letter
+                postMessage({value: "'" + moveName + "' is not a valid move name, because move names must only contain letters.", type: "stop"})
+            }
             clockwiseMoveStr.push(moveName);
             let cycleList = parseMove(cycleStr[1]);
             moveDataList.push(cycleList)
@@ -288,7 +301,9 @@ class Puzzle {
         // initialize adjust moves (none upon initialization)
         this.adjustSequences = [[]];
         this.adjustMovesTable = [];
-        for (let i=0; i<this.moves.length; i++) {this.adjustMovesTable[i] = false}
+        for (let i=0; i<this.moves.length; i++) {
+            this.adjustMovesTable[i] = false;
+        }
         this.adjustCount = 0;
     }
 
@@ -320,39 +335,6 @@ class Puzzle {
             string += String.fromCharCode(list[i]);
         }
         return string;
-    }
-
-    getMoveMultiples(moveNum) {
-        let moveReps = [];
-        let currentRep = moveNum;
-        while (true) {
-            moveReps.push(currentRep);
-            let move = this.execute(this.moves[currentRep], [moveNum]);
-            currentRep = -1;
-            for (let i=0; i<this.moves.length; i++) {
-                if (arraysEqual(this.moves[i], move)) {
-                    currentRep = i;
-                    break;
-                }
-            }
-            if (currentRep === -1) {break}
-        }
-        return moveReps;
-    }
-
-    setAdjustMoves(num) {
-        let moveList = this.clockwiseMoveStr.slice(0, num).map(str => this.moveStr.indexOf(str));
-        this.adjustCount = moveList.length;
-        let adjustMoves = [];
-        for (let i=0; i<this.moves.length; i++) {this.adjustMovesTable[i] = false}
-        for (let moveNum of moveList) {
-            let moveReps = this.getMoveMultiples(moveNum);
-            for (let j of moveReps) {
-                this.adjustMovesTable[j] = true;
-            }
-            adjustMoves.push(moveReps);
-        }
-        this.adjustSequences = cartesian(adjustMoves);
     }
 
     // like nextValid, but with the first move of a sequence.
@@ -401,16 +383,35 @@ class Puzzle {
     }
 
     // convert a sequence of moves, internally represented by a string of numbers, into human-readable text
-    moveListToStr(list) {
+    moveListToStr(list, parens=false) {
         let result = "";
+        let adjusting = false;
         for (let i=0; i<list.length; i++) {
+            
+            // open parenthesis
+            if (parens && i==0 && this.adjustMovesTable[list[i]]) {
+                result += "(";
+                adjusting = true;
+            }
+ 
+            // move
             result += this.moveStr[list[i]];
+
+            // close parenthesis
+            if (parens && adjusting && (i==list.length-1 || !this.adjustMovesTable[list[i+1]])) {
+                result += ")";
+                adjusting = false;
+            }
+
+            // space
             if (i != list.length-1) {
                 result += " ";
             }
+ 
         }
         return result
     }
+
 
     // convert a human-readable algorithm into a string of numbers
     moveStrToList(alg) {
@@ -435,7 +436,7 @@ class Puzzle {
         for (let depth=0; depth<=maxDepth; depth++) {
             for (let sequence of this.getAllSequences(depth)) {
                 let cubeStr = this.compressArr(this.execute(this.solved, sequence));
-                if (!(tempTable.has(cubeStr)) || tempTable.get(cubeStr) > sequence.length) {tempTable.set(cubeStr, sequence.length)}
+                if (!(tempTable.has(cubeStr))) {tempTable.set(cubeStr, depth)}
             }
         }
         this.pruneTable = tempTable;
@@ -443,15 +444,15 @@ class Puzzle {
     }
 
     // read all solutions from a given state under the prune table's depth
-    *readPrun(state, partialSolve=[], exactDepth=false, maxDepth=this.pruneDepth+this.adjustCount) { // maxDepth should be the same as the prune table's maxDepth
+    *readPrun(state, partialSolve=[], exactDepth=false, maxDepth=this.pruneDepth) { // maxDepth should be the same as the prune table's maxDepth
         for (let m=0; m<this.moves.length; m++) {
             if (partialSolve.length == 0 || this.validPairs[partialSolve[partialSolve.length-1]][m]) {
                 let nextState = this.execute(state, [m]);
                 let nextDistance = this.pruneTable.get(this.compressArr(nextState));
-                if (arraysEqual(nextState, this.solved)) {
+                if (nextDistance == 0) { 
                     if (maxDepth == 1 || !(exactDepth)) {
-                        let fullSolve = partialSolve.concat(m);
-                        yield * [fullSolve];
+                        let fullSolve = partialSolve.concat(m); // TODO: Find which adjust sequence to apply, then apply it
+                        if (!this.hasEndAdjust(fullSolve)) yield * [fullSolve];
                     }
                 } else if (nextDistance < maxDepth) { // false if nextDistance is undefined
                     yield * this.readPrun(nextState, partialSolve.concat(m), exactDepth, maxDepth-1);
@@ -460,6 +461,7 @@ class Puzzle {
         }
     }
 
+    // generating function that returns all solutions for a state
     *solve(state, searchDepth, startDepth=0) {
         for (let depth=startDepth; depth<=searchDepth; depth++) {
             for (let sequence of this.getAllSequences(depth)) {
@@ -480,8 +482,71 @@ class Puzzle {
         }  
     }
 
+    // EXPERIMENTAL METHODS
     invert(list) {
         return list.map(x => this.inverse[x]).reverse();
+    }
+
+    commutes(index1, index2) {
+        let prod1 = [];
+        let prod2 = [];
+        this.mult(this.moves[index1], this.moves[index2], prod1);
+        this.mult(this.moves[index2], this.moves[index1], prod2);
+        return arraysEqual(prod1, prod2);
+    }
+
+    // returns true iff sequence has any adjust moves that are either at the end or can be moved to the end by commuting
+    hasEndAdjust(list) {
+        for (let i=list.length-1; i<list.length && i>=0; i--) {
+            if (this.adjustMovesTable[list[i]]) {
+                let allAfterCommute = true;
+                for (let j=i+1; j<list.length; j++) {
+                    if (!(this.commutes(list[i], list[j]))) {allAfterCommute = false}
+                }
+                if (allAfterCommute) {return true}
+            } else {
+                let noAdjustCommute = true;
+                for (let j=0; j<this.adjustMovesTable.length; j++) {
+                    if (this.adjustMovesTable[j] && this.commutes(list[i], j)) {noAdjustCommute = false}
+                }
+                if (noAdjustCommute) {return false}
+            }
+        }
+        return false;
+    }
+
+    // ADJUST & BATCH FUNCTIONS
+    getMoveMultiples(moveNum) {
+        let moveReps = [];
+        let currentRep = moveNum;
+        while (true) {
+            moveReps.push(currentRep);
+            let move = this.execute(this.moves[currentRep], [moveNum]);
+            currentRep = -1;
+            for (let i=0; i<this.moves.length; i++) {
+                if (arraysEqual(this.moves[i], move)) {
+                    currentRep = i;
+                    break;
+                }
+            }
+            if (currentRep === -1) {break}
+        }
+        return moveReps;
+    }
+
+    setAdjustMoves(num) {
+        let moveList = this.clockwiseMoveStr.slice(0, num).map(str => this.moveStr.indexOf(str));
+        this.adjustCount = moveList.length;
+        let adjustMoves = [];
+        for (let i=0; i<this.moves.length; i++) {this.adjustMovesTable[i] = false}
+        for (let moveNum of moveList) {
+            let moveReps = this.getMoveMultiples(moveNum);
+            for (let j of moveReps) {
+                this.adjustMovesTable[j] = true;
+            }
+            adjustMoves.push(moveReps);
+        }
+        this.adjustSequences = cartesian(adjustMoves);
     }
 
     setSubgroup(generators) {
