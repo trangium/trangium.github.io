@@ -161,7 +161,13 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             Options
             </strong>
             <div id="options">
-                <input id="sortByMCC" type="checkbox" checked><label for="sortByMCC"> Sort algs by movecount coefficient</label><br>
+                <label for="sortBy"> Sort algs by: </label>
+                <select  id="sortBy">
+                    <option value="MCC">MCC</option>
+                    <option value="STM">STM</option>
+                    <option value="SQTM">SQTM</option>
+                </select>
+                <br>
                 <input type="checkbox" id="statVis" onclick="statVisibility(this)" checked/><label for="statVis"> Show statistics</label><br>
                 <input type="checkbox" id="optVis" onclick="optionVisibility(this)" /><label for="optVis"> Show advanced speed options</label><br>
                 Show top <input type="number" id="maxSolutions" value="100"></input> solutions for each case<br>
@@ -247,9 +253,9 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                 <strong>Statistics</strong><br>
                 Case: <span id="info-this-case">0</span>/<span id="info-num-cases">0</span><br>
                 Rate: <span id="info-time">0.00 sec/case</span><br>
-                MCC: <span id="info-mcc"> 0.00 </span><br>
-                HTM: <span id="info-htm"> 0.00 </span><br>
-                QTM: <span id="info-qtm"> 0.00 </span><br>
+                <span id="display-mcc"> MCC: <span id="info-mcc"> 0.00 </span><br></span>
+                STM: <span id="info-stm"> 0.00 </span><br>
+                SQTM: <span id="info-sqtm"> 0.00 </span><br>
 
             </div><br>
 
@@ -285,6 +291,11 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             }
         }
 
+        sortBy.addEventListener("change", () => {
+            document.getElementById("display-mcc").hidden = (document.getElementById("sortBy").value == "MCC" ? false : true);
+            document.getElementById("info-mcc").innerHTML = "NaN";
+        });
+
         let work;
         let addBufferInterval;
         let solveID = 0;
@@ -298,7 +309,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
 
         let startTime = Date.now();
         let isIdle = true;
-        let totalMCC, totalHTM, totalQTM;
+        let totalMCC, totalSTM, totalSQTM;
 
         function createSolutionTable() {
             document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left">#'+solveID+'<br><span id="progUpdate'+solveID+'"></span></th>';
@@ -394,11 +405,11 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             return fieldStr.slice(0,firstNew);
         }
 
-        function getHTM(move) {
+        function getSTM(move) {
             return 1;
         }
 
-        function getQTM(move) {
+        function getSQTM(move) {
             let numericMove = move.replace(/[^0-9\.]/g, ""); // removes all nonnumeric characters from move
             if (numericMove == "") {return 1} else {return parseInt(numericMove, 10)}
         }
@@ -429,15 +440,15 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             document.getElementById("info-time").innerHTML = ((Date.now()-startTime)/numCases/1000).toFixed(2)+" sec/case";
             totalMCC += parseFloat(getFirstLine(document.getElementById("speed"+solveID).innerText), 10)
             document.getElementById("info-mcc").innerHTML = (totalMCC/numCases).toFixed(2);
-            totalHTM += getMoveCount(topSolution, getHTM);
-            document.getElementById("info-htm").innerHTML = (totalHTM/numCases).toFixed(2);
-            totalQTM += getMoveCount(topSolution, getQTM);
-            document.getElementById("info-qtm").innerHTML = (totalQTM/numCases).toFixed(2);
+            totalSTM += getMoveCount(topSolution, getSTM);
+            document.getElementById("info-stm").innerHTML = (totalSTM/numCases).toFixed(2);
+            totalSQTM += getMoveCount(topSolution, getSQTM);
+            document.getElementById("info-sqtm").innerHTML = (totalSQTM/numCases).toFixed(2);
         }
 
         function addBufferToTable() { // add buffer to table and update statistics
             if (solutionsBuffer.length === 0) {return}
-            if (document.getElementById("sortByMCC").checked) {
+            if (document.getElementById("sortBy").value != "HTM") {
                 mergeBuffer();
             } else {
                 appendBuffer();
@@ -462,18 +473,19 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             work = new Worker("worker.js");
             isIdle = false;
             startTime = Date.now();
-            totalMCC = totalHTM = totalQTM = 0;
+            totalMCC = totalSTM = totalSQTM = 0;
 
             document.getElementById("info-this-case").innerHTML = 0;
             document.getElementById("info-num-cases").innerHTML = 0;
-            document.getElementById("info-time").innerHTML = "0.0 sec/case";
+            document.getElementById("info-time").innerHTML = "0.00 sec/case";
             document.getElementById("info-mcc").innerHTML = "0.00";
-            document.getElementById("info-htm").innerHTML = "0.00";
-            document.getElementById("info-qtm").innerHTML = "0.00";
+            document.getElementById("info-stm").innerHTML = "0.00";
+            document.getElementById("info-sqtm").innerHTML = "0.00";
 
             document.getElementById("calc-button").innerHTML = "<strong>&nbsp;End Search&nbsp;</strong>";
             document.getElementById("table-area").hidden = false;
             document.getElementById("clear-button").disabled = true;
+            let sortCriteria = document.getElementById("sortBy").value
 
             initNextState();
             addBufferInterval = setInterval(addBufferToTable, 250);
@@ -491,7 +503,14 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                     let solution = event.data.value;
                     let parenIndex = solution.indexOf(")");
                     let trimmedSolution = (parenIndex > -1) ? (solution.slice(parenIndex+1)) : solution;
-                    let speed = algSpeed(trimmedSolution, false, true, parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML));
+                    let speed = 0;
+                    if (sortCriteria == "MCC") {
+                        speed = algSpeed(trimmedSolution, false, true, parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML));
+                    } else if (sortCriteria == "STM") {
+                        speed = getMoveCount(trimmedSolution, getSTM);
+                    } else if (sortCriteria == "SQTM") {
+                        speed = getMoveCount(trimmedSolution, getSQTM);
+                    }
                     speedBuffer.push(speed);
                     solutionsBuffer.push(solution);
                     numSolutions++;
