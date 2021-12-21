@@ -98,6 +98,10 @@
                 width: 4.5rem;
             }
 
+            #info-fails {
+                color: red;
+            }
+
         </style>
     </head>
     
@@ -162,7 +166,15 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             </strong>
             <div id="options">
                 <label for="sortBy"> Sort algs by: </label>
-                <select  id="sortBy">
+                <select id="sortBy">
+                    <option value="MCC">MCC</option>
+                    <option value="STM">STM</option>
+                    <option value="SQTM">SQTM</option>
+                </select>
+                <br>
+                <label for="secondary-metric"> Secondary metric: </label>
+                <select id="secondary-metric">
+                    <option value="None">None</option>
                     <option value="MCC">MCC</option>
                     <option value="STM">STM</option>
                     <option value="SQTM">SQTM</option>
@@ -251,7 +263,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
 
             <div id="statistics">
                 <strong>Statistics</strong><br>
-                Case: <span id="info-this-case">0</span>/<span id="info-num-cases">0</span><br>
+                Case: <span id="info-this-case">0</span>/<span id="info-num-cases">0</span><span id="info-fails"></span><br>
                 Rate: <span id="info-time">0.00 sec/case</span><br>
                 MCC: <span id="info-mcc"> 0.00 </span><br>
                 STM: <span id="info-stm"> 0.00 </span><br>
@@ -271,7 +283,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                 </table>
             </div>
         </div>
-        <br><br><br><br><br><br><br><br><br>
+        <br><br><br><br><br><br><br><br><br><br><br>
     <script src="../algSpeed.js"></script>
     <script>
 
@@ -287,6 +299,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
         let debugVars = [];
 
         let startTime = Date.now();
+        let numFailed = 0;
         let isIdle = true;
         let totalMCC, totalSTM, totalSQTM;
         let sortCriteria;
@@ -437,9 +450,18 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
         }
 
         function getMCC(alg) {
-            let parenIndex = alg.indexOf(")");
-            let trimmedAlg = (parenIndex > -1) ? (alg.slice(parenIndex+1)) : alg;
-            return parseFloat(algSpeed(trimmedAlg, false, true, parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML)), 10);
+            let accum = "";
+            let insideParen = false;
+            for (let char of alg) {
+                if (char == ")") {
+                    insideParen = false;
+                } else if (char == "(") {
+                    insideParen = true;
+                } else if (insideParen == false) {
+                    accum += char;
+                }
+            }
+            return parseFloat(algSpeed(accum, false, true, parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML)), 10);
         }
 
         function getSTM(move) {
@@ -452,7 +474,6 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
         }
 
         function getMoveCount(alg, metric) {
-            if (alg == "") {return NaN} // because if no algs were genned then the stats wouldn't be relevant
             let splitAlg = alg.split(" ");
             let count = 0;
             let insideParen = false;
@@ -471,22 +492,27 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
         }
 
         function updateStats() {
-            let numCases = parseInt(document.getElementById("info-this-case").innerHTML, 10)+1;
             let topSolution = getFirstLine(document.getElementById("solutions"+solveID).innerText);
+            if (topSolution == "") {numFailed++}
+            let numCases = parseInt(document.getElementById("info-this-case").innerHTML, 10) + 1;
+            let numSucceeded = numCases - numFailed;
+
             document.getElementById("info-this-case").innerHTML = numCases;
+            document.getElementById("info-fails").innerHTML = (numFailed == 0) ? "" : " ("+numFailed+" failed)";
             document.getElementById("info-time").innerHTML = ((Date.now()-startTime)/numCases/1000).toFixed(2)+" sec/case";
             totalMCC += getMCC(topSolution);
-            document.getElementById("info-mcc").innerHTML = (totalMCC/numCases).toFixed(2);
+            document.getElementById("info-mcc").innerHTML = (totalMCC/numSucceeded).toFixed(2);
             totalSTM += getMoveCount(topSolution, getSTM);
-            document.getElementById("info-stm").innerHTML = (totalSTM/numCases).toFixed(2);
+            document.getElementById("info-stm").innerHTML = (totalSTM/numSucceeded).toFixed(2);
             totalSQTM += getMoveCount(topSolution, getSQTM);
-            document.getElementById("info-sqtm").innerHTML = (totalSQTM/numCases).toFixed(2);
+            document.getElementById("info-sqtm").innerHTML = (totalSQTM/numSucceeded).toFixed(2);
         }
 
         function calc() {
             work = new Worker("worker.js");
             isIdle = false;
             startTime = Date.now();
+            numFailed = 0;
             totalMCC = totalSTM = totalSQTM = 0;
 
             document.getElementById("info-this-case").innerHTML = 0;
@@ -499,7 +525,8 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             document.getElementById("calc-button").innerHTML = "<strong>&nbsp;End Search&nbsp;</strong>";
             document.getElementById("table-area").hidden = false;
             document.getElementById("clear-button").disabled = true;
-            sortCriteria  = document.getElementById("sortBy").value
+            sortCriteria = document.getElementById("sortBy").value;
+            secondaryMetric = document.getElementById("secondary-metric").value;
 
             initNextState();
             addBufferInterval = setInterval(addBufferToTable, 250);
@@ -515,15 +542,20 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                     document.getElementById("progUpdate"+solveID).innerHTML = "<small>Searching depth "+depth+"</small>";
                 } else if (event.data.type === "solution") {
                     let solution = event.data.value;
-                    let parenIndex = solution.indexOf(")");
-                    let trimmedSolution = (parenIndex > -1) ? (solution.slice(parenIndex+1)) : solution;
                     let speed = 0;
                     if (sortCriteria == "MCC") {
-                        speed = getMCC(trimmedSolution);
+                        speed = getMCC(solution);
                     } else if (sortCriteria == "STM") {
-                        speed = getMoveCount(trimmedSolution, getSTM);
+                        speed = getMoveCount(solution, getSTM);
                     } else if (sortCriteria == "SQTM") {
-                        speed = getMoveCount(trimmedSolution, getSQTM);
+                        speed = getMoveCount(solution, getSQTM);
+                    }
+                    if (secondaryMetric == "MCC") {
+                        solution += " (" + getMCC(solution) + " MCC)";
+                    } else if (secondaryMetric == "STM") {
+                        solution += " (" + getMoveCount(solution, getSTM) + " STM)";
+                    } else if (secondaryMetric == "SQTM") {
+                        solution += " (" + getMoveCount(solution, getSQTM) + " SQTM)";
                     }
                     speedBuffer.push(speed);
                     solutionsBuffer.push(solution);
