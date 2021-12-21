@@ -253,7 +253,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                 <strong>Statistics</strong><br>
                 Case: <span id="info-this-case">0</span>/<span id="info-num-cases">0</span><br>
                 Rate: <span id="info-time">0.00 sec/case</span><br>
-                <span id="display-mcc"> MCC: <span id="info-mcc"> 0.00 </span><br></span>
+                MCC: <span id="info-mcc"> 0.00 </span><br>
                 STM: <span id="info-stm"> 0.00 </span><br>
                 SQTM: <span id="info-sqtm"> 0.00 </span><br>
 
@@ -290,11 +290,6 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                 advanced.hidden = true;
             }
         }
-
-        sortBy.addEventListener("change", () => {
-            document.getElementById("display-mcc").hidden = (document.getElementById("sortBy").value == "MCC" ? false : true);
-            document.getElementById("info-mcc").innerHTML = "NaN";
-        });
 
         let work;
         let addBufferInterval;
@@ -339,16 +334,6 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                     subgroups: subgroupData};
         }
 
-        function appendBuffer() {
-            let solutionsLeft = parseInt(document.getElementById("maxSolutions").value, 10) - document.getElementById("speed"+solveID).innerHTML.split("<br>").length;
-            if (solutionsLeft > 0) {
-                document.getElementById("speed"+solveID).innerHTML += speedBuffer.slice(0, solutionsLeft).join("<br>")+"<br>";
-                document.getElementById("solutions"+solveID).innerHTML += solutionsBuffer.slice(0, solutionsLeft).join("<br>")+"<br>";
-            }
-            speedBuffer = [];
-            solutionsBuffer = [];
-        }
-
         function customParseFloat(x) {
             let pFloat = parseFloat(x);
             if (pFloat !== pFloat) {return Infinity} else {return pFloat}
@@ -359,7 +344,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             for (let i=0; i<solutionsBuffer.length; i++) {
                 combinedBuffer.push([speedBuffer[i], solutionsBuffer[i]]);
             }
-            combinedBuffer.sort((x,y)=>(customParseFloat(x[0])>customParseFloat(y[0])?1:-1));
+            combinedBuffer.sort((x,y)=>(customParseFloat(x[0])>=customParseFloat(y[0])?1:-1));
             return combinedBuffer;
         }
 
@@ -369,8 +354,8 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             let updatedSolutionsData = "";
             let tableNeedle = 0;
             let bufferNeedle = 0;
-            let tableSpeedList = document.getElementById("speed"+solveID).innerHTML.split("<br>");
-            let tableSolutionList = document.getElementById("solutions"+solveID).innerHTML.split("<br>");
+            let tableSpeedList = document.getElementById("speed"+solveID).innerHTML.split("<br>").filter(x => (x != ""));
+            let tableSolutionList = document.getElementById("solutions"+solveID).innerHTML.split("<br>").filter(x => (x != ""));
 
             function addFromBuffer() {
                 updatedSpeedData += sortedBuffer[bufferNeedle][0] + "<br>";
@@ -403,6 +388,12 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
         function getFirstLine(fieldStr) {
             let firstNew = fieldStr.indexOf("\n");
             return fieldStr.slice(0,firstNew);
+        }
+
+        function getMCC(alg) {
+            let parenIndex = alg.indexOf(")");
+            let trimmedAlg = (parenIndex > -1) ? (alg.slice(parenIndex+1)) : alg;
+            return parseFloat(algSpeed(trimmedAlg, false, true, parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML)), 10);
         }
 
         function getSTM(move) {
@@ -438,7 +429,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             let topSolution = getFirstLine(document.getElementById("solutions"+solveID).innerText);
             document.getElementById("info-this-case").innerHTML = numCases;
             document.getElementById("info-time").innerHTML = ((Date.now()-startTime)/numCases/1000).toFixed(2)+" sec/case";
-            totalMCC += parseFloat(getFirstLine(document.getElementById("speed"+solveID).innerText), 10)
+            totalMCC += getMCC(topSolution);
             document.getElementById("info-mcc").innerHTML = (totalMCC/numCases).toFixed(2);
             totalSTM += getMoveCount(topSolution, getSTM);
             document.getElementById("info-stm").innerHTML = (totalSTM/numCases).toFixed(2);
@@ -448,11 +439,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
 
         function addBufferToTable() { // add buffer to table and update statistics
             if (solutionsBuffer.length === 0) {return}
-            if (document.getElementById("sortBy").value != "HTM") {
-                mergeBuffer();
-            } else {
-                appendBuffer();
-            }
+            mergeBuffer();
         }
 
         function searchButtonHandler() {
@@ -505,7 +492,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                     let trimmedSolution = (parenIndex > -1) ? (solution.slice(parenIndex+1)) : solution;
                     let speed = 0;
                     if (sortCriteria == "MCC") {
-                        speed = algSpeed(trimmedSolution, false, true, parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML));
+                        speed = getMCC(trimmedSolution);
                     } else if (sortCriteria == "STM") {
                         speed = getMoveCount(trimmedSolution, getSTM);
                     } else if (sortCriteria == "SQTM") {
