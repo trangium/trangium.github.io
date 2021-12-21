@@ -334,6 +334,40 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                     subgroups: subgroupData};
         }
 
+        function searchButtonHandler() {
+            if (document.getElementById("calc-button").innerText == "Start Search") {
+                calc();
+            } else {
+                stopSearch();
+            }
+        }
+
+        function subgroupButtonHandler(e) {
+            if (e.className == "button add-subgroup") {
+                let tbody = document.getElementById("subgroup-table").children[0];
+                let clone = document.getElementById("subgroup-row-1").cloneNode(true);
+                clone.innerHTML = `
+                    <td><textarea class="prune" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                    <td><textarea class="search" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                    <td><textarea class="adjust" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                    <td><textarea class="subgroup" rows="1" cols="42" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                    <td>
+                        <button style="font-family:courier new;font-size:17px" class="button remove-subgroup" onclick="subgroupButtonHandler(this)"><strong>-</strong></button>
+                    </td>`;
+                clone.id = "subgroup-row-"+subgroupRowID;
+                tbody.appendChild(clone);
+                document.querySelector(".remove-subgroup").disabled = false;
+                subgroupRowID++;
+                subgroupRows++;
+            } else {
+                e.parentNode.parentNode.remove();
+                subgroupRows--;
+                if (subgroupRows == 1) {
+                    document.querySelector(".remove-subgroup").disabled = true;
+                }
+            }
+        }
+
         function customParseFloat(x) {
             let pFloat = parseFloat(x);
             if (pFloat !== pFloat) {return Infinity} else {return pFloat}
@@ -383,6 +417,17 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             document.getElementById("solutions"+solveID).innerHTML = updatedSolutionsData;
             speedBuffer = [];
             solutionsBuffer = [];
+        }
+
+        function addBufferToTable() { // add buffer to table and update statistics
+            if (solutionsBuffer.length === 0) {return}
+            mergeBuffer();
+        }
+
+        function initNextState() {
+            solveID++;
+            numSolutions = 0;
+            createSolutionTable();
         }
 
         function getFirstLine(fieldStr) {
@@ -435,25 +480,6 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             document.getElementById("info-stm").innerHTML = (totalSTM/numCases).toFixed(2);
             totalSQTM += getMoveCount(topSolution, getSQTM);
             document.getElementById("info-sqtm").innerHTML = (totalSQTM/numCases).toFixed(2);
-        }
-
-        function addBufferToTable() { // add buffer to table and update statistics
-            if (solutionsBuffer.length === 0) {return}
-            mergeBuffer();
-        }
-
-        function searchButtonHandler() {
-            if (document.getElementById("calc-button").innerText == "Start Search") {
-                calc();
-            } else {
-                stopSearch();
-            }
-        }
-
-        function initNextState() {
-            solveID++;
-            numSolutions = 0;
-            createSolutionTable();
         }
 
         function calc() {
@@ -531,32 +557,6 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             document.getElementById("output-table").innerHTML = '<tr id="computation-header"></tr><tr id="solutions-header"></tr><tr id="output-data"></tr>';
             document.getElementById("table-area").hidden = true;
             solveID = 0;
-        }
-
-        function subgroupButtonHandler(e) {
-            if (e.className == "button add-subgroup") {
-                let tbody = document.getElementById("subgroup-table").children[0];
-                let clone = document.getElementById("subgroup-row-1").cloneNode(true);
-                clone.innerHTML = `
-                    <td><textarea class="prune" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
-                    <td><textarea class="search" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
-                    <td><textarea class="adjust" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
-                    <td><textarea class="subgroup" rows="1" cols="42" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
-                    <td>
-                        <button style="font-family:courier new;font-size:17px" class="button remove-subgroup" onclick="subgroupButtonHandler(this)"><strong>-</strong></button>
-                    </td>`;
-                clone.id = "subgroup-row-"+subgroupRowID;
-                tbody.appendChild(clone);
-                document.querySelector(".remove-subgroup").disabled = false;
-                subgroupRowID++;
-                subgroupRows++;
-            } else {
-                e.parentNode.parentNode.remove();
-                subgroupRows--;
-                if (subgroupRows == 1) {
-                    document.querySelector(".remove-subgroup").disabled = true;
-                }
-            }
         }
         
 </script>
