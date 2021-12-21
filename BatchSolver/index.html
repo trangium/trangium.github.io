@@ -274,7 +274,23 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
         <br><br><br><br><br><br><br><br><br>
     <script src="../algSpeed.js"></script>
     <script>
-                
+
+        let work;
+        let addBufferInterval;
+        let solveID = 0;
+        let depth = 0;
+        let numSolutions;
+        let subgroupRowID = 3;
+        let subgroupRows = 1;
+        let speedBuffer = [];
+        let solutionsBuffer = [];
+        let debugVars = [];
+
+        let startTime = Date.now();
+        let isIdle = true;
+        let totalMCC, totalSTM, totalSQTM;
+        let sortCriteria;
+                        
         function statVisibility() {
             if (statVis.checked) {
                 document.getElementById("statistics").hidden = false;
@@ -291,24 +307,9 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             }
         }
 
-        let work;
-        let addBufferInterval;
-        let solveID = 0;
-        let depth = 0;
-        let numSolutions;
-        let subgroupRowID = 3;
-        let subgroupRows = 1;
-        let speedBuffer = [];
-        let solutionsBuffer = [];
-        let debugVars = [];
-
-        let startTime = Date.now();
-        let isIdle = true;
-        let totalMCC, totalSTM, totalSQTM;
-
         function createSolutionTable() {
             document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left">#'+solveID+'<br><span id="progUpdate'+solveID+'"></span></th>';
-            document.getElementById("solutions-header").innerHTML += '<th class="output-left">&nbsp;Speed&nbsp;<th>&nbsp;Solutions&nbsp;</th></th>';
+            document.getElementById("solutions-header").innerHTML += '<th class="output-left">&nbsp;'+sortCriteria+'&nbsp;<th>&nbsp;Solutions&nbsp;</th></th>';
             document.getElementById("output-data").innerHTML += '<td class="output-left" id="speed'+solveID+'"></td><td id="solutions'+solveID+'"></td>';
         }
 
@@ -498,7 +499,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             document.getElementById("calc-button").innerHTML = "<strong>&nbsp;End Search&nbsp;</strong>";
             document.getElementById("table-area").hidden = false;
             document.getElementById("clear-button").disabled = true;
-            let sortCriteria = document.getElementById("sortBy").value
+            sortCriteria  = document.getElementById("sortBy").value
 
             initNextState();
             addBufferInterval = setInterval(addBufferToTable, 250);
