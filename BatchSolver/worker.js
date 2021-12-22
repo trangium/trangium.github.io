@@ -28,7 +28,14 @@ self.onmessage = function (msg) {
 
 function calcState(state, subPuzzles) {
     for (let subData of subPuzzles) {
-        for (let solution of subData.puzzle.solve(state, isNaN(parseInt(subData.search))?Infinity:parseInt(subData.search))) {
+        let searchDepth = parseInt(subData.search, 10);
+        if (searchDepth !== searchDepth) {// that means it's NaN
+            if (subData.search[0] === "=") {searchDepth = subData.puzzle.pruneDepth}
+            else if (subData.search[0] === "+") {searchDepth = subData.puzzle.pruneDepth + (subData.search.split("+").length-1) } // the prune depth PLUS the number of +
+            else if (subData.search[0] === "-") {searchDepth = subData.puzzle.pruneDepth - (subData.search.split("-").length-1) } // the prune depth MINUS the number of -
+            else {searchDepth = Infinity}
+        }
+        for (let solution of subData.puzzle.solve(state, searchDepth)) {
             postMessage({value: subData.puzzle.moveListToStr(solution, true), type: "solution"});
         }
         postMessage({value: 0, type: "set-depth"})
@@ -161,7 +168,14 @@ function getSubPuzzle(pieceList, fullPuzzle, ignore, subgroup, prune, adjust) {
 
     subPuzzle.setAdjustMoves(adjust); // deal with adjust
     postMessage({value: 0, type: "set-depth"})
-    subPuzzle.createPrun(parseInt(prune));
+
+    if (prune.toLowerCase().includes("m")) {
+        subPuzzle.createPrunSized(parseFloat(prune) * 1e6 );
+    } else if (prune.toLowerCase().includes("k")) {
+        subPuzzle.createPrunSized(parseFloat(prune) * 1e3 );
+    } else {
+        subPuzzle.createPrun(parseInt(prune));
+    }
 
     return subPuzzle;
 }
@@ -430,7 +444,7 @@ class Puzzle {
         return result
     }
     
-    // create a prune table
+    // create a prune table up to a given depth
     createPrun(maxDepth) {
         let tempTable = new Map();
         for (let depth=0; depth<=maxDepth; depth++) {
@@ -441,6 +455,25 @@ class Puzzle {
         }
         this.pruneTable = tempTable;
         this.pruneDepth = maxDepth;
+    }
+
+    // same as createPrun, but automatically determines a depth given a max size
+    createPrunSized(maxSize) {
+        let tempTable = new Map();
+        let prevSize = -1;
+        let depth = 0;
+        while (true) {
+            for (let sequence of this.getAllSequences(depth)) {
+                let cubeStr = this.compressArr(this.execute(this.solved, sequence));
+                if (!(tempTable.has(cubeStr))) {tempTable.set(cubeStr, depth)}
+            }
+            console.log(tempTable.size+" at depth "+depth)
+            if (tempTable.size**2/prevSize > maxSize) {break}
+            depth++;
+            prevSize = tempTable.size;
+        }
+        this.pruneTable = tempTable;
+        this.pruneDepth = depth;
     }
 
     // read all solutions from a given state under the prune table's depth
