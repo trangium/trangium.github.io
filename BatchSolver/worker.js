@@ -161,7 +161,7 @@ function initCubeOri(pzl, pieceList, ignore) {
 }
 
 function getSubPuzzle(pieceList, fullPuzzle, ignore, subgroup, prune, adjust) {
-    let generators = (subgroup.replace(" ","").length > 0) ? removeBrackets(subgroup).replace(",","").split(" "): fullPuzzle.clockwiseMoveStr;
+    let generators = (subgroup.replace(" ","").length > 0) ? removeBrackets(subgroup).replace(","," ").split(" "): fullPuzzle.clockwiseMoveStr;
     let subPuzzle = fullPuzzle.setSubgroup(generators);
 
     initCubeOri(subPuzzle, pieceList, ignore);
