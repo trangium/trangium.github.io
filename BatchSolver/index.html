@@ -127,13 +127,12 @@ M: (UF+1 DF+1 DB+1 UB+1) (UD FB+1 UD+1)
 S: (UR+1 DR+1 DL+1 UL+1) (UD RL+1 UD+1)
 E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                     Unique Orientations & Equivalences<br>
-                    <textarea id="ignore" rows="4" cols="84" spellcheck="false"></textarea><br><br>
+                    <textarea id="ignore" rows="3" cols="72" spellcheck="false"></textarea><br><br>
 
                     <table id="subgroup-table">
                         <tr id="subgroup-row-1">
                             <th style="vertical-align: bottom">Prune</th>
                             <th style="vertical-align: bottom">Search</th>
-                            <th style="vertical-align: bottom">Adjust</th>
                             <th style="vertical-align: bottom">Subgroup</th>
                             <th>
                                 <button style="font-family:courier new; font-size:17px" class="button add-subgroup" onclick="subgroupButtonHandler(this)"><strong>+</strong></button>
@@ -142,7 +141,6 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                         <tr id="subgroup-row-2">
                             <td><textarea class="prune" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
                             <td><textarea class="search" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
-                            <td><textarea class="adjust" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
                             <td><textarea class="subgroup" rows="1" cols="42" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
                             <td>
                                 <button style="font-family:courier new; font-size:17px" class="button remove-subgroup" disabled onclick="subgroupButtonHandler(this)"><strong>-</strong></button>
@@ -150,7 +148,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                         </tr>
                     </table><br>
                     Scramble<br>
-                    <textarea id="solve" rows="3" cols="84" spellcheck="false"></textarea><br>
+                    <textarea id="solve" rows="6" cols="72" spellcheck="false"></textarea><br>
                     <table id="batch-adjustments">
                         <tr id="pre-adjust-table">
                             <th style="vertical-align: bottom">Pre-Adjust</th>
@@ -363,7 +361,6 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                 clone.innerHTML = `
                     <td><textarea class="prune" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
                     <td><textarea class="search" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
-                    <td><textarea class="adjust" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
                     <td><textarea class="subgroup" rows="1" cols="42" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
                     <td>
                         <button style="font-family:courier new;font-size:17px" class="button remove-subgroup" onclick="subgroupButtonHandler(this)"><strong>-</strong></button>

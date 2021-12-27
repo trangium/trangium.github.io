@@ -2,7 +2,7 @@ self.onmessage = function (msg) {
     let input = msg.data;
     let pzlDef = input.solve;
     if (pzlDef.includes(":")) {postMessage({value: "Colon notation for indicating adjust moves is deprecated.", type: "stop"})}
-    let [fullPuzzle, subPuzzles] = setPuzzles(input.puzzle, input.ignore, input.subgroups); 
+    let [fullPuzzle, subPuzzles] = setPuzzles(input.puzzle, input.ignore, input.subgroups, input.preAdjust); // subgroup.adjust is NO LONGER BEING USED!
 
     let solutionIndex = 1;
     let batchStates = fullPuzzle.getBatchStates(pzlDef, input.preAdjust, input.postAdjust);
@@ -46,7 +46,11 @@ function removeBrackets(s) { // Removes (), {}, <>, and []
     return s.replace(/\(|\)|\[|\]|{|}|<|>/g, "");
 }
 
-function setPuzzles(puzzleDef, ignore, subgroups) {
+function splitSubgroupStr(s) {
+    return removeBrackets(s).replaceAll(","," ").split(" ").filter(x => x !== "");
+}
+
+function setPuzzles(puzzleDef, ignore, subgroups, adjust) {
     let moves = puzzleDef;
     let moveLines = moves.split('\n');
 
@@ -137,7 +141,7 @@ function setPuzzles(puzzleDef, ignore, subgroups) {
     let fullPuzzle = new Puzzle(cubeOri.slice(), moveList.slice(), clockwiseMoveStr.slice(), solvedState.slice());
     let subPuzzles = [];
     for (let sub of subgroups) {
-        subPuzzles.push({puzzle: getSubPuzzle(pieceList, fullPuzzle, ignore, sub.subgroup, sub.prune, sub.adjust), search: sub.search});
+        subPuzzles.push({puzzle: getSubPuzzle(pieceList, fullPuzzle, ignore, sub.subgroup, sub.prune, adjust), search: sub.search});
     }
 
     initCubeOri(fullPuzzle, pieceList, ignore);
@@ -160,13 +164,16 @@ function initCubeOri(pzl, pieceList, ignore) {
     }
 }
 
-function getSubPuzzle(pieceList, fullPuzzle, ignore, subgroup, prune, adjust) {
-    let generators = (subgroup.replace(" ","").length > 0) ? removeBrackets(subgroup).replace(","," ").split(" "): fullPuzzle.clockwiseMoveStr;
+function getSubPuzzle(pieceList, fullPuzzle, ignore, subgroup, prune, adjustStr) {
+    let generators = (subgroup.replace(" ","").length > 0) ? splitSubgroupStr(subgroup) : fullPuzzle.clockwiseMoveStr;
+    let adjust = (adjustStr == "") ? [] : splitSubgroupStr(adjustStr);
+    
+    generators.sort((x, y) => adjust.includes(y) - adjust.includes(x)) // moves all adjust moves to the front
     let subPuzzle = fullPuzzle.setSubgroup(generators);
 
     initCubeOri(subPuzzle, pieceList, ignore);
 
-    subPuzzle.setAdjustMoves(adjust); // deal with adjust
+    subPuzzle.setAdjustMoves(adjust.length); // deal with adjust - setAdjustMoves passes in a NUMBER
     postMessage({value: 0, type: "set-depth"})
 
     if (prune.toLowerCase().includes("m")) {
@@ -635,7 +642,7 @@ class Puzzle {
     }
 
     getAdjustFromStr(adjStr) { // helper method for getReducedSet
-        return (adjStr == "") ? [] : cartesian(adjStr.split(" ").map(str => this.getMoveMultiples(this.moveStr.indexOf(str))));
+        return (adjStr == "") ? [] : cartesian(splitSubgroupStr(adjStr).map(str => this.getMoveMultiples(this.moveStr.indexOf(str))));
     }
 
     getReducedSet(states, preAdjust, postAdjust) {
