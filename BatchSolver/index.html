@@ -269,7 +269,8 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
 
             </div><br>
 
-            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="searchButtonHandler()" id="calc-button"><strong>Start Search</strong></button> 
+            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="searchButtonHandler()" id="calc-button"><strong>Start Search</strong></button>
+            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="selectElement(document.getElementById('output-table'))" id="select-button"><strong>Select Output</strong></button>
             <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="clearOutput()" id="clear-button"><strong>Clear Output</strong></button><br>
 
             <div id="table-area" hidden><br>
@@ -581,6 +582,19 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             document.getElementById("clear-button").disabled = false;
             document.getElementById("progUpdate"+solveID).innerHTML = "<small>Search finished</small>";
             depth = 0;
+        }
+
+        function selectElement(el) {
+            range = document.createRange();
+            sel = window.getSelection();
+            sel.removeAllRanges();
+            try {
+                range.selectNodeContents(el);
+                sel.addRange(range);
+            } catch (e) {
+                range.selectNode(el);
+                sel.addRange(range);
+            }
         }
 
         function clearOutput() {
