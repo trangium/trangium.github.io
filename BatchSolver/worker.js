@@ -642,7 +642,7 @@ class Puzzle {
     }
 
     getAdjustFromStr(adjStr) { // helper method for getReducedSet
-        return (adjStr == "") ? [] : cartesian(splitSubgroupStr(adjStr).map(str => this.getMoveMultiples(this.moveStr.indexOf(str))));
+        return (adjStr == "") ? [[]] : cartesian(splitSubgroupStr(adjStr).map(str => this.getMoveMultiples(this.moveStr.indexOf(str))));
     }
 
     getReducedSet(states, preAdjust, postAdjust) {
@@ -664,6 +664,18 @@ class Puzzle {
         return reducedStates;
     }
 
+    moveStrToState(str) { // There are TONS of places where I'm using the long way that can be shortened.
+        return this.execute(this.solved, this.moveStrToList(str))
+    }
+
+    compareStates(state1, state2) {
+        for (let i=0; i<state1.length; i++) {
+            if (state1[i] > state2[i]) {return 1}
+            if (state1[i] < state2[i]) {return -1}
+        }
+        return 0;
+    }
+
     getBatchStates(input, preAdjust, postAdjust) {
         let parsedInput = parseBatch(input);
         let states = [""];
@@ -674,11 +686,12 @@ class Puzzle {
                 states = states.map(state => state + " " + data);
             } else if (type === "]") {
                 let algs = data.split(",");
-                states = this.seriesMult([states, algs])         
+                states = this.seriesMult([states, algs]);
             } else if (type === ">") {
                 states = this.bfs(states, data.split(","));
             }
         }
+        states.sort((s1, s2) => this.compareStates(this.moveStrToState(s1), this.moveStrToState(s2)));
         return this.getReducedSet(states, preAdjust, postAdjust);
     }
 }
