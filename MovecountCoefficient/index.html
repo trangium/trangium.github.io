@@ -47,6 +47,9 @@
             <label for="optVis">
                 <input type="checkbox" id="optVis" onclick="optionVisibility(this)" /><span id="visLabel">Show Advanced Options</span>
             </label><br>
+            <label for="statVis">
+                <input type="checkbox" id="statVis" onclick="statVisibility(this)" /><span id="statLabel">Show Statistics</span>
+            </label><br>
             <div id="advanced" hidden>
                 <br>
                 <table class="adv-layout">
@@ -122,14 +125,20 @@
                     </tr>                     
                 </table>
             </div><br>
+        <div id="stats" hidden>
+            MCC: <span id="statMCC">N/A</span><br>
+            STM: <span id="statSTM">N/A</span>
+        </div><br>
         </strong>
         <table>
             <tr>
+                <th>STM</th>
                 <th>Movecount Coefficient</th>
                 <th>Input: One alg per line</th>
             </tr>
             <tr>
-                <th><textarea id="output" rows="28" cols="27" readonly style="text-align: right"></textarea> </th>
+                <th><textarea id="STMoutput" rows="28" cols="7" readonly style="text-align: right"></textarea></th>
+                <th><textarea id="output" rows="28" cols="28" readonly style="text-align: right"></textarea></th>
                 <th><textarea id="input" rows="28" cols="66"></textarea></th>
             </tr>
         </table>
@@ -148,16 +157,65 @@
             return segs.join(" ");
         }
 
+        function getSTM(str) {
+            let splitSeq = str.split(" ");
+            let trueSplitSeq = [];
+            for (let i=0; i<splitSeq.length; i++) {
+                if (["r","r2","r'","u","u'","u2","f","f2","f'","d","d2","d'","l","l2","l'","b","b2","b'","m","m2","m'","s","s2","s'","e","e2","e'","x","x'","x2","y","y'","y2","z","z'","z2"].includes(splitSeq[i].toLowerCase())) {
+                    trueSplitSeq.push(splitSeq[i])
+                }
+            }
+            splitSeq = trueSplitSeq.slice();
+            if (document.getElementById("ignoreAUF").checked) {
+                if (splitSeq.length>=1) {
+                    if (splitSeq[0][0]=="U") {
+                        splitSeq.shift()
+                    } else if (splitSeq.length >= 2) {
+                        if (splitSeq[0][0].toLowerCase()=="d" && splitSeq[1][0]=="U") {
+                            splitSeq[1] = splitSeq[0]
+                            splitSeq.shift()
+                        }
+                    }
+                }
+                if (splitSeq.length>=1) {
+                    if (splitSeq[splitSeq.length-1][0]=="U") {
+                        splitSeq.pop()
+                    } else if (splitSeq.length >= 2) {
+                        if (splitSeq[splitSeq.length-1][0].toLowerCase()=="d" && splitSeq[splitSeq.length-2][0]=="U") {
+                            splitSeq[splitSeq.length-2] = splitSeq[splitSeq.length-1]
+                            splitSeq.pop()
+                        }
+                    }
+                }
+            }
+            return splitSeq.length;
+        }
+
         function calc() {
+            let sumMCC = 0;
+            let sumSTM = 0;
+            let count = 0;
+
             let output = document.getElementById("output");
             output.value = "";
+            STMoutput.value = "";
+            document.getElementById("input").value = document.getElementById("input").value.replaceAll("\t","\n")
             let input = document.getElementById("input");
             let splitInput = input.value.split("\n");
             for (let i=0; i<splitInput.length; i++) {
-                output.value += algSpeed(replaceDouble(splitInput[i]).replaceAll("2'","2"),document.getElementById("ignoreError").checked,document.getElementById("ignoreAUF").checked,parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML)) + "\n"
+                let speed = algSpeed(replaceDouble(splitInput[i]).replaceAll("2'","2"),document.getElementById("ignoreError").checked,document.getElementById("ignoreAUF").checked,parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML))
+                output.value += speed + "\n"
+                STMoutput.value += getSTM(splitInput[i])+"\n";
+                sumMCC += speed;
+                sumSTM += getSTM(splitInput[i]);
+                count++;
             }
             input.rows = Math.max(28,splitInput.length+1)
             output.rows = Math.max(28,splitInput.length+1)
+            STMoutput.rows = Math.max(28,splitInput.length+1)
+
+            statMCC.innerHTML = (sumMCC/count).toFixed(2);
+            statSTM.innerHTML = (sumSTM/count).toFixed(2);
         }
 
         function customParseFloat(x) {
@@ -169,18 +227,22 @@
             calc()
             let output = document.getElementById("output").value;
             let input = document.getElementById("input").value;
+            let STMoutput = document.getElementById("STMoutput").value;
             let outputList = output.split("\n");
             let inputList = input.split("\n");
+            let STMoutputList = STMoutput.split("\n");
             let sortList = [];
             for (let i=0; i<inputList.length; i++) {
-                sortList.push([inputList[i],outputList[i]])
+                sortList.push([STMoutputList[i],outputList[i],inputList[i]])
             }
             sortList.sort((x,y)=>(customParseFloat(x[1])>customParseFloat(y[1])?1:-1))
             document.getElementById("output").value = "";
             document.getElementById("input").value = "";
+            document.getElementById("STMoutput").value = "";
             for (let i=0; i<sortList.length; i++) {
+                document.getElementById("STMoutput").value += sortList[i][0] + "\n";
                 document.getElementById("output").value += sortList[i][1] + "\n";
-                document.getElementById("input").value += sortList[i][0] + "\n";
+                document.getElementById("input").value += sortList[i][2] + "\n";
             }
         }
 
@@ -197,6 +259,14 @@
                 advanced.hidden = false;
             } else {
                 advanced.hidden = true;
+            }
+        }
+
+        function statVisibility() {
+            if (statVis.checked) {
+                stats.hidden = false;
+            } else {
+                stats.hidden = true;
             }
         }
 
