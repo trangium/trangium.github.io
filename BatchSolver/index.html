@@ -180,6 +180,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                 <br>
                 <input type="checkbox" id="statVis" onclick="statVisibility(this)" checked/><label for="statVis"> Show statistics</label><br>
                 <input type="checkbox" id="optVis" onclick="optionVisibility(this)" /><label for="optVis"> Show advanced speed options</label><br>
+                <input type="checkbox" id="showPostAdj" /><label for="showPostAdj"> Show ending adjustments</label><br>
                 Show top <input type="number" id="maxSolutions" value="100"></input> solutions for each case<br>
             </div>
 
@@ -343,7 +344,8 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                     solve: document.getElementById('solve').value,
                     preAdjust: document.getElementById('pre-adjustments').value,
                     postAdjust: document.getElementById('post-adjustments').value,
-                    subgroups: subgroupData};
+                    subgroups: subgroupData,
+                    showPost: showPostAdj.checked};
         }
 
         function searchButtonHandler() {
@@ -384,12 +386,20 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             if (pFloat !== pFloat) {return Infinity} else {return pFloat}
         }
 
+        function compareBufferElements(x, y) {
+            if (customParseFloat(x[0]) > customParseFloat(y[0])) {return 1}
+            else if (customParseFloat(x[0]) < customParseFloat(y[0])) {return -1}
+            else if (removeParens(x[1]) > removeParens(y[1])) {return 1}
+            else if (removeParens(x[1]) < removeParens(y[1])) {return -1}
+            else {return 0}
+        }
+
         function getCombinedBuffer() {
             let combinedBuffer = [];
             for (let i=0; i<solutionsBuffer.length; i++) {
                 combinedBuffer.push([speedBuffer[i], solutionsBuffer[i]]);
             }
-            combinedBuffer.sort((x,y)=>(customParseFloat(x[0])>=customParseFloat(y[0])?1:-1));
+            combinedBuffer.sort(compareBufferElements);
             return combinedBuffer;
         }
 
@@ -401,26 +411,40 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             let bufferNeedle = 0;
             let tableSpeedList = document.getElementById("speed"+solveID).innerHTML.split("<br>").filter(x => (x != ""));
             let tableSolutionList = document.getElementById("solutions"+solveID).innerHTML.split("<br>").filter(x => (x != ""));
+            let solutionsLeft = Math.min(parseInt(document.getElementById("maxSolutions").value, 10),tableSpeedList.length+sortedBuffer.length);
+            let prevSolution = "";
 
             function addFromBuffer() {
-                updatedSpeedData += sortedBuffer[bufferNeedle][0] + "<br>";
-                updatedSolutionsData += sortedBuffer[bufferNeedle][1] + "<br>";
+                let speed = sortedBuffer[bufferNeedle][0];
+                let solution = sortedBuffer[bufferNeedle][1];
+                if (prevSolution != removeParens(solution)) {
+                    updatedSpeedData += speed + "<br>";
+                    updatedSolutionsData += solution + "<br>";
+                    prevSolution = removeParens(solution);
+                }
                 bufferNeedle++;
+                solutionsLeft--;
             }
 
             function addFromTable() {
-                updatedSpeedData += tableSpeedList[tableNeedle] + "<br>";
-                updatedSolutionsData += tableSolutionList[tableNeedle] + "<br>";
-                tableNeedle++;   
+                let speed = tableSpeedList[tableNeedle];
+                let solution = tableSolutionList[tableNeedle];
+                if (prevSolution != removeParens(solution)) {
+                    updatedSpeedData += speed + "<br>";
+                    updatedSolutionsData += solution + "<br>";
+                    prevSolution = removeParens(solution);
+                }
+                tableNeedle++;
+                solutionsLeft--;
             }
 
-            for (let i=0; i<Math.min(parseInt(document.getElementById("maxSolutions").value, 10),tableSpeedList.length+sortedBuffer.length); i++) {
+            while (solutionsLeft > 0) {
                 if (tableNeedle === tableSpeedList.length) {
                     addFromBuffer();
                 } else if (bufferNeedle === sortedBuffer.length) {
                     addFromTable();
                 } else {
-                    if (customParseFloat(sortedBuffer[bufferNeedle][0]) < customParseFloat(tableSpeedList[tableNeedle])) {addFromBuffer()} else {addFromTable()}
+                    if (compareBufferElements(sortedBuffer[bufferNeedle], [tableSpeedList[tableNeedle], tableSolutionList[tableNeedle]]) == -1) {addFromBuffer()} else {addFromTable()}
                 }
             }
 
@@ -446,7 +470,7 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             return fieldStr.slice(0,firstNew);
         }
 
-        function getMCC(alg) {
+        function removeParens(alg) {
             let accum = "";
             let insideParen = false;
             for (let char of alg) {
@@ -457,8 +481,12 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                 } else if (insideParen == false) {
                     accum += char;
                 }
-            }
-            return parseFloat(algSpeed(accum, false, false, parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML)), 10);
+            } 
+            return accum.trim();
+        }
+
+        function getMCC(alg) {
+            return parseFloat(algSpeed(removeParens(alg), false, false, parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML)), 10);
         }
 
         function getSTM(move) {

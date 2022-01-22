@@ -19,14 +19,14 @@ self.onmessage = function (msg) {
         let state = fullPuzzle.execute(fullPuzzle.solved, fullPuzzle.moveStrToList(stateStr));
         if(!(arraysEqual(fullPuzzle.solved, state))) {
             postMessage({value: solutionIndex, type: "next-state"})
-            calcState(state, subPuzzles);
+            calcState(state, subPuzzles, input.showPost);
             solutionIndex++;
         }
     }
     postMessage({value: null, type: "stop"});
 };
 
-function calcState(state, subPuzzles) {
+function calcState(state, subPuzzles, showPostAdj) {
     for (let subData of subPuzzles) {
         let searchDepth = parseInt(subData.search, 10);
         if (searchDepth !== searchDepth) {// that means it's NaN
@@ -35,8 +35,8 @@ function calcState(state, subPuzzles) {
             else if (subData.search[0] === "-") {searchDepth = subData.puzzle.pruneDepth - (subData.search.split("-").length-1) } // the prune depth MINUS the number of -
             else {searchDepth = Infinity}
         }
-        for (let solution of subData.puzzle.solve(state, searchDepth)) {
-            postMessage({value: subData.puzzle.moveListToStr(solution, true), type: "solution"});
+        for (let solution of subData.puzzle.solve(state, searchDepth, showPostAdj)) {
+            postMessage({value: solution, type: "solution"});
         }
         postMessage({value: 0, type: "set-depth"})
     }
@@ -484,7 +484,7 @@ class Puzzle {
     }
 
     // read all solutions from a given state under the prune table's depth
-    *readPrun(state, partialSolve=[], exactDepth=false, maxDepth=this.pruneDepth) { // maxDepth should be the same as the prune table's maxDepth
+    *readPrun(state, partialSolve=[], showPostAdj, exactDepth=false, maxDepth=this.pruneDepth) { // maxDepth should be the same as the prune table's maxDepth
         for (let m=0; m<this.moves.length; m++) {
             if (partialSolve.length == 0 || this.validPairs[partialSolve[partialSolve.length-1]][m]) {
                 let nextState = this.execute(state, [m]);
@@ -492,29 +492,32 @@ class Puzzle {
                 if (nextDistance == 0) { 
                     if (maxDepth == 1 || !(exactDepth)) {
                         let fullSolve = partialSolve.concat(m); // TODO: Find which adjust sequence to apply, then apply it
-                        if (!this.hasEndAdjust(fullSolve)) yield * [fullSolve];
+                        if (!this.hasEndAdjust(fullSolve)) {
+                            if (showPostAdj) {yield * [this.moveListToStr(fullSolve, true) + " " + this.moveListToStr(this.getEndAdjust(nextState), true)]}
+                            else {yield * [this.moveListToStr(fullSolve, true)]}
+                        }
                     }
                 } else if (nextDistance < maxDepth) { // false if nextDistance is undefined
-                    yield * this.readPrun(nextState, partialSolve.concat(m), exactDepth, maxDepth-1);
+                    yield * this.readPrun(nextState, partialSolve.concat(m), showPostAdj, exactDepth, maxDepth-1);
                 }
             }
         }
     }
 
     // generating function that returns all solutions for a state
-    *solve(state, searchDepth, startDepth=0) {
+    *solve(state, searchDepth, showPostAdj, startDepth=0) {
         for (let depth=startDepth; depth<=searchDepth; depth++) {
             for (let sequence of this.getAllSequences(depth)) {
                 let nextState = this.execute(state, sequence);
                 let thisDistance = this.pruneTable.get(this.compressArr(nextState));
                 if (thisDistance !== undefined) {
                     if (sequence.length === 0) {
-                        yield * this.readPrun(nextState, sequence, false);
+                        yield * this.readPrun(nextState, sequence, showPostAdj, false);
                     } else {
                         let prevState = this.execute(nextState, [this.inverse[sequence[sequence.length-1]]]);
                         let prevDistance = this.pruneTable.get(this.compressArr(prevState));
                         if (prevDistance === undefined || prevDistance <= this.pruneDepth || thisDistance >= prevDistance) {
-                            yield * this.readPrun(nextState, sequence, true, Math.max(this.pruneDepth, thisDistance)); // false, address underlying problem
+                            yield * this.readPrun(nextState, sequence, showPostAdj, true, Math.max(this.pruneDepth, thisDistance)); // false, address underlying problem
                         }
                     }
                 }
@@ -553,6 +556,16 @@ class Puzzle {
             }
         }
         return false;
+    }
+
+    // Takes in a state that's only adjust moves away from being solved. Returns the move list representing the adjustments.
+    getEndAdjust(nextState) {
+        for (let seq of this.adjustSequences) {
+            if (arraysEqual(this.execute(nextState, seq), this.solved)) {
+                return seq;
+            }
+        }
+        throw nextState;
     }
 
     // ADJUST & BATCH FUNCTIONS
