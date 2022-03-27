@@ -32,6 +32,10 @@
         .adv-layout {
             text-align: left;
         }
+
+        .stm {
+            display: none;
+        }
     </style>
 </head>
 
@@ -44,6 +48,9 @@
         <strong>
             <input id="ignoreError" type="checkbox">Ignore Unknown Moves<br>
             <input id="ignoreAUF" type="checkbox">Disregard Starting & Ending U Moves<br>
+            <label for="stmVis">
+                <input type="checkbox" id="stmVis" onclick="stmVisibility(this)" /><span id="visLabel">Show STM</span>
+            </label><br>
             <label for="optVis">
                 <input type="checkbox" id="optVis" onclick="optionVisibility(this)" /><span id="visLabel">Show Advanced Options</span>
             </label><br>
@@ -132,12 +139,12 @@
         </strong>
         <table>
             <tr>
-                <th>STM</th>
+                <th class="stm">STM</th>
                 <th>Movecount Coefficient</th>
                 <th>Input: One alg per line</th>
             </tr>
             <tr>
-                <th><textarea id="STMoutput" rows="28" cols="7" readonly style="text-align: right"></textarea></th>
+                <th class="stm"><textarea id="STMoutput" rows="28" cols="7" readonly style="text-align: right"></textarea></th>
                 <th><textarea id="output" rows="28" cols="28" readonly style="text-align: right"></textarea></th>
                 <th><textarea id="input" rows="28" cols="66"></textarea></th>
             </tr>
@@ -252,6 +259,18 @@
                 splitAlg.pop()
             }
             return (splitAlg[splitAlg.length-1][0]!="U")
+        }
+
+        function stmVisibility() {
+            let disp;
+            if (stmVis.checked) {
+                disp = "table-cell";
+            } else {
+                disp = "none";
+            }
+            for (let element of document.getElementsByClassName("stm")) {
+                element.style.display = disp;
+            }
         }
 
         function optionVisibility() {
