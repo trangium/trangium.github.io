@@ -15,7 +15,7 @@ self.onmessage = function (msg) {
     let input = msg.data;
     let pzlDef = input.solve;
     if (pzlDef.includes(":")) {postMessage({value: "Colon notation for indicating adjust moves is deprecated.", type: "stop"})}
-    let [fullPuzzle, subPuzzles] = setPuzzles(input.puzzle, input.ignore, input.subgroups, input.preAdjust);
+    let [fullPuzzle, subPuzzles] = setPuzzles(input.puzzle, input.ignore, input.subgroups, input.preAdjust, input.postAdjust);
 
     let solutionIndex = 1;
     let batchStates = fullPuzzle.getBatchStates(pzlDef, input.preAdjust, input.postAdjust);
@@ -63,7 +63,7 @@ function splitSubgroupStr(s) {
     return removeBrackets(s).replaceAll(","," ").split(" ").filter(x => x !== "");
 }
 
-function setPuzzles(puzzleDef, ignore, subgroups, adjust) {
+function setPuzzles(puzzleDef, ignore, subgroups, adjust, postAdjust) {
     let moves = puzzleDef;
     let moveLines = moves.split('\n');
 
@@ -152,6 +152,9 @@ function setPuzzles(puzzleDef, ignore, subgroups, adjust) {
 
     // Deal with subgroups
     let fullPuzzle = new Puzzle(cubeOri.slice(), moveList.slice(), clockwiseMoveStr.slice(), solvedState.slice());
+    checkMoveGroup(fullPuzzle, adjust, "pre-adjust");
+    checkMoveGroup(fullPuzzle, postAdjust, "post-adjust");
+    for (let sub of subgroups) {checkMoveGroup(fullPuzzle, sub.subgroup, "a subgroup")}
     let adjustList = (adjust == "") ? [] : splitSubgroupStr(adjust);
     for (let i=0; i<adjustList.length; i++) {
         for (let j=0; j<i; j++) {
@@ -166,7 +169,6 @@ function setPuzzles(puzzleDef, ignore, subgroups, adjust) {
     }
 
     initCubeOri(fullPuzzle, pieceList, ignore);
-    
     return [fullPuzzle, subPuzzles];
 }
 
@@ -229,6 +231,15 @@ function getSubPuzzle(pieceList, fullPuzzle, ignore, subgroup, prune, adjust) {
     }
 
     return subPuzzle;
+}
+
+function checkMoveGroup(puzzle, movegroup, errorStr) {
+    let moves = splitSubgroupStr(movegroup);
+    for (let move of moves) {
+        if (!puzzle.moveStr.includes(move)) {
+            postMessage({value: '"' + move + '" is not a valid move in ' + errorStr, type: "stop"});
+        }
+    }
 }
 
 function parseBatch(input) {
