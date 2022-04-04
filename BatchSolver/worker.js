@@ -1,8 +1,21 @@
 self.onmessage = function (msg) {
+    /*
+    The input fields are all contained in:
+    input.puzzle
+    input.ignore // this is UO&E
+    input.subgroups - done
+        sub.subgroup - done
+        sub.prune - done
+        sub.search - done
+    input.solve
+    input.preAdjust
+    input.postAdjust
+    */
+
     let input = msg.data;
     let pzlDef = input.solve;
     if (pzlDef.includes(":")) {postMessage({value: "Colon notation for indicating adjust moves is deprecated.", type: "stop"})}
-    let [fullPuzzle, subPuzzles] = setPuzzles(input.puzzle, input.ignore, input.subgroups, input.preAdjust); // subgroup.adjust is NO LONGER BEING USED!
+    let [fullPuzzle, subPuzzles] = setPuzzles(input.puzzle, input.ignore, input.subgroups, input.preAdjust);
 
     let solutionIndex = 1;
     let batchStates = fullPuzzle.getBatchStates(pzlDef, input.preAdjust, input.postAdjust);
@@ -33,7 +46,7 @@ function calcState(state, subPuzzles, showPostAdj) {
             if (subData.search[0] === "=") {searchDepth = subData.puzzle.pruneDepth}
             else if (subData.search[0] === "+") {searchDepth = subData.puzzle.pruneDepth + (subData.search.split("+").length-1) } // the prune depth PLUS the number of +
             else if (subData.search[0] === "-") {searchDepth = subData.puzzle.pruneDepth - (subData.search.split("-").length-1) } // the prune depth MINUS the number of -
-            else {searchDepth = Infinity}
+            else {postMessage({value: '"' + subData.search + '" is not a valid search depth.', type: "stop"})}
         }
         for (let solution of subData.puzzle.solve(state, searchDepth, showPostAdj)) {
             postMessage({value: solution, type: "solution"});
@@ -168,20 +181,36 @@ function getSubPuzzle(pieceList, fullPuzzle, ignore, subgroup, prune, adjustStr)
     let generators = (subgroup.replace(" ","").length > 0) ? splitSubgroupStr(subgroup) : fullPuzzle.clockwiseMoveStr;
     let adjust = (adjustStr == "") ? [] : splitSubgroupStr(adjustStr);
     
+    let hasNonAdjust = false;
+    for (let move of generators) {
+        if (!adjust.includes(move)) {
+            hasNonAdjust = true;
+        }
+    }
+    if (!hasNonAdjust) {postMessage({value: '"' + subgroup + '" is not a valid subgroup because it does not contain any non-adjust moves.', type: "stop"})}
+
     generators.sort((x, y) => adjust.includes(y) - adjust.includes(x)) // moves all adjust moves to the front
     let subPuzzle = fullPuzzle.setSubgroup(generators);
 
     initCubeOri(subPuzzle, pieceList, ignore);
 
-    subPuzzle.setAdjustMoves(adjust.length); // deal with adjust - setAdjustMoves passes in a NUMBER
+    subPuzzle.setAdjustMoves(adjust.length); // deal with adjust: setAdjustMoves passes in a NUMBER
     postMessage({value: 0, type: "set-depth"})
 
+    function errParse(x, parseFunc) {
+        let pFloat = parseFunc(x, 10);
+        if (pFloat !== pFloat) {
+            postMessage({value: '"' + x + '" is not a valid prune depth.', type: "stop"});
+        }
+        return pFloat;
+    }
+
     if (prune.toLowerCase().includes("m")) {
-        subPuzzle.createPrunSized(parseFloat(prune) * 1e6 );
+        subPuzzle.createPrunSized(errParse(prune, parseFloat) * 1e6 );
     } else if (prune.toLowerCase().includes("k")) {
-        subPuzzle.createPrunSized(parseFloat(prune) * 1e3 );
+        subPuzzle.createPrunSized(errParse(prune, parseFloat) * 1e3 );
     } else {
-        subPuzzle.createPrun(parseInt(prune));
+        subPuzzle.createPrun(errParse(prune, parseInt));
     }
 
     return subPuzzle;
@@ -468,6 +497,7 @@ class Puzzle {
     createPrunSized(maxSize) {
         let tempTable = new Map();
         let prevSize = -1;
+        let diff = 1;
         let depth = 0;
         while (true) {
             for (let sequence of this.getAllSequences(depth)) {
@@ -475,8 +505,9 @@ class Puzzle {
                 if (!(tempTable.has(cubeStr))) {tempTable.set(cubeStr, depth)}
             }
             console.log(tempTable.size+" at depth "+depth)
-            if (tempTable.size**2/prevSize > maxSize) {break}
+            if (tempTable.size**2/prevSize > maxSize || tempTable.size - prevSize - diff < 0) {break}
             depth++;
+            diff = tempTable.size - prevSize;
             prevSize = tempTable.size;
         }
         this.pruneTable = tempTable;
@@ -606,6 +637,9 @@ class Puzzle {
         let genArray = [];
         for (let i=0; i<generators.length; i++) {
             let gen = generators[i];
+            if (!this.moveStr.includes(gen)) {
+                postMessage({value: '"' + gen + '" is not a valid move in Subgroup.', type: "stop"})
+            }
             genArray.push(this.execute(this.nullmove, this.moveStrToList(gen)));
         }
         return new Puzzle(this.cubeOri.slice(), genArray, generators, this.solved.slice());
