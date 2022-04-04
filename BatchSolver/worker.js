@@ -152,9 +152,17 @@ function setPuzzles(puzzleDef, ignore, subgroups, adjust) {
 
     // Deal with subgroups
     let fullPuzzle = new Puzzle(cubeOri.slice(), moveList.slice(), clockwiseMoveStr.slice(), solvedState.slice());
+    let adjustList = (adjust == "") ? [] : splitSubgroupStr(adjust);
+    for (let i=0; i<adjustList.length; i++) {
+        for (let j=0; j<i; j++) {
+            if (!fullPuzzle.commutes(fullPuzzle.moveStr.indexOf(adjustList[i]), fullPuzzle.moveStr.indexOf(adjustList[j]))) {
+                postMessage({value: '"' + adjust + '" is an invalid pre-adjust because all moves in pre-adjust must commute.', type: "stop"})
+            }
+        }
+    }
     let subPuzzles = [];
     for (let sub of subgroups) {
-        subPuzzles.push({puzzle: getSubPuzzle(pieceList, fullPuzzle, ignore, sub.subgroup, sub.prune, adjust), search: sub.search});
+        subPuzzles.push({puzzle: getSubPuzzle(pieceList, fullPuzzle, ignore, sub.subgroup, sub.prune, adjustList), search: sub.search});
     }
 
     initCubeOri(fullPuzzle, pieceList, ignore);
@@ -177,17 +185,24 @@ function initCubeOri(pzl, pieceList, ignore) {
     }
 }
 
-function getSubPuzzle(pieceList, fullPuzzle, ignore, subgroup, prune, adjustStr) {
+function getSubPuzzle(pieceList, fullPuzzle, ignore, subgroup, prune, adjust) {
     let generators = (subgroup.replace(" ","").length > 0) ? splitSubgroupStr(subgroup) : fullPuzzle.clockwiseMoveStr;
-    let adjust = (adjustStr == "") ? [] : splitSubgroupStr(adjustStr);
     
     let hasNonAdjust = false;
     for (let move of generators) {
-        if (!adjust.includes(move)) {
-            hasNonAdjust = true;
+        for (let move2 of generators) {
+            if (!fullPuzzle.commutes(fullPuzzle.moveStr.indexOf(move), fullPuzzle.moveStr.indexOf(move2))) {
+                hasNonAdjust = true;
+            }
         }
     }
-    if (!hasNonAdjust) {postMessage({value: '"' + subgroup + '" is not a valid subgroup because it does not contain any non-adjust moves.', type: "stop"})}
+    if (!hasNonAdjust) {postMessage({value: '"' + subgroup + '" is not a valid subgroup because it is commutative.', type: "stop"})}
+
+    for (let move of adjust) {
+        if (!generators.includes(move)) {
+            postMessage({value: '"' + subgroup + '" is not a valid subgroup because it does not contain the adjust move "' + move + '".', type: "stop"})
+        }
+    }
 
     generators.sort((x, y) => adjust.includes(y) - adjust.includes(x)) // moves all adjust moves to the front
     let subPuzzle = fullPuzzle.setSubgroup(generators);
