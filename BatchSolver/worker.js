@@ -1,17 +1,4 @@
 self.onmessage = function (msg) {
-    /*
-    The input fields are all contained in:
-    input.puzzle
-    input.ignore // this is UO&E
-    input.subgroups - done
-        sub.subgroup - done
-        sub.prune - done
-        sub.search - done
-    input.solve
-    input.preAdjust
-    input.postAdjust
-    */
-
     let input = msg.data;
     let pzlDef = input.solve;
     if (pzlDef.includes(":")) {postMessage({value: "Colon notation for indicating adjust moves is deprecated.", type: "stop"})}
@@ -142,11 +129,24 @@ function setPuzzles(puzzleDef, ignore, subgroups, adjust, postAdjust) {
     let solvedState = [];
     for (let i=0; i<pieceList.length; i++) {solvedState[i] = i}
     for (let i=1; i<splitEquivalences.length; i++) {
+        if (!splitEquivalences[i].includes("}")) {
+            postMessage({value: 'Missing "}" in Unique Orientations and Equivalences', type: "stop"})
+        }
         let equivSet = splitEquivalences[i].split("}")[0];
-        let equivPieces = equivSet.split(" ");
+        let equivPieces = equivSet.split(" ").filter(x => x !== "");
         let equivNum = pieceList.indexOf(equivPieces[0]);
+        if (equivNum == -1) {
+            postMessage({value: '"' + equivPieces[0] + '" is not a piece. (error in Unique Orientations & Equivalences)', type: "stop"})
+        }
         for (let j=1; j<equivPieces.length; j++) {
-            solvedState[pieceList.indexOf(equivPieces[j])] = equivNum;
+            let equivWithNum = pieceList.indexOf(equivPieces[j]);
+            if (equivWithNum == -1) {
+                postMessage({value: '"' + equivPieces[j] + '" is not a piece. (error in Unique Orientations & Equivalences)', type: "stop"})
+            }
+            if (cubeOri[equivNum] != cubeOri[equivWithNum]) {
+                postMessage({value: '"' + equivPieces[j] + '" and "' + equivPieces[0] + '" cannot be in the same equivalence set because they are different types of pieces.', type: "stop"})
+            }
+            solvedState[equivWithNum] = equivNum;
         }
     }
 
@@ -177,11 +177,25 @@ function initCubeOri(pzl, pieceList, ignore) {
     for (let i=0; i<lines.length; i++) {
         let line = lines[i];
         if (line.includes(":")) {
-            let numOri = parseInt(line.split(":")[0]);
+            let numOri = parseInt(line.split(":")[0], 10);
+            if (numOri !== numOri) { // checking if numOri is NaN
+                postMessage({value: '"' + line.split(":")[0] + ':" is not a valid Unique Orientations header.', type: "stop"})
+            }
+            if (numOri <= 0) {
+                postMessage({value: '"' + line.split(":")[0] + ':" is invalid because the number of orientations must be positive.', type: "stop"})
+            }
             let orientData = line.split(":")[1].split(" ");
             for (let i=0; i<orientData.length; i++) {
                 let pieceIndex = pieceList.indexOf(removeBrackets(orientData[i]));
-                if (pieceIndex !== -1) {pzl.cubeOri[pieceIndex] = numOri}
+                if (pieceIndex !== -1) {
+                    if (pzl.cubeOri[pieceIndex] % numOri != 0) {
+                        postMessage({value: "Cannot set number of orientations of piece " + removeBrackets(orientData[i]) + 
+                        " to " + numOri + " because " + numOri + " is not divisible by " + pzl.cubeOri[pieceIndex] + ".", type: "stop"})
+                    }
+                    pzl.cubeOri[pieceIndex] = numOri;
+                } else if (removeBrackets(orientData[i]) !== "") {
+                    postMessage({value: '"' + removeBrackets(orientData[i]) + '" is not a piece. (error in Unique Orientations & Equivalences)', type: "stop"})
+                }
             }
         }
     }
@@ -256,6 +270,9 @@ function parseBatch(input) {
                 dataInside = "";
             } else {
                 dataInside += char;
+                if (i === input.length - 1) {
+                    postMessage({value: 'Missing "' + closingChar + '" in Scramble', type: "stop"});
+                }
             }
         } else {
             if (!(bracketMap.has(char))) {
@@ -499,7 +516,7 @@ class Puzzle {
                 if (moveNum != -1) {
                     result.push(moveNum);
                 } else {
-                    throw this;
+                    postMessage({value: 'Unexpected token in Scramble: "' + algSplit[i] + '"', type: "stop"});
                 }
             }
         }
@@ -710,6 +727,7 @@ class Puzzle {
             }
             newStates = nextStates;
             nextStates = new Map();
+            postMessage({value: states.size + " (not reduced)", type: "num-states"})
         }
         return Array.from(states.values());
     }
@@ -764,7 +782,8 @@ class Puzzle {
                 states = this.bfs(states, data.split(","));
             }
         }
-        states.sort((s1, s2) => this.compareStates(this.moveStrToState(s1), this.moveStrToState(s2)));
+        let sortLookupTable = new Map(states.map(x => [x, this.moveStrToState(x)]));
+        states.sort((s1, s2) => this.compareStates(sortLookupTable.get(s1), sortLookupTable.get(s2)));
         return this.getReducedSet(states, preAdjust, postAdjust);
     }
 }
