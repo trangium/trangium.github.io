@@ -1,19 +1,10 @@
 self.onmessage = function (msg) {
     let input = msg.data;
-    let pzlDef = input.solve;
-    if (pzlDef.includes(":")) {postMessage({value: "Colon notation for indicating adjust moves is deprecated.", type: "stop"})}
-    let [fullPuzzle, subPuzzles] = setPuzzles(input.puzzle, input.ignore, input.subgroups, input.preAdjust, input.postAdjust);
+    let scramble = input.solve;
+    if (scramble.includes(":")) {postMessage({value: "Colon notation for indicating adjust moves is deprecated.", type: "stop"})}
+    let [fullPuzzle, batchStates, subPuzzles] = setPuzzles(scramble, input.puzzle, input.ignore, input.subgroups, input.preAdjust, input.postAdjust);
 
     let solutionIndex = 1;
-    let batchStates = fullPuzzle.getBatchStates(pzlDef, input.preAdjust, input.postAdjust);
-    let numStates = 0;
-
-    for (let stateStr of batchStates) {
-        let state = fullPuzzle.execute(fullPuzzle.solved, fullPuzzle.moveStrToList(stateStr));
-        if(!(arraysEqual(fullPuzzle.solved, state))) {numStates++}
-    }
-
-    postMessage({value: numStates, type: "num-states"})
 
     for (let stateStr of batchStates) {
         let state = fullPuzzle.execute(fullPuzzle.solved, fullPuzzle.moveStrToList(stateStr));
@@ -26,31 +17,7 @@ self.onmessage = function (msg) {
     postMessage({value: null, type: "stop"});
 };
 
-function calcState(state, subPuzzles, showPostAdj) {
-    for (let subData of subPuzzles) {
-        let searchDepth = parseInt(subData.search, 10);
-        if (searchDepth !== searchDepth) {// that means it's NaN
-            if (subData.search[0] === "=") {searchDepth = subData.puzzle.pruneDepth}
-            else if (subData.search[0] === "+") {searchDepth = subData.puzzle.pruneDepth + (subData.search.split("+").length-1) } // the prune depth PLUS the number of +
-            else if (subData.search[0] === "-") {searchDepth = subData.puzzle.pruneDepth - (subData.search.split("-").length-1) } // the prune depth MINUS the number of -
-            else {postMessage({value: '"' + subData.search + '" is not a valid search depth.', type: "stop"})}
-        }
-        for (let solution of subData.puzzle.solve(state, searchDepth, showPostAdj)) {
-            postMessage({value: solution, type: "solution"});
-        }
-        postMessage({value: 0, type: "set-depth"})
-    }
-}
-
-function removeBrackets(s) { // Removes (), {}, <>, and []
-    return s.replace(/\(|\)|\[|\]|{|}|<|>/g, "");
-}
-
-function splitSubgroupStr(s) {
-    return removeBrackets(s).replaceAll(","," ").split(" ").filter(x => x !== "");
-}
-
-function setPuzzles(puzzleDef, ignore, subgroups, adjust, postAdjust) {
+function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust) {
     let moves = puzzleDef;
     let moveLines = moves.split('\n');
 
@@ -150,7 +117,7 @@ function setPuzzles(puzzleDef, ignore, subgroups, adjust, postAdjust) {
         }
     }
 
-    // Deal with subgroups
+    // Validate full puzzle
     let fullPuzzle = new Puzzle(cubeOri.slice(), moveList.slice(), clockwiseMoveStr.slice(), solvedState.slice());
     checkMoveGroup(fullPuzzle, adjust, "pre-adjust");
     checkMoveGroup(fullPuzzle, postAdjust, "post-adjust");
@@ -163,13 +130,24 @@ function setPuzzles(puzzleDef, ignore, subgroups, adjust, postAdjust) {
             }
         }
     }
+
+    // calculate batch states
+    let batchStates = fullPuzzle.getBatchStates(scramble, adjust, postAdjust);
+    let numStates = 0;
+    for (let stateStr of batchStates) {
+        let state = fullPuzzle.execute(fullPuzzle.solved, fullPuzzle.moveStrToList(stateStr));
+        if(!(arraysEqual(fullPuzzle.solved, state))) {numStates++}
+    }
+    postMessage({value: numStates, type: "num-states"})
+
+    // deal with subpuzzles
     let subPuzzles = [];
     for (let sub of subgroups) {
         subPuzzles.push({puzzle: getSubPuzzle(pieceList, fullPuzzle, ignore, sub.subgroup, sub.prune, adjustList), search: sub.search});
     }
 
     initCubeOri(fullPuzzle, pieceList, ignore);
-    return [fullPuzzle, subPuzzles];
+    return [fullPuzzle, batchStates, subPuzzles];
 }
 
 function initCubeOri(pzl, pieceList, ignore) {
@@ -286,6 +264,30 @@ function parseBatch(input) {
         }
     }
     return finalData;
+}
+
+function calcState(state, subPuzzles, showPostAdj) {
+    for (let subData of subPuzzles) {
+        let searchDepth = parseInt(subData.search, 10);
+        if (searchDepth !== searchDepth) {// that means it's NaN
+            if (subData.search[0] === "=") {searchDepth = subData.puzzle.pruneDepth}
+            else if (subData.search[0] === "+") {searchDepth = subData.puzzle.pruneDepth + (subData.search.split("+").length-1) } // the prune depth PLUS the number of +
+            else if (subData.search[0] === "-") {searchDepth = subData.puzzle.pruneDepth - (subData.search.split("-").length-1) } // the prune depth MINUS the number of -
+            else {postMessage({value: '"' + subData.search + '" is not a valid search depth.', type: "stop"})}
+        }
+        for (let solution of subData.puzzle.solve(state, searchDepth, showPostAdj)) {
+            postMessage({value: solution, type: "solution"});
+        }
+        postMessage({value: 0, type: "set-depth"})
+    }
+}
+
+function removeBrackets(s) { // Removes (), {}, <>, and []
+    return s.replace(/\(|\)|\[|\]|{|}|<|>/g, "");
+}
+
+function splitSubgroupStr(s) {
+    return removeBrackets(s).replaceAll(","," ").split(" ").filter(x => x !== "");
 }
 
 // END HTML-SIDE JS

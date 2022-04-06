@@ -411,6 +411,8 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
             let tableSpeedList = document.getElementById("speed"+solveID).innerHTML.split("<br>").filter(x => (x != ""));
             let tableSolutionList = document.getElementById("solutions"+solveID).innerHTML.split("<br>").filter(x => (x != ""));
             let solutionsLeft = Math.min(parseInt(document.getElementById("maxSolutions").value, 10),tableSpeedList.length+sortedBuffer.length);
+            console.log(tableSolutionList);
+            console.log(sortedBuffer);
             let prevSolution = "";
 
             function addFromBuffer() {
@@ -420,9 +422,9 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                     updatedSpeedData += speed + "<br>";
                     updatedSolutionsData += solution + "<br>";
                     prevSolution = removeParens(solution);
+                    solutionsLeft--;
                 }
                 bufferNeedle++;
-                solutionsLeft--;
             }
 
             function addFromTable() {
