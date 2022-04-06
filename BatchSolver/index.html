@@ -9,6 +9,10 @@
                 font-size: 1rem;
             }
 
+            #puzzle {
+                margin-top: 0.125rem;
+            }
+
             .adv-layout {
                 text-align: left;
             }   
@@ -109,23 +113,17 @@
         <div style="font-family:courier new;font-size:18px">
             <strong>
                 <div id="input-area">
-                    Puzzle<br>
-                    <textarea id="puzzle" rows="15" cols="84" spellcheck="false">
-U: (UF UL UB UR) (UFR UFL UBL UBR)
-R: (UR BR DR FR) (UFR-1 UBR+1 DBR-1 DFR+1)
-F: (UF+1 FR+1 DF+1 FL+1) (UFR+1 DFR-1 DFL+1 UFL-1)
-D: (DF DR DB DL) (DFR DBR DBL DFL)
-L: (UL FL DL BL) (UFL+1 DFL-1 DBL+1 UBL-1)
-B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)
-u: (UF UL UB UR) (UFR UFL UBL UBR) (FR+1 FL+1 BL+1 BR+1) (FB RL+1 FB+1)
-r: (UR BR DR FR) (UFR-1 UBR+1 DBR-1 DFR+1) (UF+1 UB+1 DB+1 DF+1) (FB UD+1 FB+1)
-f: (UF+1 FR+1 DF+1 FL+1) (UFR+1 DFR-1 DFL+1 UFL-1) (UR+1 DR+1 DL+1 UL+1) (UD RL+1 UD+1)
-d: (DF DR DB DL) (DFR DBR DBL DFL) (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)
-l: (UL FL DL BL) (UFL+1 DFL-1 DBL+1 UBL-1) (UF+1 DF+1 DB+1 UB+1) (UD FB+1 UD+1)
-b: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1) (UR+1 UL+1 DL+1 DR+1) (RL UD+1 RL+1)
-M: (UF+1 DF+1 DB+1 UB+1) (UD FB+1 UD+1)
-S: (UR+1 DR+1 DL+1 UL+1) (UD RL+1 UD+1)
-E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
+                    Puzzle
+                    <select id="puzzle-select" onchange="puzzleSelected(this)">
+                        <option value="3x3x3">3x3x3</option>
+                        <option value="2x2x2">2x2x2</option>
+                        <option value="Skewb">Skewb</option>
+                        <option value="Pyraminx">Pyraminx</option>
+                        <option value="Megaminx">Megaminx</option>
+                        <option value="Custom">Custom</option>
+                    </select>
+                    <br>
+                    <textarea id="puzzle" rows="15" cols="84" spellcheck="false"></textarea><br><br>
                     Unique Orientations & Equivalences<br>
                     <textarea id="ignore" rows="3" cols="72" spellcheck="false"></textarea><br><br>
 
@@ -319,6 +317,72 @@ E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)</textarea><br><br>
                 advanced.hidden = true;
             }
         }
+
+        let puzzleSelect = document.getElementById('puzzle-select');
+
+        function puzzleSelected(pzl) {
+            let pzlField = document.getElementById('puzzle');
+            switch (pzl.value) {
+                case ("3x3x3"):
+                    pzlField.innerHTML = 
+`U: (UF UL UB UR) (UFR UFL UBL UBR)
+R: (UR BR DR FR) (UFR-1 UBR+1 DBR-1 DFR+1)
+F: (UF+1 FR+1 DF+1 FL+1) (UFR+1 DFR-1 DFL+1 UFL-1)
+D: (DF DR DB DL) (DFR DBR DBL DFL)
+L: (UL FL DL BL) (UFL+1 DFL-1 DBL+1 UBL-1)
+B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)
+u: (UF UL UB UR) (UFR UFL UBL UBR) (FR+1 FL+1 BL+1 BR+1) (FB RL+1 FB+1)
+r: (UR BR DR FR) (UFR-1 UBR+1 DBR-1 DFR+1) (UF+1 UB+1 DB+1 DF+1) (FB UD+1 FB+1)
+f: (UF+1 FR+1 DF+1 FL+1) (UFR+1 DFR-1 DFL+1 UFL-1) (UR+1 DR+1 DL+1 UL+1) (UD RL+1 UD+1)
+d: (DF DR DB DL) (DFR DBR DBL DFL) (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)
+l: (UL FL DL BL) (UFL+1 DFL-1 DBL+1 UBL-1) (UF+1 DF+1 DB+1 UB+1) (UD FB+1 UD+1)
+b: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1) (UR+1 UL+1 DL+1 DR+1) (RL UD+1 RL+1)
+M: (UF+1 DF+1 DB+1 UB+1) (UD FB+1 UD+1)
+S: (UR+1 DR+1 DL+1 UL+1) (UD RL+1 UD+1)
+E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)`;
+                    break;
+                case ("2x2x2"):
+                    pzlField.innerHTML = 
+`U: (UFR UFL UBL UBR)
+R: (UFR-1 UBR+1 DBR-1 DFR+1)
+F: (UFR+1 DFR-1 DFL+1 UFL-1)
+D: (DFR DBR DBL DFL)
+L: (UFL+1 DFL-1 DBL+1 UBL-1)
+B: (UBR-1 UBL+1 DBL-1 DBR+1)`;
+                    break;
+                case ("Skewb"):
+                    pzlField.innerHTML = 
+`L: (UFL-1 DFR-1 DBL-1) (DFL+1) (L F D)
+R: (DFR-1 UBR-1 DBL-1) (DBR+1) (R B D)
+B: (UBL-1 DFL-1 DBR-1) (DBL+1) (L D B)
+U: (UBR-1 UFL-1 DBL-1) (UBL+1) (U L B)`;
+                    break;
+                case ("Pyraminx"):
+                    pzlField.innerHTML = 
+`U: (UB UR UL) (UUU+1) (TUU+1)
+R: (UR DR DF) (RRR+1) (TRR+1)
+L: (UL+1 DF+1 DL) (LLL+1) (TLL+1)
+B: (UB+1 DL DR+1) (BBB+1) (TBB+1)
+u: (TUU+1)
+r: (TRR+1)
+l: (TLL+1)
+b: (TBB+1)`;
+                    break;
+                case ("Megaminx"):
+                    pzlField.innerHTML = 
+`U: (UF UL UBl UBr UR) (UFR UFL ULB UDB URB)
+R: (UR RB RDr RDl RF) (UFR-1 URB+1 RDB-1 RDD RDF+1)
+L: (UL LF LDr LDl LB) (ULB-1 UFL+1 LDF-1 LDD LDB+1)
+F: (UF+1 RF+1 FDr+1 FDl LF+1) (UFL-1 UFR+1 RDF-1 FDD LDF+1)
+Dfr: (RDl+1 DFrr+1 DFrb+1 DFrl FDr+1) (RDF-1 RDD+1 DFRr-1 DFRl FDD+1)
+Br: ( UBr+1 DB+1 BRd+1 BRf RB+1) (URB-1 UDB+1 BRB-1 BRD RDB+1)
+Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
+                    break;
+            }
+            if (pzl.value === "Custom") {pzlField.readOnly = false} else {pzlField.readOnly = true}
+        }
+
+        puzzleSelected({value: "3x3x3"})
 
         function createSolutionTable() {
             document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left">#'+solveID+'<br><span id="progUpdate'+solveID+'"></span></th>';
