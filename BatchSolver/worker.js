@@ -9,7 +9,7 @@ self.onmessage = function (msg) {
     for (let stateStr of batchStates) {
         let state = fullPuzzle.execute(fullPuzzle.solved, fullPuzzle.moveStrToList(stateStr));
         if(!(arraysEqual(fullPuzzle.solved, state))) {
-            postMessage({value: solutionIndex, type: "next-state"})
+            postMessage({value: {index: solutionIndex, setup: stateStr}, type: "next-state"})
             calcState(state, subPuzzles, input.showPost);
             solutionIndex++;
         }
@@ -119,6 +119,7 @@ function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust) 
 
     // Validate full puzzle
     let fullPuzzle = new Puzzle(cubeOri.slice(), moveList.slice(), clockwiseMoveStr.slice(), solvedState.slice());
+    let fullPuzzleDupe = new Puzzle(cubeOri.slice(), moveList.slice(), clockwiseMoveStr.slice(), solvedState.slice());
     checkMoveGroup(fullPuzzle, adjust, "pre-adjust");
     checkMoveGroup(fullPuzzle, postAdjust, "post-adjust");
     for (let sub of subgroups) {checkMoveGroup(fullPuzzle, sub.subgroup, "a subgroup")}
@@ -130,13 +131,14 @@ function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust) 
             }
         }
     }
+    initCubeOri(fullPuzzleDupe, pieceList, ignore);
 
     // calculate batch states
-    let batchStates = fullPuzzle.getBatchStates(scramble, adjust, postAdjust);
+    let batchStates = fullPuzzleDupe.getBatchStates(scramble, adjust, postAdjust);
     let numStates = 0;
     for (let stateStr of batchStates) {
-        let state = fullPuzzle.execute(fullPuzzle.solved, fullPuzzle.moveStrToList(stateStr));
-        if(!(arraysEqual(fullPuzzle.solved, state))) {numStates++}
+        let state = fullPuzzleDupe.execute(fullPuzzleDupe.solved, fullPuzzleDupe.moveStrToList(stateStr));
+        if(!(arraysEqual(fullPuzzleDupe.solved, state))) {numStates++}
     }
     postMessage({value: numStates, type: "num-states"})
 

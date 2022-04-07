@@ -90,10 +90,15 @@
                 text-align: center;
             }
 
+            #computation-header th{
+                padding-top: 0.63rem;
+            }
+
             #table-area .output-left {
                 border-color: black;
                 border-width: 0.063rem 0.063rem 0 0.063rem;
-                border-style: solid;                
+                border-style: solid;
+                
             }
 
             #maxSolutions {
@@ -385,17 +390,9 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
         puzzleSelected({value: "3x3x3"})
 
         function createSolutionTable() {
-            document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left" id="caseHeader'+solveID+'">#'+solveID+'<br><span id="progUpdate'+solveID+'"></span></th>';
+            document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left"><span id=caseHeader'+solveID+'></span><br><span id="progUpdate'+solveID+'"></span></th>';
             document.getElementById("solutions-header").innerHTML += '<th class="output-left">&nbsp;'+sortCriteria+'&nbsp;<th>&nbsp;Solutions&nbsp;</th></th>';
             document.getElementById("output-data").innerHTML += '<td class="output-left" id="speed'+solveID+'"></td><td id="solutions'+solveID+'"></td>';
-
-            {/*
-            let cube = TTk.TwistyPuzzle(3).
-            alg("R U R' U R U2 R'");
-            cube.context().projection().focalFac(-0.5).near(0.83);
-            cube.context().transform().pitch(Math.PI/2).yaw(0);
-            cube("#caseHeader"+solveID);
-            */}
         }
 
         function getWorkerData() {
@@ -665,10 +662,16 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                     numSolutions++;
                 } else if (event.data.type === "set-depth") {
                     depth = event.data.value;
-                } else if (event.data.type === "next-state" && event.data.value > 1) {
-                    addBufferToTable();
-                    updateStats();
-                    initNextState();
+                } else if (event.data.type === "next-state") {
+                    if (event.data.value.index > 1) {
+                        addBufferToTable();
+                        updateStats();
+                        initNextState();
+                    }
+                    let cube = TTk.TwistyPuzzle(3).alg(event.data.value.setup);
+                    cube.context().projection().focalFac(-0.5).near(0.83);
+                    cube.context().transform().pitch(Math.PI/2).yaw(0);
+                    cube("#caseHeader"+event.data.value.index);
                 } else if (event.data.type === "num-states") {
                     document.getElementById("info-num-cases").innerHTML = event.data.value;
                 }
