@@ -128,7 +128,7 @@
                         <option value="Custom">Custom</option>
                     </select>
                     <br>
-                    <textarea id="puzzle" rows="15" cols="84" spellcheck="false"></textarea><br><br>
+                    <textarea id="puzzle" rows="15" cols="88" spellcheck="false"></textarea><br><br>
                     Unique Orientations & Equivalences<br>
                     <textarea id="ignore" rows="3" cols="72" spellcheck="false"></textarea><br><br>
 
@@ -182,6 +182,7 @@
                 </select>
                 <br>
                 <input type="checkbox" id="statVis" onclick="statVisibility(this)" checked/><label for="statVis"> Show statistics</label><br>
+                <input type="checkbox" id="imageVis" checked/><label for="imageVis"> Show images</label><br>
                 <input type="checkbox" id="optVis" onclick="optionVisibility(this)" /><label for="optVis"> Show advanced speed options</label><br>
                 <input type="checkbox" id="showPostAdj" /><label for="showPostAdj"> Show ending adjustments</label><br>
                 Show top <input type="number" id="maxSolutions" value="100"></input> solutions for each case<br>
@@ -322,8 +323,6 @@
                 advanced.hidden = true;
             }
         }
-
-        let puzzleSelect = document.getElementById('puzzle-select');
 
         function puzzleSelected(pzl) {
             let pzlField = document.getElementById('puzzle');
@@ -668,10 +667,14 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                         updateStats();
                         initNextState();
                     }
-                    let cube = TTk.TwistyPuzzle(3).alg(event.data.value.setup);
-                    cube.context().projection().focalFac(-0.5).near(0.83);
-                    cube.context().transform().pitch(Math.PI/2).yaw(0);
-                    cube("#caseHeader"+event.data.value.index);
+                    if (document.getElementById("imageVis").checked) {
+                        let cube = TTk.TwistyPuzzle(3).alg(event.data.value.setup);
+                        cube.context().projection().focalFac(-0.5).near(0.83);
+                        cube.context().transform().pitch(Math.PI/2).yaw(0);
+                        cube("#caseHeader"+solveID);
+                    } else {
+                        document.getElementById("caseHeader"+solveID).innerHTML = "#"+solveID;
+                    }
                 } else if (event.data.type === "num-states") {
                     document.getElementById("info-num-cases").innerHTML = event.data.value;
                 }
