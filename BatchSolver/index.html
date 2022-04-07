@@ -283,8 +283,8 @@
         </div>
         <br><br><br><br><br><br><br><br><br><br><br>
     <script src="../algSpeed.js"></script>
+    <script src="../twistysim.js"></script>
     <script>
-
         let work;
         let addBufferInterval;
         let solveID = 0;
@@ -385,9 +385,17 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
         puzzleSelected({value: "3x3x3"})
 
         function createSolutionTable() {
-            document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left">#'+solveID+'<br><span id="progUpdate'+solveID+'"></span></th>';
+            document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left" id="caseHeader'+solveID+'">#'+solveID+'<br><span id="progUpdate'+solveID+'"></span></th>';
             document.getElementById("solutions-header").innerHTML += '<th class="output-left">&nbsp;'+sortCriteria+'&nbsp;<th>&nbsp;Solutions&nbsp;</th></th>';
             document.getElementById("output-data").innerHTML += '<td class="output-left" id="speed'+solveID+'"></td><td id="solutions'+solveID+'"></td>';
+
+            {/*
+            let cube = TTk.TwistyPuzzle(3).
+            alg("R U R' U R U2 R'");
+            cube.context().projection().focalFac(-0.5).near(0.83);
+            cube.context().transform().pitch(Math.PI/2).yaw(0);
+            cube("#caseHeader"+solveID);
+            */}
         }
 
         function getWorkerData() {
@@ -474,9 +482,9 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
             let bufferNeedle = 0;
             let tableSpeedList = document.getElementById("speed"+solveID).innerHTML.split("<br>").filter(x => (x != ""));
             let tableSolutionList = document.getElementById("solutions"+solveID).innerHTML.split("<br>").filter(x => (x != ""));
-            let solutionsLeft = Math.min(parseInt(document.getElementById("maxSolutions").value, 10),tableSpeedList.length+sortedBuffer.length);
-            console.log(tableSolutionList);
-            console.log(sortedBuffer);
+            let maxSolutions = parseInt(document.getElementById("maxSolutions").value, 10);
+            let availSolutions = tableSpeedList.length+sortedBuffer.length;
+            let solutionsAdded = 0;
             let prevSolution = "";
 
             function addFromBuffer() {
@@ -486,7 +494,9 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                     updatedSpeedData += speed + "<br>";
                     updatedSolutionsData += solution + "<br>";
                     prevSolution = removeParens(solution);
-                    solutionsLeft--;
+                    solutionsAdded++;
+                } else {
+                    availSolutions--;
                 }
                 bufferNeedle++;
             }
@@ -498,12 +508,14 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                     updatedSpeedData += speed + "<br>";
                     updatedSolutionsData += solution + "<br>";
                     prevSolution = removeParens(solution);
+                    solutionsAdded++;
+                } else {
+                    availSolutions--;
                 }
                 tableNeedle++;
-                solutionsLeft--;
             }
 
-            while (solutionsLeft > 0) {
+            while (Math.min(maxSolutions, availSolutions) - solutionsAdded > 0) {
                 if (tableNeedle === tableSpeedList.length) {
                     addFromBuffer();
                 } else if (bufferNeedle === sortedBuffer.length) {
