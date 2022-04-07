@@ -669,7 +669,7 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                     }
                     if (document.getElementById("imageVis").checked) {
                         let cube = TTk.TwistyPuzzle(3).alg(event.data.value.setup);
-                        cube.context().projection().focalFac(-0.5).near(0.83);
+                        cube.context().projection().focalFac(-0.905).near(0.83);
                         cube.context().transform().pitch(Math.PI/2).yaw(0);
                         cube("#caseHeader"+solveID);
                     } else {
