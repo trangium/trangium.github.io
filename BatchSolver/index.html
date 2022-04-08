@@ -65,6 +65,10 @@
                 padding: 0;
             }
 
+            #imageOptions {
+                line-height: 1.333;
+            }
+
             #table-area table {
                 border-color: black;
                 border-width: 0.063rem 0.063rem 0.125rem 0.063rem;
@@ -101,7 +105,7 @@
                 
             }
 
-            #maxSolutions {
+            .inputNum {
                 vertical-align: middle;
                 resize: none;
                 width: 4.5rem;
@@ -181,11 +185,37 @@
                     <option value="SQTM">SQTM</option>
                 </select>
                 <br>
-                <input type="checkbox" id="statVis" onclick="statVisibility(this)" checked/><label for="statVis"> Show statistics</label><br>
-                <input type="checkbox" id="imageVis" checked/><label for="imageVis"> Show images</label><br>
-                <input type="checkbox" id="optVis" onclick="optionVisibility(this)" /><label for="optVis"> Show advanced speed options</label><br>
+                <input type="checkbox" id="statVis" onclick="visibility('statVis', 'statistics')" checked/><label for="statVis"> Show statistics</label><br>
+                <input type="checkbox" id="imgOptVis" onclick="visibility('imgOptVis', 'imageOptions')" checked/><label for="imgOptVis"> Show image options</label><br>
+                <input type="checkbox" id="optVis" onclick="visibility('optVis', 'advanced')" /><label for="optVis"> Show advanced MCC options</label><br>
                 <input type="checkbox" id="showPostAdj" /><label for="showPostAdj"> Show ending adjustments</label><br>
-                Show top <input type="number" id="maxSolutions" value="100"></input> solutions for each case<br>
+                Show top <input type="number" class="inputNum" id="maxSolutions" value="100"></input> solutions for each case<br>
+            </div>
+
+            <div id="imageOptions">
+                <br>
+                <strong>Image Options</strong><br>
+                <input type="checkbox" id="imageVis" checked/><label for="imageVis"> Show images</label><br>
+                Image type: <select id="img-select" onchange="imageSelected(this)">
+                    <option value="3x3x3-top">3x3x3 top</option>
+                    <option value="3x3x3">3x3x3</option>
+                    <option value="2x2x2-top">2x2x2 top</option>
+                    <option value="2x2x2">2x2x2</option>
+                    <option value="4x4x4">4x4x4</option>
+                    <option value="5x5x5">5x5x5</option>
+                    <option value="Skewb">Skewb</option>
+                    <option value="Pyraminx">Pyraminx</option>
+                    <option value="Megaminx">Megaminx</option>
+                </select><br>
+                Image size: <input type="number" class="inputNum" id="imgSize" value="150" oninput="generateImagePreview()"></input><br>
+                <div id="imgRot"> 
+                    X rotation: <input type="number" class="inputNum" id="imgPitch" value="30" oninput="generateImagePreview()"></input> 
+                    Y rotation: <input type="number" class="inputNum" id="imgYaw" value="40" oninput="generateImagePreview()"></input><br> 
+                </div>
+                Mask: <input size="54" id="faceletColors" oninput="generateImagePreview()"></input><br>
+                <input type="checkbox" id="previewVis" onclick="previewToggled(this)"/><label for="previewVis"> Show preview</label> <br>
+                <div id="imgPreview" hidden></div>
+                <input hidden type="range" id="previewYaw" oninput="generateImagePreview()" style="width: 225px;" value="0" min="-265" max="265" step="1">
             </div>
 
             <div id="advanced" hidden>
@@ -308,26 +338,38 @@
         let isIdle = true;
         let totalMCC, totalSTM, totalSQTM;
         let sortCriteria;
-                        
-        function statVisibility() {
-            if (statVis.checked) {
-                document.getElementById("statistics").hidden = false;
+
+        function visibility(checkboxId, elementId) {
+            if (document.getElementById(checkboxId).checked) {
+                document.getElementById(elementId).hidden = false;
             } else {
-                document.getElementById("statistics").hidden = true;
+                document.getElementById(elementId).hidden = true;
+            }            
+        }
+
+        function previewToggled(c) {
+            visibility('previewVis', 'imgPreview')
+            visibility('previewVis', 'previewYaw')
+            if (c.checked) {
+                generateImagePreview();
             }
         }
 
-        function optionVisibility() {
-            if (optVis.checked) {
-                advanced.hidden = false;
-            } else {
-                advanced.hidden = true;
-            }
+        function imageSelected(type) {
+            imgRot.hidden = type.value.includes("top");
+            previewYaw.hidden = type.value.includes("top") || !previewVis.checked;
+            generateImagePreview();
         }
 
         function puzzleSelected(pzl) {
             let pzlField = document.getElementById('puzzle');
-            if (pzl.value === "Custom") {pzlField.readOnly = false} else {pzlField.readOnly = true}
+            if (pzl.value === "Custom") {
+                pzlField.readOnly = false;
+            } else {
+                pzlField.readOnly = true;
+                document.getElementById("img-select").value = pzl.value;
+                imageSelected(pzl);
+            }
             switch (pzl.value) {
                 case ("3x3x3"):
                     pzlField.value = 
@@ -389,6 +431,39 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
 
         puzzleSelected({value: "3x3x3"})
 
+        function cubeImage(setup="", yawOffset=0) {
+            let imgType = document.getElementById("img-select").value;
+            let fc = document.getElementById("faceletColors").value;
+            let cube;
+            if (imgType == "3x3x3-top") {
+                cube = TTk.TwistyPuzzle(3).alg(setup);
+                cube.context().projection().focalFac(-0.905).near(0.83);
+                cube.context().transform().pitch(Math.PI/2).yaw(0);
+            } else if (imgType == "2x2x2-top") {
+                cube = TTk.TwistyPuzzle(2).alg(setup);
+                cube.context().projection().focalFac(-0.96).near(0.882);
+                cube.context().transform().pitch(Math.PI/2).yaw(0);
+            } else {
+                let cMap = {"3x3x3":3, "2x2x2":2, "4x4x4":4, "5x5x5":5, "Skewb":"skewb", "Pyraminx":"pyraminx", "Megaminx":"megaminx"};
+                cube = TTk.TwistyPuzzle(cMap[imgType]).alg(setup);
+                cube.context().transform().pitch(parseFloat(document.getElementById("imgPitch").value,10)/180*Math.PI).yaw((yawOffset+parseFloat(document.getElementById("imgYaw").value,10))/180*Math.PI);
+            }
+            cube = cube.size({width:parseFloat(document.getElementById("imgSize").value,10), height:parseFloat(document.getElementById("imgSize").value,10)})
+            if (fc.trim() !== "") {cube = cube.fc(fc)}
+            return cube;
+        }
+
+        function generateImagePreview() {
+            document.getElementById("imgPreview").innerHTML = "";
+            let rawYaw = parseInt(document.getElementById("previewYaw").value, 10);
+            const SNAP = 25;
+            let dispYaw = (rawYaw > SNAP) ? (rawYaw-SNAP) : (rawYaw < -SNAP) ? (rawYaw+SNAP) : 0;
+            let cube = cubeImage("", dispYaw);
+            cube("#imgPreview");
+        }
+
+        generateImagePreview();
+
         function createSolutionTable() {
             document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left"><span id=caseHeader'+solveID+'></span><br><span id="progUpdate'+solveID+'"></span></th>';
             document.getElementById("solutions-header").innerHTML += '<th class="output-left">&nbsp;'+sortCriteria+'&nbsp;<th>&nbsp;Solutions&nbsp;</th></th>';
@@ -400,6 +475,7 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
             svg.setAttribute("stroke", "black")
             var canvas = document.getElementById('canvas');
             var ctx = canvas.getContext('2d');
+            canvas.width = canvas.height = parseFloat(document.getElementById("imgSize").value,10);
             var data = (new XMLSerializer()).serializeToString(svg);
             var DOMURL = window.URL || window.webkitURL || window;
             var img = new Image();
@@ -689,9 +765,7 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                         initNextState();
                     }
                     if (document.getElementById("imageVis").checked) {
-                        let cube = TTk.TwistyPuzzle(3).alg(event.data.value.setup);
-                        cube.context().projection().focalFac(-0.905).near(0.83);
-                        cube.context().transform().pitch(Math.PI/2).yaw(0);
+                        let cube = cubeImage(event.data.value.setup);
                         cube("#caseHeader"+solveID);
                         makeImageCopyable(solveID)
                     } else {
