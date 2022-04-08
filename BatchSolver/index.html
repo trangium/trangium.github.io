@@ -287,6 +287,7 @@
                 </table>
             </div>
         </div>
+        <canvas hidden id="canvas" width="150" height="150"></canvas>
         <br><br><br><br><br><br><br><br><br><br><br>
     <script src="../algSpeed.js"></script>
     <script src="../twistysim.js"></script>
@@ -392,6 +393,26 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
             document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left"><span id=caseHeader'+solveID+'></span><br><span id="progUpdate'+solveID+'"></span></th>';
             document.getElementById("solutions-header").innerHTML += '<th class="output-left">&nbsp;'+sortCriteria+'&nbsp;<th>&nbsp;Solutions&nbsp;</th></th>';
             document.getElementById("output-data").innerHTML += '<td class="output-left" id="speed'+solveID+'"></td><td id="solutions'+solveID+'"></td>';
+        }
+
+        function makeImageCopyable(num) {
+            var svg = document.getElementById('caseHeader'+num).children[0]
+            svg.setAttribute("stroke", "black")
+            var canvas = document.getElementById('canvas');
+            var ctx = canvas.getContext('2d');
+            var data = (new XMLSerializer()).serializeToString(svg);
+            var DOMURL = window.URL || window.webkitURL || window;
+            var img = new Image();
+            var svgBlob = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
+            var url = DOMURL.createObjectURL(svgBlob);
+            
+            img.onload = function () {
+                ctx.drawImage(img, 0, 0);
+                DOMURL.revokeObjectURL(url);
+                var imgURI = canvas.toDataURL('image/png')
+                document.getElementById('caseHeader'+num).innerHTML = `<img src=${imgURI} />`
+            };
+            img.src = url;
         }
 
         function getWorkerData() {
@@ -672,6 +693,7 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                         cube.context().projection().focalFac(-0.905).near(0.83);
                         cube.context().transform().pitch(Math.PI/2).yaw(0);
                         cube("#caseHeader"+solveID);
+                        makeImageCopyable(solveID)
                     } else {
                         document.getElementById("caseHeader"+solveID).innerHTML = "#"+solveID;
                     }
