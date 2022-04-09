@@ -113,6 +113,45 @@
 
             #info-fails {
                 color: red;
+                cursor: pointer;
+            }
+
+            .tooltip {
+                position: relative;
+                display: inline-block;
+            }
+
+            .tooltip .tooltiptext {
+                visibility: hidden;
+                width: 140px;
+                background-color: #555;
+                color: #fff;
+                text-align: center;
+                border-radius: 6px;
+                padding: 5px;
+                position: absolute;
+                z-index: 1;
+                bottom: 150%;
+                left: 50%;
+                margin-left: -75px;
+                opacity: 0;
+                transition: opacity 0.3s;
+            }
+
+            .tooltip .tooltiptext::after {
+                content: "";
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                margin-left: -5px;
+                border-width: 5px;
+                border-style: solid;
+                border-color: #555 transparent transparent transparent;
+            }
+
+            .tooltip:hover .tooltiptext {
+                visibility: visible;
+                opacity: 1;
             }
 
         </style>
@@ -296,7 +335,11 @@
 
             <div id="statistics">
                 <strong>Statistics</strong><br>
-                Case: <span id="info-this-case">0</span>/<span id="info-num-cases">0</span><span id="info-fails"></span><br>
+                Case: <span id="info-this-case">0</span>/<span id="info-num-cases">0</span> 
+                    <span class="tooltip">
+                        <span id="info-fails"></span>
+                        <span class="tooltiptext" id="myTooltip">Copy to clipboard</span>
+                    </span><br>
                 Rate: <span id="info-time">0.00 sec/case</span><br>
                 MCC: <span id="info-mcc"> 0.00 </span><br>
                 STM: <span id="info-stm"> 0.00 </span><br>
@@ -325,6 +368,7 @@
         let work;
         let addBufferInterval;
         let solveID = 0;
+        let caseNum = 1;
         let depth = 0;
         let numSolutions;
         let subgroupRowID = 3;
@@ -334,7 +378,7 @@
         let debugVars = [];
 
         let startTime = Date.now();
-        let numFailed = 0;
+        let failed = [];
         let isIdle = true;
         let totalMCC, totalSTM, totalSQTM;
         let sortCriteria;
@@ -689,12 +733,14 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
 
         function updateStats() {
             let topSolution = getFirstLine(document.getElementById("solutions"+solveID).innerText);
-            if (topSolution == "") {numFailed++}
+            if (topSolution == "") {
+                failed.push(caseNum);
+            }
             let numCases = parseInt(document.getElementById("info-this-case").innerHTML, 10) + 1;
-            let numSucceeded = numCases - numFailed;
+            let numSucceeded = numCases - failed.length;
 
             document.getElementById("info-this-case").innerHTML = numCases;
-            document.getElementById("info-fails").innerHTML = (numFailed == 0) ? "" : " ("+numFailed+" failed)";
+            document.getElementById("info-fails").innerHTML = (failed.length == 0) ? "" : " ("+failed.length+" failed)";
             document.getElementById("info-time").innerHTML = ((Date.now()-startTime)/numCases/1000).toFixed(2)+" sec/case";
             totalMCC += getMCC(topSolution);
             document.getElementById("info-mcc").innerHTML = (totalMCC/numSucceeded).toFixed(2);
@@ -708,7 +754,7 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
             work = new Worker("worker.js");
             isIdle = false;
             startTime = Date.now();
-            numFailed = 0;
+            failed = [];
             totalMCC = totalSTM = totalSQTM = 0;
 
             document.getElementById("info-this-case").innerHTML = 0;
@@ -765,6 +811,7 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                         updateStats();
                         initNextState();
                     }
+                    caseNum = event.data.value.num;
                     if (document.getElementById("imageVis").checked) {
                         let cube = cubeImage(event.data.value.setup);
                         cube("#caseHeader"+solveID);
@@ -810,9 +857,21 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
             document.getElementById("table-area").hidden = true;
             solveID = 0;
         }
+
+        function copyFails() {
+            console.log(failed);
+            navigator.clipboard.writeText("#" + failed.join(", "));
+            document.getElementById("myTooltip").innerHTML = "Copied";
+        }
+
+        function outFails() { // DOES NOT WORK
+            document.getElementById("myTooltip").innerHTML = "Copy to clipboard";
+        }
+
+        document.getElementById("info-fails").addEventListener("click", copyFails, false);
+        document.getElementById("info-fails").addEventListener("mouseout", outFails, false);
+        document.getElementById("info-fails").addEventListener("touchend", copyFails, false);
         
 </script>
-
 </body>
-
 </html>

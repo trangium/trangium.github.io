@@ -12,7 +12,7 @@ self.onmessage = function (msg) {
         let state = fullPuzzle.execute(fullPuzzle.solved, fullPuzzle.moveStrToList(stateStr));
         if(!(arraysEqual(fullPuzzle.solved, state))) {
             if (caseNum >= startNum || modifiers.has(caseNum)) {
-                postMessage({value: {index: solutionIndex, setup: stateStr}, type: "next-state"})
+                postMessage({value: {index: solutionIndex, setup: stateStr, num: caseNum}, type: "next-state"})
                 calcState(state, subPuzzles, input.showPost);
                 solutionIndex++;
             }
