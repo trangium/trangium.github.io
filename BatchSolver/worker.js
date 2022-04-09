@@ -4,14 +4,19 @@ self.onmessage = function (msg) {
     if (scramble.includes(":")) {postMessage({value: "Colon notation for indicating adjust moves is deprecated.", type: "stop"})}
     let [fullPuzzle, batchStates, subPuzzles] = setPuzzles(scramble, input.puzzle, input.ignore, input.subgroups, input.preAdjust, input.postAdjust);
 
+    let [modifiers, startNum] = parseModifiers(scramble);
+    let caseNum = 1;
     let solutionIndex = 1;
 
     for (let stateStr of batchStates) {
         let state = fullPuzzle.execute(fullPuzzle.solved, fullPuzzle.moveStrToList(stateStr));
         if(!(arraysEqual(fullPuzzle.solved, state))) {
-            postMessage({value: {index: solutionIndex, setup: stateStr}, type: "next-state"})
-            calcState(state, subPuzzles, input.showPost);
-            solutionIndex++;
+            if (caseNum >= startNum || modifiers.has(caseNum)) {
+                postMessage({value: {index: solutionIndex, setup: stateStr}, type: "next-state"})
+                calcState(state, subPuzzles, input.showPost);
+                solutionIndex++;
+            }
+            caseNum++;
         }
     }
     postMessage({value: null, type: "stop"});
@@ -136,9 +141,16 @@ function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust) 
     // calculate batch states
     let batchStates = fullPuzzleDupe.getBatchStates(scramble, adjust, postAdjust);
     let numStates = 0;
+    let solutionIndex = 1;
+    let [modifiers, startNum] = parseModifiers(scramble)
     for (let stateStr of batchStates) {
         let state = fullPuzzleDupe.execute(fullPuzzleDupe.solved, fullPuzzleDupe.moveStrToList(stateStr));
-        if(!(arraysEqual(fullPuzzleDupe.solved, state))) {numStates++}
+        if(!(arraysEqual(fullPuzzleDupe.solved, state))) {
+            if (solutionIndex >= startNum || modifiers.has(solutionIndex)) {
+                numStates++;
+            }
+            solutionIndex++;
+        }
     }
     postMessage({value: numStates, type: "num-states"})
 
@@ -234,6 +246,44 @@ function checkMoveGroup(puzzle, movegroup, errorStr) {
             postMessage({value: '"' + move + '" is not a valid move in ' + errorStr, type: "stop"});
         }
     }
+}
+
+function parseModifiers(input) {
+    // returns [modification, startNum]
+    function errParse(x) {
+        let pInt = parseInt(x, 10);
+        if (pInt !== pInt || pInt <= 0) {
+            postMessage({value: '"' + x + '" is not a positive number. (Error in Scramble)', type: "stop"});
+        }
+        return pInt;
+    }
+
+    input = input.replaceAll("\n","");
+    let indexPound = input.indexOf("#");
+    if (indexPound === -1) {
+        return [new Set(), 1];
+    }
+    let modificationStr = input.slice(indexPound+1);
+    let modificationList = modificationStr.split(",").filter(x => x !== "");
+    let modifications = new Set();
+    let startNum = Infinity;
+    for (let mod of modificationList) {
+        if (mod.includes("+")) {
+            startNum = Math.min(startNum, errParse(mod));
+        } else if (mod.includes("-")) {
+            let int1 = errParse(mod.split("-")[0]);
+            let int2 = errParse(mod.split("-")[1]);
+            if (int2 <= int1) {
+                postMessage({value: 'Invalid range: "' + mod + '" (Error in Scramble)', type: "stop"});
+            }
+            for (var i = int1; i <= int2; i++) {
+                modifications.add(i);
+            }
+        } else {
+            modifications.add(errParse(mod));
+        }
+    }
+    return [modifications, startNum];
 }
 
 function parseBatch(input) {
@@ -772,6 +822,7 @@ class Puzzle {
     }
 
     getBatchStates(input, preAdjust, postAdjust) {
+        input = (input.includes("#") ? input.slice(0, input.indexOf("#")) : input).replaceAll("\n", "");
         let parsedInput = parseBatch(input);
         let states = [""];
         for (let i=0; i<parsedInput.length; i++) {
