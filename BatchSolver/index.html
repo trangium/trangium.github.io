@@ -449,7 +449,8 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                 cube.context().transform().pitch(parseFloat(document.getElementById("imgPitch").value,10)/180*Math.PI).yaw((yawOffset+parseFloat(document.getElementById("imgYaw").value,10))/180*Math.PI);
             }
             cube = cube.size({width:parseFloat(document.getElementById("imgSize").value,10), height:parseFloat(document.getElementById("imgSize").value,10)})
-            if (fc.trim() !== "") {cube = cube.fc(fc)}
+            if (fc.trim() === "" && imgType == "Megaminx") {cube = cube.fc("wwwwwwwwwwwaaaaaaaaaaarrrrrrrrrrrbbbbbbbbbbbyyyyyyyyyyymmmmmmmmmmmgggggggggggpppppppppppGGGGGGGGGGGoooooooooooBBBBBBBBBBBYYYYYYYYYYY")}
+            else if (fc.trim() !== "") {cube = cube.fc(fc)}
             return cube;
         }
 
