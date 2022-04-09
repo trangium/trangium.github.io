@@ -180,11 +180,11 @@ function algSpeed(sequence, ignoreErrors=false, ignoreauf=false, wristMult=0.8, 
                         speed += overwork(rIndex, "home");
                         speed += 1;
                         rIndex = [speed, "uflick"]
-                    } else if (lWrist == 1) {
+                    } else if (lWrist == 1 && move != "f") {
                         speed += overwork(lRing, "home");
                         if (prevMove[0] == "D") {speed += moveblock*0.5+ringMult} else {speed += 1}
                         lRing = [speed, "dflick"];
-                    } else if (rWrist == 1 && prevMove[0] != "D") {
+                    } else if (rWrist == 1 && prevMove[0] != "D" && move != "f") {
                         speed += overwork(rRing, "dflick");
                         speed += ringMult*pushMult;
                         rRing = [speed, "home"]
@@ -226,11 +226,11 @@ function algSpeed(sequence, ignoreErrors=false, ignoreauf=false, wristMult=0.8, 
                         speed += overwork(lIndex, "home");
                         speed += 1;
                         lIndex = [speed, "uflick"]
-                    } else if (rWrist == 1) {
+                    } else if (rWrist == 1 && move != "f") {
                         speed += overwork(rRing, "home");
                         if (prevMove[0] == "D") {speed += moveblock*0.5+ringMult} else {speed += 1}
                         rRing = [speed, "dflick"];
-                    } else if (lWrist == 1 && prevMove[0] != "D") {
+                    } else if (lWrist == 1 && prevMove[0] != "D" && move != "f") {
                         speed += overwork(lRing, "dflick");
                         speed += ringMult*pushMult;
                         lRing = [speed, "home"]
