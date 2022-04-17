@@ -2,7 +2,7 @@ self.onmessage = function (msg) {
     let input = msg.data;
     let scramble = input.solve;
     if (scramble.includes(":")) {postMessage({value: "Colon notation for indicating adjust moves is deprecated.", type: "stop"})}
-    let [fullPuzzle, batchStates, subPuzzles] = setPuzzles(scramble, input.puzzle, input.ignore, input.subgroups, input.preAdjust, input.postAdjust);
+    let [fullPuzzle, batchStates, subPuzzles] = setPuzzles(scramble, input.puzzle, input.ignore, input.subgroups, input.preAdjust, input.postAdjust, input.sorting);
 
     let [modifiers, startNum] = parseModifiers(scramble);
     let caseNum = 1;
@@ -22,7 +22,7 @@ self.onmessage = function (msg) {
     postMessage({value: null, type: "stop"});
 };
 
-function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust) {
+function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust, sorting) {
     let moves = puzzleDef;
     let moveLines = moves.split('\n');
 
@@ -139,7 +139,7 @@ function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust) 
     initCubeOri(fullPuzzleDupe, pieceList, ignore);
 
     // calculate batch states
-    let batchStates = fullPuzzleDupe.getBatchStates(scramble, adjust, postAdjust);
+    let batchStates = fullPuzzleDupe.getBatchStates(scramble, adjust, postAdjust, pieceList, sorting, fullPuzzle);
     let numStates = 0;
     let solutionIndex = 1;
     let [modifiers, startNum] = parseModifiers(scramble)
@@ -601,7 +601,6 @@ class Puzzle {
                 let cubeStr = this.compressArr(this.execute(this.solved, sequence));
                 if (!(tempTable.has(cubeStr))) {tempTable.set(cubeStr, depth)}
             }
-            console.log(tempTable.size+" at depth "+depth)
             if (tempTable.size**2/prevSize > maxSize || tempTable.size - prevSize - diff < 0) {break}
             depth++;
             diff = tempTable.size - prevSize;
@@ -809,10 +808,6 @@ class Puzzle {
         return reducedStates;
     }
 
-    moveStrToState(str) { // There are TONS of places where I'm using the long way that can be shortened.
-        return this.execute(this.solved, this.moveStrToList(str))
-    }
-
     compareStates(state1, state2) {
         for (let i=0; i<state1.length; i++) {
             if (state1[i] > state2[i]) {return 1}
@@ -821,7 +816,7 @@ class Puzzle {
         return 0;
     }
 
-    getBatchStates(input, preAdjust, postAdjust) {
+    getBatchStates(input, preAdjust, postAdjust, pieceList, sorting, fullPuzzle) {
         input = (input.includes("#") ? input.slice(0, input.indexOf("#")) : input).replaceAll("\n", "");
         let parsedInput = parseBatch(input);
         let states = [""];
@@ -837,8 +832,58 @@ class Puzzle {
                 states = this.bfs(states, data.split(","));
             }
         }
-        let sortLookupTable = new Map(states.map(x => [x, this.moveStrToState(x)]));
+        let pieceMap = new Map(pieceList.map((pc, ind) => [pc, ind]));
+        let sortLookupTable = new Map(states.map(x => [x, getStatePriority(x, pieceMap, sorting, this)]));
         states.sort((s1, s2) => this.compareStates(sortLookupTable.get(s1), sortLookupTable.get(s2)));
         return this.getReducedSet(states, preAdjust, postAdjust);
     }
+}
+
+function maskedIndex(stateArr, num, bitMask, piece) {
+    let ind = 0;
+    for (let n of stateArr) {
+        if ((n & bitMask) === num) {
+            return ind;
+        }
+        ind++;
+    }
+    postMessage({value: 'Invalid piece: "' + piece + '"', type: "stop"})
+}
+
+function getStatePriority(str, pieceMap, sortCriteria, fullPuzzle) { // TODO: error handling
+    let stateArr = fullPuzzle.execute(fullPuzzle.nullmove, fullPuzzle.moveStrToList(str));
+    let pcCount = pieceMap.size;
+    let minIndex = 0;
+    let pcPriority = [];
+    let statePriority = [];
+    for (let i=0; i<pcCount; i++) {
+        pcPriority.push(i);
+    }
+    for (let criteria of sortCriteria) {
+        if (criteria.type === "priority") {
+            minIndex -= pcCount;
+            for (let piece of criteria.pieces.split(" ")) {
+                pcPriority[pieceMap.get(piece)] = minIndex;
+                minIndex++;
+            }
+            minIndex -= pcCount;
+        } else {
+            let ori = [];
+            for (let piece of criteria.pieces.split(" ")) {
+                let pieceInd = pieceMap.get(piece);
+                if (pieceInd === undefined) {postMessage({value: 'Invalid piece: "' + piece + '"', type: "stop"})}
+
+                if (criteria.type === "ori-at") {ori.push( stateArr[pieceInd] & fullPuzzle.oriMask )}
+                else if (criteria.type === "ori-of") {ori.push( stateArr[maskedIndex(stateArr, pieceInd, fullPuzzle.posMask, piece)] & fullPuzzle.oriMask )}
+                else if (criteria.type === "perm-at") {ori.push( pcPriority[stateArr[pieceInd] & fullPuzzle.posMask] )}
+                else if (criteria.type === "perm-of") {ori.push( pcPriority[maskedIndex(stateArr, pieceInd, fullPuzzle.posMask, piece)] )}
+            }
+            if (criteria.type === "ori-at" || criteria.type === "ori-of") {
+                let sortedOri = ori.slice().sort((a, b) => a-b);
+                statePriority = statePriority.concat(sortedOri);
+            }
+            statePriority = statePriority.concat(ori);
+        }
+    }
+    return statePriority.concat(stateArr);
 }

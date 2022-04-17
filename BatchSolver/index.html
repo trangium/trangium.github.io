@@ -35,8 +35,8 @@
                 margin: 0.25rem 0.125rem;
             }
 
-            .add-subgroup, .remove-subgroup {
-                padding: 0.063rem 0.313rem;
+            .add-subgroup, .remove-subgroup, .add-sorting, .remove-sorting {
+                padding: 0.063rem 0.312rem;
                 margin: 0rem 0rem;
             }
     
@@ -123,17 +123,17 @@
 
             .tooltip .tooltiptext {
                 visibility: hidden;
-                width: 140px;
+                width: 9rem;
                 background-color: #555;
                 color: #fff;
                 text-align: center;
-                border-radius: 6px;
-                padding: 5px;
+                border-radius: 0.375rem;
+                padding: 0.313rem;
                 position: absolute;
                 z-index: 1;
                 bottom: 150%;
                 left: 50%;
-                margin-left: -75px;
+                margin-left: -5rem;
                 opacity: 0;
                 transition: opacity 0.3s;
             }
@@ -143,8 +143,8 @@
                 position: absolute;
                 top: 100%;
                 left: 50%;
-                margin-left: -5px;
-                border-width: 5px;
+                margin-left: -0.313rem;
+                border-width: 0.313rem;
                 border-style: solid;
                 border-color: #555 transparent transparent transparent;
             }
@@ -204,7 +204,32 @@
                             <td><textarea id="pre-adjustments" rows="1" cols="14" spellcheck="false">U</textarea>&nbsp;&nbsp;</td>
                             <td><textarea id="post-adjustments" rows="1" cols="14" spellcheck="false">U</textarea>&nbsp;&nbsp;</td>
                         </tr>
+                    </table>
+
+                    <table id="sorting-table">
+                        <tr id="sorting-row-1">
+                            <th style="vertical-align: bottom" colspan="2">Case Sorting</th>
+                            <th>
+                                <button style="font-family:courier new; font-size:17px" class="button add-sorting" onclick="sortButtonHandler(this)"><strong>+</strong></button>
+                            </th>
+                        </tr>
+                        <tr id="sorting-row-2">
+                            <td>
+                                <select class="sorting-type" style="font-size:15px; padding:2px">
+                                    <option value="priority">Set priority</option>
+                                    <option value="ori-of">Orientation of</option>
+                                    <option value="ori-at">Orientation at</option>
+                                    <option value="perm-of">Permutation of</option>
+                                    <option value="perm-at">Permutation at</option>
+                                </select>
+                            </td>
+                            <td><textarea class="sorting-pieces" rows="1" cols="52" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                            <td>
+                                <button disabled style="font-family:courier new; font-size:17px" class="button remove-sorting" onclick="sortButtonHandler(this)"><strong>-</strong></button>
+                            </td>
+                        </tr>
                     </table><br>
+                    
                 </div>
             Options
             </strong>
@@ -251,7 +276,7 @@
                     X rotation: <input type="number" class="inputNum" id="imgPitch" value="30" oninput="generateImagePreview()"></input> 
                     Y rotation: <input type="number" class="inputNum" id="imgYaw" value="40" oninput="generateImagePreview()"></input><br> 
                 </div>
-                Mask: <input size="54" id="faceletColors" oninput="generateImagePreview()"></input><br>
+                Mask: <input size="54" id="faceletColors" oninput="generateImagePreview()" spellcheck="false"></input><br>
                 <input type="checkbox" id="previewVis" onclick="previewToggled(this)"/><label for="previewVis"> Show preview</label> <br>
                 <div id="imgPreview" hidden></div>
                 <input hidden type="range" id="previewYaw" oninput="generateImagePreview()" style="width: 225px;" value="0" min="-265" max="265" step="1">
@@ -373,6 +398,8 @@
         let numSolutions;
         let subgroupRowID = 3;
         let subgroupRows = 1;
+        let sortingRowID = 3;
+        let sortingRows = 1;
         let speedBuffer = [];
         let solutionsBuffer = [];
         let debugVars = [];
@@ -541,19 +568,29 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
             let pruneDepths = document.querySelectorAll(".prune");
             let searchDepths = document.querySelectorAll(".search");
             let subgroups = document.querySelectorAll(".subgroup");
-
             for (let i=0; i<pruneDepths.length; i++) {
                 subgroupData.push(
                 {subgroup: subgroups[i].value,
                 prune: pruneDepths[i].value,
                 search: searchDepths[i].value});
             }
+
+            let sortData = [];
+            let sortTypes = document.querySelectorAll(".sorting-type");
+            let sortPieces = document.querySelectorAll(".sorting-pieces")
+            for (let i=0; i<sortTypes.length; i++) {
+                sortData.push(
+                {type: sortTypes[i].value, 
+                pieces: sortPieces[i].value});
+            }
+
             return {puzzle: document.getElementById('puzzle').value, 
                     ignore: document.getElementById('ignore').value,
                     solve: document.getElementById('solve').value,
                     preAdjust: document.getElementById('pre-adjustments').value,
                     postAdjust: document.getElementById('post-adjustments').value,
                     subgroups: subgroupData,
+                    sorting: sortData,
                     showPost: showPostAdj.checked};
         }
 
@@ -586,6 +623,39 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                 subgroupRows--;
                 if (subgroupRows == 1) {
                     document.querySelector(".remove-subgroup").disabled = true;
+                }
+            }
+        }
+
+        function sortButtonHandler(e) {
+            if (e.className == "button add-sorting") {
+                let tbody = document.getElementById("sorting-table").children[0];
+                let clone = document.getElementById("sorting-row-1").cloneNode(true);
+                clone.innerHTML = `
+                <td>
+                    <select class="sorting-type" style="font-size:15px; padding:2px">
+                        <option value="priority">Set priority</option>
+                        <option value="ori-of">Orientation of</option>
+                        <option value="ori-at">Orientation at</option>
+                        <option value="perm-of">Permutation of</option>
+                        <option value="perm-at">Permutation at</option>
+                    </select>
+                </td>
+                <td><textarea class="sorting-pieces" rows="1" cols="52" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                <td>
+                    <button style="font-family:courier new; font-size:17px" class="button remove-sorting" onclick="sortButtonHandler(this)"><strong>-</strong></button>
+                </td>
+                `;
+                clone.id = "sorting-row-"+sortingRowID;
+                tbody.appendChild(clone);
+                document.querySelector(".remove-sorting").disabled = false;
+                sortingRowID++;
+                sortingRows++;
+            } else {
+                e.parentNode.parentNode.remove();
+                sortingRows--;
+                if (sortingRows == 1) {
+                    document.querySelector(".remove-sorting").disabled = true;
                 }
             }
         }
@@ -859,12 +929,11 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
         }
 
         function copyFails() {
-            console.log(failed);
             navigator.clipboard.writeText("#" + failed.join(", "));
             document.getElementById("myTooltip").innerHTML = "Copied";
         }
 
-        function outFails() { // DOES NOT WORK
+        function outFails() {
             document.getElementById("myTooltip").innerHTML = "Copy to clipboard";
         }
 
