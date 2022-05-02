@@ -37,7 +37,7 @@
 
             .add-subgroup, .remove-subgroup, .add-sorting, .remove-sorting {
                 padding: 0.063rem 0.312rem;
-                margin: 0rem 0rem;
+                margin: 0rem 0.125rem;
             }
     
             .button:hover {
@@ -208,10 +208,7 @@
 
                     <table id="sorting-table">
                         <tr id="sorting-row-1">
-                            <th style="vertical-align: bottom" colspan="2">Case Sorting</th>
-                            <th>
-                                <button style="font-family:courier new; font-size:17px" class="button add-sorting" onclick="sortButtonHandler(this)"><strong>+</strong></button>
-                            </th>
+                            <th style="vertical-align: bottom">Case Sorting</th>
                         </tr>
                         <tr id="sorting-row-2">
                             <td>
@@ -223,10 +220,11 @@
                                     <option value="perm-at">Permutation at</option>
                                 </select>
                             </td>
-                            <td><textarea class="sorting-pieces" rows="1" cols="52" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
-                            <td>
-                                <button disabled style="font-family:courier new; font-size:17px" class="button remove-sorting" onclick="sortButtonHandler(this)"><strong>-</strong></button>
-                            </td>
+                            <td><textarea class="sorting-pieces" rows="1" cols="44" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                            <td><button style="font-family:courier new; font-size:17px" class="button up-sorting" onclick="sortButtonHandler(this)"><strong>&#x25B2;</strong></button></td>
+                            <td><button style="font-family:courier new; font-size:17px" class="button down-sorting" onclick="sortButtonHandler(this)"><strong>&#x25BC;</strong></button>&nbsp;&nbsp;</td>
+                            <td><button style="font-family:courier new; font-size:17px" class="button add-sorting" onclick="sortButtonHandler(this)"><strong>+</strong></button></td>
+                            <td><button disabled style="font-family:courier new; font-size:17px" class="button remove-sorting" onclick="sortButtonHandler(this)"><strong>-</strong></button>&nbsp;</td>
                         </tr>
                     </table><br>
                     
@@ -628,34 +626,38 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
         }
 
         function sortButtonHandler(e) {
+            let trow = e.parentNode.parentNode;
+            let table = trow.parentNode;
+            console.log(trow);
             if (e.className == "button add-sorting") {
-                let tbody = document.getElementById("sorting-table").children[0];
-                let clone = document.getElementById("sorting-row-1").cloneNode(true);
-                clone.innerHTML = `
-                <td>
-                    <select class="sorting-type" style="font-size:15px; padding:2px">
-                        <option value="priority">Set priority</option>
-                        <option value="ori-of">Orientation of</option>
-                        <option value="ori-at">Orientation at</option>
-                        <option value="perm-of">Permutation of</option>
-                        <option value="perm-at">Permutation at</option>
-                    </select>
-                </td>
-                <td><textarea class="sorting-pieces" rows="1" cols="52" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
-                <td>
-                    <button style="font-family:courier new; font-size:17px" class="button remove-sorting" onclick="sortButtonHandler(this)"><strong>-</strong></button>
-                </td>
-                `;
-                clone.id = "sorting-row-"+sortingRowID;
-                tbody.appendChild(clone);
                 document.querySelector(".remove-sorting").disabled = false;
+                let clone = trow.cloneNode(true);
+                clone.id = "sorting-row-"+sortingRowID;
+
+                let trowDrop = trow.children[0].children[0].options;
+                let cloneDrop = clone.children[0].children[0].options;
+                for (let i=0; i<cloneDrop.length; i++) {
+                    cloneDrop[i].selected = trowDrop[i].selected;
+                }
+
+                table.insertBefore(clone, trow);
                 sortingRowID++;
                 sortingRows++;
-            } else {
+            } else if (e.className == "button remove-sorting") {
                 e.parentNode.parentNode.remove();
                 sortingRows--;
                 if (sortingRows == 1) {
                     document.querySelector(".remove-sorting").disabled = true;
+                }
+            } else if (e.className == "button up-sorting") {
+                rowIndex = Array.from(table.children).indexOf(trow);
+                if (rowIndex > 1) {
+                    table.insertBefore(table.children[rowIndex], table.children[rowIndex-1]);
+                }
+            } else if (e.className == "button down-sorting") {
+                rowIndex = Array.from(table.children).indexOf(trow);
+                if (rowIndex < Array.from(table.children).length-1) {
+                    table.insertBefore(table.children[rowIndex+1], table.children[rowIndex]);
                 }
             }
         }
