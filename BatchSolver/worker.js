@@ -816,7 +816,7 @@ class Puzzle {
         return 0;
     }
 
-    getBatchStates(input, preAdjust, postAdjust, pieceList, sorting, fullPuzzle) {
+    getBatchStates(input, preAdjust, postAdjust, pieceList, sorting) {
         input = (input.includes("#") ? input.slice(0, input.indexOf("#")) : input).replaceAll("\n", "");
         let parsedInput = parseBatch(input);
         let states = [""];
@@ -890,5 +890,5 @@ function getStatePriority(str, pieceMap, sortCriteria, fullPuzzle) { // TODO: er
             }
         }
     }
-    return statePriority.concat(stateArr);
+    return statePriority;
 }
