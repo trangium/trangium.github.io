@@ -670,7 +670,10 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
         function compareBufferElements(x, y) {
             if (customParseFloat(x[0]) > customParseFloat(y[0])) {return 1}
             else if (customParseFloat(x[0]) < customParseFloat(y[0])) {return -1}
-            else if (removeParens(x[1]) > removeParens(y[1])) {return 1}
+            let hasSecondaryMetric = (document.getElementById("secondary-metric").value !== "None")
+            if (hasSecondaryMetric && (parseInt(x[1].slice(x[1].lastIndexOf("[")+1),10) > parseInt(y[1].slice(y[1].lastIndexOf("[")+1),10))) {return 1}
+            else if (hasSecondaryMetric && (parseInt(x[1].slice(x[1].lastIndexOf("[")+1),10) < parseInt(y[1].slice(y[1].lastIndexOf("[")+1),10))) {return -1}
+            if (removeParens(x[1]) > removeParens(y[1])) {return 1}
             else if (removeParens(x[1]) < removeParens(y[1])) {return -1}
             else {return 0}
         }
@@ -867,11 +870,11 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                         speed = getMoveCount(solution, getSQTM);
                     }
                     if (secondaryMetric == "MCC") {
-                        solution += " (" + getMCC(solution) + " MCC)";
+                        solution += " [" + getMCC(solution) + " MCC]";
                     } else if (secondaryMetric == "STM") {
-                        solution += " (" + getMoveCount(solution, getSTM) + " STM)";
+                        solution += " [" + getMoveCount(solution, getSTM) + " STM]";
                     } else if (secondaryMetric == "SQTM") {
-                        solution += " (" + getMoveCount(solution, getSQTM) + " SQTM)";
+                        solution += " [" + getMoveCount(solution, getSQTM) + " SQTM]";
                     }
                     speedBuffer.push(speed);
                     solutionsBuffer.push(solution);
