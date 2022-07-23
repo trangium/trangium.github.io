@@ -69,8 +69,10 @@ function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust, 
         if (line.includes(":")) {
             let cycleStr = moveLines[ln].split(":");
             let moveName = cycleStr[0];
-            if (!/^[a-z]+$/i.test(moveName)) { // if moveName contains anything that isn't a letter
-                postMessage({value: "'" + moveName + "' is not a valid move name, because move names must only contain letters.", type: "stop"})
+            if (!/^[A-Za-z0-9]*$/.test(moveName)) { // if moveName contains anything that isn't a letter or number
+                postMessage({value: "'" + moveName + "' is not a valid move name, because move names must only contain alphanumeric characters.", type: "stop"})
+            } else if (moveName[moveName.length-1] >= '0' && moveName[moveName.length-1] <= '9') { // if moveName ends in a number
+                postMessage({value: "'" + moveName + "' is not a valid move name, because move names cannot end in a number.", type: "stop"})
             }
             clockwiseMoveStr.push(moveName);
             let cycleList = parseMove(cycleStr[1]);
