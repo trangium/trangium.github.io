@@ -381,6 +381,8 @@
                     <tr id="solutions-header"></tr>
                     <tr id="output-data"></tr>
                 </table>
+                <table cellspacing="0" id="transposed-table">
+                </table>
             </div>
         </div>
         <canvas hidden id="canvas" width="150" height="150"></canvas>
@@ -538,6 +540,60 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
             document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left"><span id=caseHeader'+solveID+'></span><br><span id="progUpdate'+solveID+'"></span></th>';
             document.getElementById("solutions-header").innerHTML += '<th class="output-left">&nbsp;'+sortCriteria+'&nbsp;<th>&nbsp;Solutions&nbsp;</th></th>';
             document.getElementById("output-data").innerHTML += '<td class="output-left" id="speed'+solveID+'"></td><td id="solutions'+solveID+'"></td>';
+        }
+
+        function transposeTable() {
+            let transb = document.getElementById("transposed-table");
+            let out = document.getElementById("output-table").children[0];
+            let numCases = out.children[0].children.length;
+            for (let i=0; i<numCases; i++) {
+                let id1 = "transrow"+(2*i+1);
+                let id2 = "transrow"+(2*i+2);
+                let tr1 = document.createElement("tr");
+                tr1.setAttribute("id", id1);
+                let tr2 = document.createElement("tr");
+                tr2.setAttribute("id", id2);
+                transb.appendChild(tr1);
+                transb.appendChild(tr2);
+                let image = out.children[0].children[0];
+                image.colSpan = 1;
+                image.rowSpan = 2;
+                document.getElementById(id1).appendChild(image);
+                document.getElementById(id1).appendChild(out.children[1].children[0]);
+                document.getElementById(id1).appendChild(out.children[1].children[0]);
+                document.getElementById(id2).appendChild(out.children[2].children[0]);
+                document.getElementById(id2).appendChild(out.children[2].children[0]);
+            }
+            document.getElementById("transposed-table").hidden = false;
+            document.getElementById("output-table").hidden = true;
+        }
+
+        function untransposeTable() {
+            let numCases = document.getElementById("transposed-table").children.length;
+
+            for (let i=0; i<numCases; i+=2) {
+                let image = document.getElementById("transposed-table").children[0].children[0];
+                image.rowSpan = 1;
+                image.colSpan = 2;
+                document.getElementById("computation-header").appendChild(image);
+                document.getElementById("solutions-header").appendChild(document.getElementById("transposed-table").children[0].children[0]);
+                document.getElementById("solutions-header").appendChild(document.getElementById("transposed-table").children[0].children[0]);
+                document.getElementById("output-data").appendChild(document.getElementById("transposed-table").children[1].children[0]);
+                document.getElementById("output-data").appendChild(document.getElementById("transposed-table").children[1].children[0]);
+                document.getElementById("transposed-table").children[0].remove();
+                document.getElementById("transposed-table").children[0].remove();
+            }
+
+            document.getElementById("transposed-table").hidden = true;
+            document.getElementById("output-table").hidden = false;
+        }
+
+        function toggleTranspose() {
+            if (document.getElementById("transpose").checked) {
+                transposeTable();
+            } else {
+                untransposeTable();
+            }
         }
 
         function makeImageCopyable(num) {
@@ -795,9 +851,9 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
             for (let move of splitAlg) {
                 if (move == "") {
                     continue;
-                } else if (move.includes(")")) {
+                } else if (move.includes(")") || move.includes("]")) { // modified
                     insideParen = false;
-                } else if (move.includes("(")) {
+                } else if (move.includes("(") || move.includes("[")) { // modified
                     insideParen = true;
                 } else if (insideParen == false) {
                     count += metric(move);

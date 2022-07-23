@@ -1,9 +1,46 @@
 <!DOCTYPE html>
 <html>
 
-<head><title>Batch Testing</title></head>
+<head><title>Batch Testing</title>
+<style>
+body{
+ color:white;
+}
+td,tr,th{
+ border:1px solid white;
+ border-collapse: collapse;
+ cursor:all-scroll;
+}
+table{
+ border-collapse: collapse;
+ -webkit-user-select: none; /* Safari */
+ -ms-user-select: none; /* IE 10+ and Edge */
+ user-select: none; /* Standard syntax */
+}</style>
 
-<body>
+
+</head>
+
+<body style="background-color:black;">
+<table>
+<thead>
+<tr>
+<th>Batch Testing</th>
+</tr>
+</thead>
+<tbody id="bod">
+<tr draggable='true' ondragstart='start()' ondragover='dragover()'>
+<td><textarea rows="1" cols="51">1</textarea></td>
+</tr>
+<tr draggable='true' ondragstart='start()' ondragover='dragover()'>
+<td><textarea rows="1" cols="51">2</textarea></td>
+</tr>
+<tr draggable='true' ondragstart='start()' ondragover='dragover()'>
+<td><textarea rows="1" cols="51">3</textarea></td>
+</tr>
+</tbody>
+</table>
+
 <script src="../BatchSolver/worker.js"></script>
 <script>
     let rc = new Puzzle([2, 2, 2, 2, 3, 3, 3, 3, 2, 2, 2, 3, 3, 2, 2, 3, 2, 2, 3, 2], [[3,0,1,2,7,4,5,6,8,9,10,11,12,13,14,15,16,17,18,19],[0,1,2,3,4,5,6,7,8,13,10,12,15,17,14,18,9,16,11,19],[0,1,2,10,44,5,6,68,3,8,9,39,75,13,14,15,16,17,18,19],[46,1,2,3,69,47,6,7,8,9,32,11,36,42,45,76,16,17,18,19],[0,19,2,3,4,70,50,7,8,9,10,11,12,13,1,37,16,14,79,17],[0,1,40,3,4,5,71,43,48,9,10,82,12,13,14,15,51,17,38,34]],["U", "D", "R", "F", "L", "B"])
@@ -19,6 +56,21 @@
     // edges only
 
     rc.compareStates("R U R' U'", "R' F R F'")
+    var row;
+function start(){
+  row = event.target;
+}
+function dragover(){
+  var e = event;
+  if (e.target.tagName == "TD") {
+    e.preventDefault();
+    let children= Array.from(bod.children);
+    if(children.indexOf(e.target.parentNode)>children.indexOf(row))
+      e.target.parentNode.after(row);
+    else if(children.indexOf(e.target.parentNode)<children.indexOf(row))
+      e.target.parentNode.before(row);
+    }
+}
 </script>
 </body>
 
