@@ -46,17 +46,26 @@
         <button style="font-family:courier new;font-size:17px" class="button button1"
             onclick="calcSort()"><strong>Calculate & Sort</strong></button><br>
         <strong>
-            <input id="ignoreError" type="checkbox">Ignore Unknown Moves<br>
-            <input id="ignoreAUF" type="checkbox">Disregard Starting & Ending U Moves<br>
+
+            <label for="ignoreError">
+                <input id="ignoreError" type="checkbox">Ignore Unknown Moves<br>
+            </label>
+            <label for="ignoreAUF">
+                <input id="ignoreAUF" type="checkbox" checked>Disregard Starting & Ending U Moves<br>
+            </label>
             <label for="stmVis">
                 <input type="checkbox" id="stmVis" onclick="stmVisibility(this)" /><span id="visLabel">Show STM</span>
             </label><br>
             <label for="optVis">
-                <input type="checkbox" id="optVis" onclick="optionVisibility(this)" /><span id="visLabel">Show Advanced Options</span>
+                <input type="checkbox" id="optVis" onclick="optionVisibility(this)" /><span id="visLabel">Show Advanced MCC Options</span>
+            </label><br>
+            <label for="esqOptVis">
+                <input type="checkbox" id="esqOptVis" onclick="esqOptionVisibility(this)" /><span id="visLabel">Show Enhanced SQTM Options</span>
             </label><br>
             <label for="statVis">
                 <input type="checkbox" id="statVis" onclick="statVisibility(this)" /><span id="statLabel">Show Statistics</span>
-            </label><br>
+            </label>
+
             <div id="advanced" hidden>
                 <br>
                 <table class="adv-layout">
@@ -131,21 +140,59 @@
                         </th>
                     </tr>                     
                 </table>
-            </div><br>
-        <div id="stats" hidden>
-            MCC: <span id="statMCC">N/A</span><br>
+            </div>
+            <div id="esqOpt" hidden>
+                <br>
+                <table class="adv-layout">
+                    <tr>
+                        <th>Wrist Quarter Turns:</th>
+                        <th>
+                            <input type="range" value="1" max="5" step="0.1" oninput="wqt.value = this.value">
+                            <output id="wqt">1</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Flick Quarter Turns:</th>
+                        <th>
+                            <input type="range" value="2" max="5" step="0.1" oninput="fqt.value = this.value">
+                            <output id="fqt">2</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Wrist Half Turns:</th>
+                        <th>
+                            <input type="range" value="2" max="5" step="0.1" oninput="wht.value = this.value">
+                            <output id="wht">2</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Flick Half Turns:</th>
+                        <th>
+                            <input type="range" value="3" max="5" step="0.1" oninput="fht.value = this.value">
+                            <output id="fht">3</output><br>
+                        </th>
+                    </tr>                     
+                </table>
+            </div>
+        <div id="stats" hidden><br>
+            <span id="statMetric">MCC</span>: <span id="statMCC">N/A</span><br>
             STM: <span id="statSTM">N/A</span>
-        </div><br>
+        </div><br><br>
         </strong>
         <table>
             <tr>
                 <th class="stm">STM</th>
-                <th>Movecount Coefficient</th>
+                <th> <label for="chooseMetric">Output:</label>
+                    <select name="chooseMetric" id="chooseMetric" onchange="metricChanged()">
+                        <option value="MCC">Movecount Coefficient</option>
+                        <option value="ESQ">Enhanced SQTM</option>
+                    </select>
+                </th>
                 <th>Input: One alg per line</th>
             </tr>
             <tr>
                 <th class="stm"><textarea id="STMoutput" rows="28" cols="7" readonly style="text-align: right"></textarea></th>
-                <th><textarea id="output" rows="28" cols="28" readonly style="text-align: right"></textarea></th>
+                <th><textarea id="output" rows="28" cols="30" readonly style="text-align: right"></textarea></th>
                 <th><textarea id="input" rows="28" cols="66"></textarea></th>
             </tr>
         </table>
@@ -164,7 +211,7 @@
             return segs.join(" ");
         }
 
-        function getSTM(str) {
+        function processAlg(str) {
             let splitSeq = str.split(" ");
             let trueSplitSeq = [];
             for (let i=0; i<splitSeq.length; i++) {
@@ -195,7 +242,32 @@
                     }
                 }
             }
-            return splitSeq.length;
+            return splitSeq;
+        }
+
+        function getSTM(str) {
+            return processAlg(str).length;
+        }
+
+        function getESQ(str, wq, fq, wh, fh) {
+            let algArr = processAlg(str);
+            let esq = 0;
+            for (let move of algArr) {
+                if (move[0].toLowerCase() === "r" || move[0].toLowerCase() === "l") {
+                    if (move[move.length-1] === "2") {
+                        esq += wh; // wrist half
+                    } else {
+                        esq += wq; // wrist quarter
+                    }
+                } else {
+                    if (move[move.length-1] === "2") {
+                        esq += fh; // flick half
+                    } else {
+                        esq += fq; // flick quarter
+                    }
+                }
+            }
+            return esq;
         }
 
         function calc() {
@@ -210,7 +282,13 @@
             let input = document.getElementById("input");
             let splitInput = input.value.split("\n");
             for (let i=0; i<splitInput.length; i++) {
-                let speed = algSpeed(replaceDouble(splitInput[i]).replaceAll("2'","2"),document.getElementById("ignoreError").checked,document.getElementById("ignoreAUF").checked,parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML))
+                let alg = replaceDouble(splitInput[i]).replaceAll("2'","2");
+                let speed;
+                if (chooseMetric.value === "MCC") {
+                    speed = algSpeed(alg,document.getElementById("ignoreError").checked,document.getElementById("ignoreAUF").checked,parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML))
+                } else { // ESQ
+                    speed = getESQ(alg,parseFloat(document.getElementById("wqt").innerHTML),parseFloat(document.getElementById("fqt").innerHTML),parseFloat(document.getElementById("wht").innerHTML),parseFloat(document.getElementById("fht").innerHTML));
+                }
                 output.value += speed + "\n"
                 STMoutput.value += getSTM(splitInput[i])+"\n";
                 sumMCC += speed;
@@ -270,6 +348,18 @@
             }
             for (let element of document.getElementsByClassName("stm")) {
                 element.style.display = disp;
+            }
+        }
+
+        function metricChanged() {
+            statMetric.innerHTML = chooseMetric.value;
+        }
+
+        function esqOptionVisibility() {
+            if (esqOptVis.checked) {
+                esqOpt.hidden = false;
+            } else {
+                esqOpt.hidden = true;
             }
         }
 
