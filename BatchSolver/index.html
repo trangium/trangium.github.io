@@ -237,6 +237,7 @@
                     <option value="MCC">MCC</option>
                     <option value="STM">STM</option>
                     <option value="SQTM">SQTM</option>
+                    <option value="ESQ">ESQ</option>
                 </select>
                 <br>
                 <label for="secondary-metric"> Secondary metric: </label>
@@ -245,11 +246,13 @@
                     <option value="MCC">MCC</option>
                     <option value="STM">STM</option>
                     <option value="SQTM">SQTM</option>
+                    <option value="ESQ">ESQ</option>
                 </select>
                 <br>
                 <input type="checkbox" id="statVis" onclick="visibility('statVis', 'statistics')" checked/><label for="statVis"> Show statistics</label><br>
                 <input type="checkbox" id="imgOptVis" onclick="visibility('imgOptVis', 'imageOptions')" checked/><label for="imgOptVis"> Show image options</label><br>
                 <input type="checkbox" id="optVis" onclick="visibility('optVis', 'advanced')" /><label for="optVis"> Show advanced MCC options</label><br>
+                <input type="checkbox" id="esqOptVis" onclick="visibility('esqOptVis', 'esqOptions')" /><label for="esqOptVis"> Show ESQ options</label><br>
                 <input type="checkbox" id="showPostAdj" /><label for="showPostAdj"> Show ending adjustments</label><br>
                 Show top <input type="number" class="inputNum" id="maxSolutions" value="20"></input> solutions for each case<br>
             </div>
@@ -356,6 +359,40 @@
                 </table>
             </div><br>
 
+            <div id="esqOptions" hidden>
+                <table class="adv-layout">
+                    <tr>
+                        <th>Wrist Quarter Turns:</th>
+                        <th>
+                            <input type="range" value="1" max="5" step="0.1" oninput="wqt.value = this.value">
+                            <output id="wqt">1</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Flick Quarter Turns:</th>
+                        <th>
+                            <input type="range" value="2" max="5" step="0.1" oninput="fqt.value = this.value">
+                            <output id="fqt">2</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Wrist Half Turns:</th>
+                        <th>
+                            <input type="range" value="2" max="5" step="0.1" oninput="wht.value = this.value">
+                            <output id="wht">2</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Flick Half Turns:</th>
+                        <th>
+                            <input type="range" value="3" max="5" step="0.1" oninput="fht.value = this.value">
+                            <output id="fht">3</output><br>
+                        </th>
+                    </tr>                     
+                </table>
+                <br>
+            </div>
+
             <div id="statistics">
                 <strong>Statistics</strong><br>
                 Case: <span id="info-this-case">0</span>/<span id="info-num-cases">0</span> 
@@ -367,6 +404,7 @@
                 MCC: <span id="info-mcc"> 0.00 </span><br>
                 STM: <span id="info-stm"> 0.00 </span><br>
                 SQTM: <span id="info-sqtm"> 0.00 </span><br>
+                ESQ: <span id="info-esq"> 0.00 </span><br>
 
             </div><br>
 
@@ -408,7 +446,7 @@
         let startTime = Date.now();
         let failed = [];
         let isIdle = true;
-        let totalMCC, totalSTM, totalSQTM;
+        let totalMCC, totalSTM, totalSQTM, totalESQ;
         let sortCriteria;
 
         function visibility(checkboxId, elementId) {
@@ -842,9 +880,34 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
             return 1;
         }
 
+        function lastAlpha(move) {
+            let needle = move.length-1;
+            while (needle >= 0) {
+                if (/[a-zA-Z]/.test(move[needle])) {
+                    return needle;
+                }
+                needle--;
+            }
+            return -1;
+        }
+
         function getSQTM(move) {
-            let numericMove = move.replace(/[^0-9\.]/g, ""); // removes all nonnumeric characters from move
-            if (numericMove == "") {return 1} else {return parseInt(numericMove, 10)}
+            let moveAmount = move.slice(lastAlpha(move)+1).replace("'","");
+            if (moveAmount == "") {return 1} else {return parseInt(moveAmount, 10)}
+        }
+
+        function getESQ(move) {
+            let wrist1 = parseFloat(document.getElementById("wqt").innerHTML);
+            let wrist2 = parseFloat(document.getElementById("wht").innerHTML);
+            let flick1 = parseFloat(document.getElementById("fqt").innerHTML);
+            let flick2 = parseFloat(document.getElementById("fht").innerHTML);
+            let moveAmount = getSQTM(move);
+            let moveName = move.slice(0,lastAlpha(move)+1);
+            if (moveName.toLowerCase() == "r" || moveName.toLowerCase() == "l") {
+                return (2*wrist1-wrist2) + (wrist2-wrist1) * moveAmount;
+            } else {
+                return (2*flick1-flick2) + (flick2-flick1) * moveAmount;
+            }
         }
 
         function getMoveCount(alg, metric) {
@@ -882,6 +945,8 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
             document.getElementById("info-stm").innerHTML = (totalSTM/numSucceeded).toFixed(2);
             totalSQTM += getMoveCount(topSolution, getSQTM);
             document.getElementById("info-sqtm").innerHTML = (totalSQTM/numSucceeded).toFixed(2);
+            totalESQ += getMoveCount(topSolution, getESQ);
+            document.getElementById("info-esq").innerHTML = (totalESQ/numSucceeded).toFixed(2);
         }
 
         function calc() {
@@ -889,7 +954,7 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
             isIdle = false;
             startTime = Date.now();
             failed = [];
-            totalMCC = totalSTM = totalSQTM = 0;
+            totalMCC = totalSTM = totalSQTM = totalESQ = 0;
             colMask = document.getElementById("faceletColors").value;
 
             document.getElementById("info-this-case").innerHTML = 0;
@@ -898,6 +963,7 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
             document.getElementById("info-mcc").innerHTML = "0.00";
             document.getElementById("info-stm").innerHTML = "0.00";
             document.getElementById("info-sqtm").innerHTML = "0.00";
+            document.getElementById("info-esq").innerHTML = "0.00";
             document.getElementById("info-fails").innerHTML = "";
 
             document.getElementById("calc-button").innerHTML = "<strong>&nbsp;End Search&nbsp;</strong>";
@@ -927,6 +993,8 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                         speed = getMoveCount(solution, getSTM);
                     } else if (sortCriteria == "SQTM") {
                         speed = getMoveCount(solution, getSQTM);
+                    } else if (sortCriteria == "ESQ") {
+                        speed = getMoveCount(solution, getESQ);
                     }
                     if (secondaryMetric == "MCC") {
                         solution += " [" + getMCC(solution) + " MCC]";
@@ -934,6 +1002,8 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                         solution += " [" + getMoveCount(solution, getSTM) + " STM]";
                     } else if (secondaryMetric == "SQTM") {
                         solution += " [" + getMoveCount(solution, getSQTM) + " SQTM]";
+                    } else if (secondaryMetric == "ESQ") {
+                        solution += " [" + getMoveCount(solution, getESQ) + " ESQ]";
                     }
                     speedBuffer.push(speed);
                     solutionsBuffer.push(solution);
