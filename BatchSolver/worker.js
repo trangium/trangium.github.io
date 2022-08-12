@@ -865,24 +865,30 @@ function getStatePriority(str, pieceMap, sortCriteria, fullPuzzle) { // TODO: er
         if (criteria.pieces.trim().length > 0) {
             if (criteria.type === "priority") {
                 minIndex -= pcCount;
-                for (let piece of criteria.pieces.split(" ")) {
-                    if (!pieceMap.has(piece)) {
-                        postMessage({value: 'Invalid piece: "' + piece + '" (in Case Sorting)', type: "stop"});
+                for (let pieceFull of criteria.pieces.split(" ")) {
+                    let piece = pieceFull.trim();
+                    if (piece.length > 0) {
+                        if (!pieceMap.has(piece)) {
+                            postMessage({value: 'Invalid piece: "' + piece + '" (in Case Sorting)', type: "stop"});
+                        }
+                        pcPriority[pieceMap.get(piece)] = minIndex;
+                        minIndex++;
                     }
-                    pcPriority[pieceMap.get(piece)] = minIndex;
-                    minIndex++;
                 }
                 minIndex -= pcCount;
             } else {
                 let ori = [];
-                for (let piece of criteria.pieces.split(" ")) {
-                    let pieceInd = pieceMap.get(piece);
-                    if (pieceInd === undefined) {postMessage({value: 'Invalid piece: "' + piece + '" (in Case Sorting)', type: "stop"})}
+                for (let pieceFull of criteria.pieces.split(" ")) {
+                    let piece = pieceFull.trim();
+                    if (piece.length > 0) {
+                        let pieceInd = pieceMap.get(piece);
+                        if (pieceInd === undefined) {postMessage({value: 'Invalid piece: "' + piece + '" (in Case Sorting)', type: "stop"})}
 
-                    if (criteria.type === "ori-at") {ori.push( stateArr[pieceInd] & fullPuzzle.oriMask )}
-                    else if (criteria.type === "ori-of") {ori.push( stateArr[maskedIndex(stateArr, pieceInd, fullPuzzle.posMask, piece)] & fullPuzzle.oriMask )}
-                    else if (criteria.type === "perm-at") {ori.push( pcPriority[stateArr[pieceInd] & fullPuzzle.posMask] )}
-                    else if (criteria.type === "perm-of") {ori.push( pcPriority[maskedIndex(stateArr, pieceInd, fullPuzzle.posMask, piece)] )}
+                        if (criteria.type === "ori-at") {ori.push( stateArr[pieceInd] & fullPuzzle.oriMask )}
+                        else if (criteria.type === "ori-of") {ori.push( stateArr[maskedIndex(stateArr, pieceInd, fullPuzzle.posMask, piece)] & fullPuzzle.oriMask )}
+                        else if (criteria.type === "perm-at") {ori.push( pcPriority[stateArr[pieceInd] & fullPuzzle.posMask] )}
+                        else if (criteria.type === "perm-of") {ori.push( pcPriority[maskedIndex(stateArr, pieceInd, fullPuzzle.posMask, piece)] )}
+                    }
                 }
                 if (criteria.type === "ori-at" || criteria.type === "ori-of") {
                     let sortedOri = ori.slice().sort((a, b) => a-b);
