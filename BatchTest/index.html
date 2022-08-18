@@ -194,11 +194,13 @@
                         for (let moveData of moveTable.get(move)) {
                             let newExecData = execDataOnMove(execData, move, moveData);
                             let dataStr = stringifyExecData(newExecData);
-                            if (!execMap.has(dataStr) || (execMap.get(dataStr).score > newExecData.score)) {
-                                if (i === moveList.length-1) {
+                            if (i === moveList.length-1) {
+                                if (!finalExecMap.has(dataStr) || (finalExecMap.get(dataStr).score > newExecData.score)) {
                                     finalExecMap.set(dataStr, newExecData);
                                     if (bestExecData === null || newExecData.score < bestExecData.score) {bestExecData = newExecData}
-                                } else {
+                                }
+                            } else {
+                                if (!interExecMap.has(dataStr) || (interExecMap.get(dataStr).score > newExecData.score)) {
                                     interExecMap.set(dataStr, newExecData);
                                 }
                             }
