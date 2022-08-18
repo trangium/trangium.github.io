@@ -15,21 +15,6 @@
     <textarea id="input" rows="120" cols="80" spellcheck="false"></textarea>
     
     <script>
-        function button() {
-            let mccData = mcc(input.value)
-            input.value = mccData.score + "\n\n" + mccData.trickList.map(x => x[0] + x[1] + " = " + x[2]).join("\n");
-        }
-
-        function mcc(alg) {
-            let bestExec;
-            for (let exec of getExecs(alg.trim().split(" ")).values()) {
-                if (bestExec == undefined || exec.score < bestExec.score) {
-                    bestExec = exec;
-                }
-            }
-            return bestExec;
-        }
-
         let moveTable = new Map();
         moveTable.set("R", [[" high", new Map([ ["rwrist", [0, 0, 1.25]] ]), 0.75], 
                             [" home", new Map([ ["rwrist", [-1.25, -1.25, 0]] ]), 0.75], 
@@ -69,13 +54,14 @@
                             ["' righty", new Map([ ["rwrist", [0, 0, 0]], ["rring", [0, 0, 1]] ]), 1.75],
                             ]);
         
+        const startingExecData = {trickList:[], gripMap: new Map([["rwrist", [0, -1]], ["lindex", [0, -1]], ["lmiddle", [0, -1]], ["lring", [0, -1]], ["rindex", [0, -1]], ["rmiddle", [0, -1]], ["rring", [0, -1]]]), score: 0.0};
+        const axisMap = new Map([["R", 0], ["L", 0], ["M", 0], ["U", 1], ["D", 1], ["E", 1], ["F", 2], ["B", 2], ["S", 2]]);
         const minResetPenalty = 1.25;
         const gripRanges = new Map([["rwrist", [-1.25, 2]], ["lindex", [-1, 2]], ["rindex", [-1, 2]], ["lmiddle", [0, 1.5]], ["rmiddle", [0, 1.5]], ["lring", [-1, 1]], ["rring", [-1, 1]]]);
         function getMaxResetPenalty(gripName, gripNum) {
             let [min, max] = gripRanges.get(gripName);
             return minResetPenalty + (max - min)/2 + Math.abs(gripNum - (max + min)/2);
         }
-        const axisMap = new Map([["R", 0], ["L", 0], ["M", 0], ["U", 1], ["D", 1], ["E", 1], ["F", 2], ["B", 2], ["S", 2]])
 
         function scoreAfterReset(currentScore, currentGrip, minGrip, maxGrip) {
             if (currentGrip < minGrip) {return currentScore + (minGrip - currentGrip) + minResetPenalty}
@@ -85,6 +71,14 @@
 
         function axis(moveName) {
             return axisMap.get(moveName[0].toUpperCase())
+        }
+
+        function getTransforms(moveList) {
+            if (moveList.length === 2) {
+                return [moveList, [moveList[1], moveList[0]]];
+            } else {
+                return [moveList];
+            }
         }
 
         function execDataOnMove(execData, moveName, moveData) {
@@ -154,53 +148,93 @@
                     accum += "/"
                 } else {
                     accum += " " + grip[0];
-                    accum += " " + execData.score - grip[1]; // comment out this line for faster performance in exchange for missing optimal fingertricks sometimes
+                    accum += " " + (execData.score - grip[1]); // comment out this line for faster performance in exchange for missing optimal fingertricks sometimes
                 }
             }
             return accum;
         }
 
-        function getExecs(moves) {
-            let execMap = new Map();
-            if (moves.length === 0) {
-                let execData = {trickList:[], gripMap: new Map([["rwrist", [0, -1]], ["lindex", [0, -1]], ["lmiddle", [0, -1]], ["lring", [0, -1]], ["rindex", [0, -1]], ["rmiddle", [0, -1]], ["rring", [0, -1]]]), score: 0.0};
-                execMap.set(stringifyExecData(execData), execData);
-                return execMap;
-            }
-            let lastMove = moves[moves.length-1];
-            let prevExecs = getExecs(moves.slice(0, moves.length-1));
-            let bestExecData;
-            for (let [gripHash, execData] of prevExecs.entries()) {
-                for (let moveData of moveTable.get(lastMove)) {
-                    let newExecData = execDataOnMove(execData, lastMove, moveData);
-                    let dataStr = stringifyExecData(newExecData);
-                    if (!execMap.has(dataStr) || (execMap.get(dataStr).score > newExecData.score)) {
-                        execMap.set(dataStr, newExecData);
-                        if (bestExecData == undefined || newExecData.score < bestExecData.score) {bestExecData = newExecData} /**/
-                    }
-                }
-            }
+        function simulExecs(execMap, moves) {
+            let bestExecData = null;
+            let finalExecMap = new Map();
 
-            /* these lines are only for optimization purposes */
-            for (let [key, execData] of execMap.entries()) {
-                if (execData.score > bestExecData.score) {
-                    let keep = false;
-                    for (let gripName of gripRanges.keys()) {
-                        let bestGripTime = scoreAfterReset(bestExecData.score, bestExecData.gripMap.get(gripName)[0], execData.gripMap.get(gripName)[0], execData.gripMap.get(gripName)[0]);
-                        if (execData.score < bestGripTime) {
-                            keep = true;
-                            break;
+            for (let moveList of getTransforms(moves)) {
+                let prevExecMap = execMap;
+                let interExecMap = new Map();
+                for (let i=0; i<moveList.length; i++) {
+                    let move = moveList[i];
+                    for (let [gripHash, execData] of prevExecMap.entries()) {
+                        for (let moveData of moveTable.get(move)) {
+                            let newExecData = execDataOnMove(execData, move, moveData);
+                            let dataStr = stringifyExecData(newExecData);
+                            if (!execMap.has(dataStr) || (execMap.get(dataStr).score > newExecData.score)) {
+                                if (i === moveList.length-1) {
+                                    finalExecMap.set(dataStr, newExecData);
+                                    if (bestExecData === null || newExecData.score < bestExecData.score) {bestExecData = newExecData}
+                                } else {
+                                    interExecMap.set(dataStr, newExecData);
+                                }
+                            }
                         }
                     }
-                    if (!keep) {
-                        execMap.delete(key)
+                    if (i !== moveList.length-1) {
+                        prevExecMap = interExecMap;
+                        interExecMap = new Map();
                     }
                 }
             }
-            /* */
-
-            return execMap;
+            return [finalExecMap, bestExecData];
         }
+
+        function getExecs(moves) {
+            let lNeedle = 0;
+            let rNeedle = 1;
+            let execMap = new Map([[stringifyExecData(startingExecData), startingExecData]]);
+            let bestExecData;
+            while (lNeedle < moves.length) {
+                while (rNeedle < moves.length && axis(moves[lNeedle]) === axis(moves[rNeedle])) {
+                    rNeedle++;
+                }
+                [execMap, bestExecData] = simulExecs(execMap, moves.slice(lNeedle, rNeedle));
+                for (let [key, execData] of execMap.entries()) {
+                    if (execData.score > bestExecData.score) {
+                        let keep = false;
+                        for (let gripName of gripRanges.keys()) {
+                            let bestGripTime = scoreAfterReset(bestExecData.score, bestExecData.gripMap.get(gripName)[0], execData.gripMap.get(gripName)[0], execData.gripMap.get(gripName)[0]);
+                            if (execData.score < bestGripTime) {
+                                keep = true;
+                                break;
+                            }
+                        }
+                        if (!keep) {
+                            execMap.delete(key)
+                        }
+                    }
+                }
+                lNeedle = rNeedle;
+                rNeedle = lNeedle + 1;
+            } 
+            return bestExecData;
+        }
+
+        function mcc(alg) {
+            return getExecs(alg.trim().split(" "));
+            /*
+            let bestExec;
+            for (let exec of getExecs(alg.trim().split(" ")).values()) {
+                if (bestExec == undefined || exec.score < bestExec.score) {
+                    bestExec = exec;
+                }
+            }
+            return bestExec;
+            */
+        }
+
+        function button() {
+            let mccData = mcc(input.value)
+            input.value = mccData.score + "\n\n" + mccData.trickList.map(x => x[0] + x[1] + " = " + x[2]).join("\n");
+        }
+
     </script>
 
     <script src="../BatchSolver/worker.js"></script>
