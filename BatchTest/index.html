@@ -32,256 +32,70 @@
 </head>
 
 <body>
-    <div style="font-family:courier new;font-size:17px">
-        <button style="font-family:courier new;font-size:17px" class="button importantButton"
-            onclick="button()"><strong>Calculate</strong></button> <br><br>
-        <strong>Input</strong> <br>
-        <textarea id="input" rows="4" cols="80" spellcheck="false"></textarea><br><br>
-        <strong>Output</strong> <br>
-        <textarea id="output" rows="120" cols="80" spellcheck="false"></textarea>
-    </div>
-    
-    <script>
-        let moveTable = new Map();
-        moveTable.set("R", [[" high", new Map([ ["rwrist", [0, 0, 1.25]] ]), 0.75], 
-                            [" home", new Map([ ["rwrist", [-1.25, -1.25, 0]] ]), 0.75], 
-                            [" roll", new Map([ ["rwrist", [1.25, 1.25, 2]], ["rindex", [-1, 1.5]], ["lindex", [-0.75, 2]] ]), 1],
-                            ]);
-        moveTable.set("R'", [[" low", new Map([ ["rwrist", [0, 0, -1.25]] ]), 0.75], 
-                            [" home", new Map([ ["rwrist", [1.25, 1.25, 0]] ]), 0.75], 
-                            [" home", new Map([ ["rwrist", [2, 2, 0]] ]), 0.75],
-                            ]);
-        moveTable.set("R2", [ [" roll", new Map([ ["rwrist", [0, 0, 2]], ["rindex", [-1, 1.5]] ]), 1.5], 
-                            [" high", new Map([ ["rwrist", [-1.25, -1.25, 1.25]] ]), 1.25], 
-                            ["' low", new Map([ ["rwrist", [1.25, 1.25, -1.25]] ]), 1.25], 
-                            ["' low", new Map([ ["rwrist", [2, 2, -1.25]] ]), 1.25],
-                            ]);
-        moveTable.set("U", [[" push", new Map([ ["lindex", [0, 2, -1]], ["lmiddle", [0, 1.5, 0]], ["rwrist", [1.25, 1.25, 1.25]] ]), 1],
-                            [" push", new Map([ ["lindex", [0, 2, -1]], ["lmiddle", [0, 1.5, 0]] ]), 1.5],
-                            [" oh flick", new Map([ ["lindex", [1.5, 1.5, 0]], ["lring", [-1, -1, -1]] ]), 1.25],
-                            [" flick", new Map([ ["rwrist", [0, 0, 0]], ["rindex", [-1, 0, 1]] ]), 1],
-                            [" middle flick", new Map([ ["rwrist", [0, 0, 0]], ["rindex", [1, 2, 1.5]], ["rmiddle", [0, 0, 1.5]], ["rring", [-1, -1, -1]] ]), 1],
-                            [" pinch", new Map([ ["rwrist", [1.25, 1.25, 1.25]], ["rindex", [1, 1, 2]], ["rring", [-1, -1, -1]] ]), 1],
-                            ]);
-        moveTable.set("U'", [[" flick", new Map([ ["lindex", [-1, 0, 1]] ]), 1],
-                            [" middle flick", new Map([ ["lindex", [1, 2, 1.5]], ["lmiddle", [0, 0, 1.5]], ["lring", [-1, -1, -1]]]), 1],
-                            [" push", new Map([ ["rwrist", [0, 0, 0]], ["rindex", [0, 2, -1]], ["rmiddle", [0, 1.5, 0]] ]), 1.5],
-                            [" oh flick", new Map([ ["rwrist", [0, 0, 0]], ["rindex", [1.5, 1.5, 0]], ["rring", [-1, -1, -1]] ]), 1.25],
-                            ]);
-        moveTable.set("U2", [["' lefty", new Map([ ["lindex", [-1, 0, 1.5]], ["lmiddle", [0, 0, 1.5]], ["lring", [-1, -1, -1]] ]), 1.5], 
-                            [" righty", new Map([ ["rwrist", [0, 0, 0]], ["rindex", [-1, 0, 1.5]], ["rmiddle", [0, 0, 1.5]], ["rring", [-1, -1, -1]] ]), 1.5],
-                            ]);
-        moveTable.set("D", [[" flick", new Map([ ["lring", [0, 0, 1]] ]), 1.25], 
-                            [" push", new Map([ ["rwrist", [0, 0, 0]], ["rring", [1, 1, 0]] ]), 1.5],
-                            ]);
-        moveTable.set("D'", [[" push", new Map([ ["lring", [1, 1, 0]] ]), 1.5], 
-                            [" flick", new Map([ ["rwrist", [0, 0, 0]], ["rring", [0, 0, 1]] ]), 1.25],
-                            ]);
-        moveTable.set("D2", [[" lefty", new Map([ ["lring", [0, 0, 1]] ]), 1.75], 
-                            ["' righty", new Map([ ["rwrist", [0, 0, 0]], ["rring", [0, 0, 1]] ]), 1.75],
-                            ]);
-        
-        const startingExecData = {trickList:[], gripMap: new Map([["rwrist", [0, -1]], ["lindex", [0, -1]], ["lmiddle", [0, -1]], ["lring", [0, -1]], ["rindex", [0, -1]], ["rmiddle", [0, -1]], ["rring", [0, -1]]]), score: 0.0};
-        const axisMap = new Map([["R", 0], ["L", 0], ["M", 0], ["U", 1], ["D", 1], ["E", 1], ["F", 2], ["B", 2], ["S", 2]]);
-        const minResetPenalty = 1.25;
-        const gripRanges = new Map([["rwrist", [-1.25, 2]], ["lindex", [-1, 2]], ["rindex", [-1, 2]], ["lmiddle", [0, 1.5]], ["rmiddle", [0, 1.5]], ["lring", [-1, 1]], ["rring", [-1, 1]]]);
-        function getMaxResetPenalty(gripName, gripNum) {
-            let [min, max] = gripRanges.get(gripName);
-            return minResetPenalty + (max - min)/2 + Math.abs(gripNum - (max + min)/2);
-        }
-
-        function scoreAfterReset(currentScore, currentGrip, minGrip, maxGrip) {
-            if (currentGrip < minGrip) {return currentScore + (minGrip - currentGrip) + minResetPenalty}
-            else if (currentGrip > maxGrip) {return currentScore + (currentGrip - maxGrip) + minResetPenalty}
-            else {return currentScore}
-        }
-
-        function axis(moveName) {
-            return axisMap.get(moveName[0].toUpperCase())
-        }
-
-        function getTransforms(moveList) {
-            if (moveList.length === 2) {
-                return [moveList, [moveList[1], moveList[0]]];
-            } else {
-                return [moveList];
-            }
-        }
-
-        function execDataOnMove(execData, moveName, moveData) {
-            /* execData: [["home R", "lefty U2'", "high R'"], 
-               new Map([["rwrist", ["home", 3.5]], ["lindex", ["home", 2.5]], ["lring", ["equator", 2.5]], ["rindex", ["home", 2.5]], ["rring", ["home", -1]]]), 3.5] */
-            // moveData: [["lefty U2'", new Map([["lindex", ["home", "doubleflicked"]], ["lring", ["equator", "equator"]]]), 1.5]
-
-            // gripMap: new Map([["rwrist", ["home", 3.5]], ["lindex", ["home", 2.5]], ["lring", ["equator", 2.5]], ["rindex", ["home", 2.5]], ["rring", ["home", -1]]])
-            // transitionMap: new Map([["lindex", [0, 0, 1.5]], ["lring", [-1, -1, -1]]])
-
-            let newScore = execData.score;
-            let [trickName, transitionMap, moveScore] = moveData;
-
-            let simulBonus = 0;
-            let prevMoveName; 
-            if (execData.trickList.length > 0) {
-                prevMoveName = execData.trickList[execData.trickList.length-1][0];
-                if (axis(prevMoveName) === axis(moveName)) {
-                    simulBonus = execData.trickList[execData.trickList.length-1][2];
-                    newScore -= simulBonus;
-                }
-            }
-            let baseScore = newScore;
-
-            let resetName;
-            for (let [gripName, gripData] of transitionMap) {
-                let currentGripData = execData.gripMap.get(gripName);
-                let potentialScore = scoreAfterReset(currentGripData[1], currentGripData[0], gripData[0], gripData[1]);
-                if (potentialScore > newScore) {
-                    newScore = potentialScore;
-                    resetName = gripName;
-                }
-            }
-            let resetScore = newScore - baseScore;
-            newScore += moveScore;
-
-            let newGripMap = new Map();
-            for (let [gripName, gripData] of execData.gripMap) {
-                if (transitionMap.has(gripName) && transitionMap.get(gripName).length > 2) {
-                    newGripMap.set(gripName, [transitionMap.get(gripName)[2], newScore]);
-                } else {
-                    newGripMap.set(gripName, gripData);
-                }
-            }
-
-            if (newScore < execData.score) {
-                simulBonus -= (execData.score - newScore);
-                newScore = execData.score;
-            }
-
-            let trick = [];
-            if (simulBonus !== 0) {trick.push(["  SIMUL ", "(" + prevMoveName + " " + moveName + ")", -simulBonus])}
-            if (resetName !== undefined) {trick.push(["  RESET ", resetName, resetScore])}
-            trick.push([moveName, trickName, moveScore]);
-
-            return {trickList: execData.trickList.concat(trick), gripMap: newGripMap, score: newScore};
-        }
-
-        function stringifyExecData(execData) {
-            /* execData: [["home R", "lefty U2'", "high R'"], 
-               new Map([["rwrist", ["home", 3.5]], ["lindex", ["home", 2.5]], ["lring", ["equator", 2.5]], ["rindex", ["home", 2.5]], ["rring", ["home", -1]]]), 3.5] */
-
-            let accum = "";
-            for (let [gripName, grip] of execData.gripMap.entries()) {
-                let elapsed = execData.score - grip[1];
-                if (elapsed > getMaxResetPenalty(gripName, grip[0])) {
-                    accum += "/"
-                } else {
-                    accum += " " + grip[0];
-                    accum += " " + (execData.score - grip[1]); // comment out this line for faster performance in exchange for missing optimal fingertricks sometimes
-                }
-            }
-            return accum;
-        }
-
-        function simulExecs(execMap, moves) {
-            let bestExecData = null;
-            let finalExecMap = new Map();
-
-            for (let moveList of getTransforms(moves)) {
-                let prevExecMap = execMap;
-                let interExecMap = new Map();
-                for (let i=0; i<moveList.length; i++) {
-                    let move = moveList[i];
-                    for (let [gripHash, execData] of prevExecMap.entries()) {
-                        for (let moveData of moveTable.get(move)) {
-                            let newExecData = execDataOnMove(execData, move, moveData);
-                            let dataStr = stringifyExecData(newExecData);
-                            if (i === moveList.length-1) {
-                                if (!finalExecMap.has(dataStr) || (finalExecMap.get(dataStr).score > newExecData.score)) {
-                                    finalExecMap.set(dataStr, newExecData);
-                                    if (bestExecData === null || newExecData.score < bestExecData.score) {bestExecData = newExecData}
-                                }
-                            } else {
-                                if (!interExecMap.has(dataStr) || (interExecMap.get(dataStr).score > newExecData.score)) {
-                                    interExecMap.set(dataStr, newExecData);
-                                }
-                            }
-                        }
-                    }
-                    if (i !== moveList.length-1) {
-                        prevExecMap = interExecMap;
-                        interExecMap = new Map();
-                    }
-                }
-            }
-            return [finalExecMap, bestExecData];
-        }
-
-        function getExecs(moves) {
-            let lNeedle = 0;
-            let rNeedle = 1;
-            let execMap = new Map([[stringifyExecData(startingExecData), startingExecData]]);
-            let bestExecData;
-            while (lNeedle < moves.length) {
-                while (rNeedle < moves.length && axis(moves[lNeedle]) === axis(moves[rNeedle])) {
-                    rNeedle++;
-                }
-                [execMap, bestExecData] = simulExecs(execMap, moves.slice(lNeedle, rNeedle));
-                for (let [key, execData] of execMap.entries()) {
-                    if (execData.score > bestExecData.score) {
-                        let keep = false;
-                        for (let gripName of gripRanges.keys()) {
-                            let bestGripTime = scoreAfterReset(bestExecData.score, bestExecData.gripMap.get(gripName)[0], execData.gripMap.get(gripName)[0], execData.gripMap.get(gripName)[0]);
-                            if (execData.score < bestGripTime) {
-                                keep = true;
-                                break;
-                            }
-                        }
-                        if (!keep) {
-                            execMap.delete(key)
-                        }
-                    }
-                }
-                lNeedle = rNeedle;
-                rNeedle = lNeedle + 1;
-            } 
-            return bestExecData;
-        }
-
-        function mcc(alg) {
-            return getExecs(alg.trim().split(" "));
-            /*
-            let bestExec;
-            for (let exec of getExecs(alg.trim().split(" ")).values()) {
-                if (bestExec == undefined || exec.score < bestExec.score) {
-                    bestExec = exec;
-                }
-            }
-            return bestExec;
-            */
-        }
-
-        function button() {
-            let mccData = mcc(input.value)
-            output.value = mccData.score + "\n\n" + mccData.trickList.map(x => x[0] + x[1] + " = " + x[2]).join("\n");
-        }
-
-    </script>
-
     <script src="../BatchSolver/worker.js"></script>
     <script>
-        let rc = new Puzzle([2, 2, 2, 2, 3, 3, 3, 3, 2, 2, 2, 3, 3, 2, 2, 3, 2, 2, 3, 2], [[3,0,1,2,7,4,5,6,8,9,10,11,12,13,14,15,16,17,18,19],[0,1,2,3,4,5,6,7,8,13,10,12,15,17,14,18,9,16,11,19],[0,1,2,10,44,5,6,68,3,8,9,39,75,13,14,15,16,17,18,19],[46,1,2,3,69,47,6,7,8,9,32,11,36,42,45,76,16,17,18,19],[0,19,2,3,4,70,50,7,8,9,10,11,12,13,1,37,16,14,79,17],[0,1,40,3,4,5,71,43,48,9,10,82,12,13,14,15,51,17,38,34]],["U", "D", "R", "F", "L", "B"])
-        // normal rubik's cube, able to have up to 2 adjust moves unlike all the others which can only have one
-
-        let l5e = new Puzzle([2, 2, 2, 2, 3, 3, 3, 3, 2, 2, 2, 3, 3, 2, 2, 3, 2, 2, 3, 2], [[3,0,1,2,7,4,5,6,8,9,10,11,12,13,14,15,16,17,18,19],[0,1,2,10,44,5,6,68,3,8,9,39,75,13,14,15,16,17,18,19],[46,1,2,3,69,47,6,7,8,9,32,11,36,42,45,76,16,17,18,19],[0,1,2,3,4,5,6,7,8,13,10,12,15,17,14,18,9,16,11,19],[0,19,2,3,4,70,50,7,8,9,10,11,12,13,1,37,16,14,79,17],[0,1,40,3,4,5,71,43,48,9,10,82,12,13,14,15,51,17,38,34]],["U", "R", "F", "D", "L", "B"], [0, 0, 0, 0, 4, 5, 6, 7, 8, 9, 10, 11, 12, 0, 14, 15, 16, 17, 18, 19]);l5e.cubeOri=[1, 1, 1, 1, 3, 3, 3, 3, 2, 2, 2, 3, 3, 1, 2, 3, 2, 2, 3, 2]
-        // reduced to L5E
-
-        let ll = new Puzzle([2, 2, 2, 2, 3, 3, 3, 3, 2, 2, 2, 3, 3, 2, 2, 3, 2, 2, 3, 2], [[3,0,1,2,7,4,5,6,8,9,10,11,12,13,14,15,16,17,18,19],[0,1,2,10,44,5,6,68,3,8,9,39,75,13,14,15,16,17,18,19],[46,1,2,3,69,47,6,7,8,9,32,11,36,42,45,76,16,17,18,19],[0,1,2,3,4,5,6,7,8,13,10,12,15,17,14,18,9,16,11,19],[0,19,2,3,4,70,50,7,8,9,10,11,12,13,1,37,16,14,79,17],[0,1,40,3,4,5,71,43,48,9,10,82,12,13,14,15,51,17,38,34]],["U", "R", "F", "D", "L", "B"], [0, 0, 0, 0, 0, 0, 0, 0, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);ll.cubeOri=[1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 3, 3, 2, 2, 3, 2, 2, 3, 2]
-        // reduced to L5E    
-
+       
+        function ex(rc, str) {return rc.execute(rc.solved, rc.moveStrToList(str))}
+       
         let erc = new Puzzle([2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], [[3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11], [0, 1, 2, 6, 3, 4, 5, 7, 8, 9, 10, 11], [24, 1, 2, 3, 4, 5, 16, 22, 23, 9, 10, 11], [0, 1, 2, 3, 4, 7, 6, 10, 8, 5, 9, 11], [0, 11, 2, 3, 4, 5, 6, 7, 1, 9, 8, 10], [0, 1, 20, 3, 25, 5, 6, 7, 8, 27, 10, 18]] ,["U", "R", "F", "D", "L", "B"])
         // edges only
-
-        rc.compareStates("R U R' U'", "R' F R F'")
+ 
+        let rc = new Puzzle([2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3],
+        [[3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14, 16, 17, 18, 19],
+        [0, 5, 2, 3, 1, 9, 6, 7, 8, 4, 10, 11, 12, 78, 49, 15, 16, 82, 45, 19],
+        [0, 1, 38, 3, 4, 34, 40, 7, 37, 9, 10, 11, 12, 13, 79, 48, 81, 46, 18, 19],
+        [0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10, 12, 13, 14, 15, 19, 16, 17, 18],
+        [0, 1, 2, 7, 4, 5, 3, 11, 8, 9, 10, 6, 51, 13, 14, 76, 47, 17, 18, 80],
+        [36, 1, 2, 3, 42, 5, 6, 32, 8, 9, 39, 11, 77, 50, 14, 15, 16, 17, 83, 44]],
+        ["U", "R", "F", "D", "L", "B"]);
+        // normal rubik's cube
+ 
+        let l5e = new Puzzle([2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3],
+        [[3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14, 16, 17, 18, 19],
+        [0, 5, 2, 3, 1, 9, 6, 7, 8, 4, 10, 11, 12, 78, 49, 15, 16, 82, 45, 19],
+        [0, 1, 38, 3, 4, 34, 40, 7, 37, 9, 10, 11, 12, 13, 79, 48, 81, 46, 18, 19],
+        [0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10, 12, 13, 14, 15, 19, 16, 17, 18],
+        [0, 1, 2, 7, 4, 5, 3, 11, 8, 9, 10, 6, 51, 13, 14, 76, 47, 17, 18, 80],
+        [36, 1, 2, 3, 42, 5, 6, 32, 8, 9, 39, 11, 77, 50, 14, 15, 16, 17, 83, 44]],
+        [0, 0, 0, 0, 4, 5, 6, 7, 0, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+        ["U", "R", "F", "D", "L", "B"]);
+        l5e.cubeOri=[1, 1, 1, 1, 2, 2, 2, 2, 1, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3];
+        // reduce to nautilus l5e
+ 
+        let ll = new Puzzle([2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3],
+        [[3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14, 16, 17, 18, 19],
+        [0, 5, 2, 3, 1, 9, 6, 7, 8, 4, 10, 11, 12, 78, 49, 15, 16, 82, 45, 19],
+        [0, 1, 38, 3, 4, 34, 40, 7, 37, 9, 10, 11, 12, 13, 79, 48, 81, 46, 18, 19],
+        [0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10, 12, 13, 14, 15, 19, 16, 17, 18],
+        [0, 1, 2, 7, 4, 5, 3, 11, 8, 9, 10, 6, 51, 13, 14, 76, 47, 17, 18, 80],
+        [36, 1, 2, 3, 42, 5, 6, 32, 8, 9, 39, 11, 77, 50, 14, 15, 16, 17, 83, 44]],
+        ["U", "R", "F", "D", "L", "B"],
+        [0, 0, 0, 0, 4, 5, 6, 7, 8, 9, 10, 11, 0, 0, 0, 0, 16, 17, 18, 19]);
+        ll.cubeOri=[1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 3, 3, 3, 3];
+        // reduce to ll
+ 
+        let dr = new Puzzle([2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3],
+        [[3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 15, 12, 13, 14, 16, 17, 18, 19],
+        [0, 5, 2, 3, 1, 9, 6, 7, 8, 4, 10, 11, 12, 78, 49, 15, 16, 82, 45, 19],
+        [0, 1, 38, 3, 4, 34, 40, 7, 37, 9, 10, 11, 12, 13, 79, 48, 81, 46, 18, 19],
+        [0, 1, 2, 3, 4, 5, 6, 7, 11, 8, 9, 10, 12, 13, 14, 15, 19, 16, 17, 18],
+        [0, 1, 2, 7, 4, 5, 3, 11, 8, 9, 10, 6, 51, 13, 14, 76, 47, 17, 18, 80],
+        [36, 1, 2, 3, 42, 5, 6, 32, 8, 9, 39, 11, 77, 50, 14, 15, 16, 17, 83, 44]],
+        ["U", "R", "F", "D", "L", "B"],
+        [0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 12, 12, 12, 12, 12, 12, 12, 12]);
+        // reduced to DR
+ 
+        let drfn = rc.setSubgroup(['U','R2','F2','D','L2','B2']);
+ 
+        dr.createPrun(5);
+        drfn.createPrun(6);
+ 
+        function twophase(scr) {
+            for (let part1 of dr.solve(ex(dr, scr), 7)) {let part2 = drfn.solve(ex(rc, scr + " " + part1), 6).next(); if (part2.done === false) {return part1 + " " + part2.value}}
+        }
+       
     </script>
+
 </body>
 
 </html>

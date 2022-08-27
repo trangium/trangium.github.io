@@ -1,26 +1,29 @@
 self.onmessage = function (msg) {
-    let input = msg.data;
-    let scramble = input.solve;
-    if (scramble.includes(":")) {postMessage({value: "Colon notation for indicating adjust moves is deprecated.", type: "stop"})}
-    let [fullPuzzle, batchStates, subPuzzles] = setPuzzles(scramble, input.puzzle, input.ignore, input.subgroups, input.preAdjust, input.postAdjust, input.sorting);
+    if (msg.data.puzzle) {main(msg.data)}
+};
 
+function main(input) {
+    let scramble = input.solve;
+    if (scramble.includes(":")) {
+        postMessage({ value: "Colon notation for indicating adjust moves is deprecated.", type: "stop" });
+    }
+    let [fullPuzzle, batchStates, subPuzzles] = setPuzzles(scramble, input.puzzle, input.ignore, input.subgroups, input.preAdjust, input.postAdjust, input.sorting);
     let [modifiers, startNum] = parseModifiers(scramble);
     let caseNum = 1;
     let solutionIndex = 1;
-
     for (let stateStr of batchStates) {
         let state = fullPuzzle.execute(fullPuzzle.solved, fullPuzzle.moveStrToList(stateStr));
-        if(!(arraysEqual(fullPuzzle.solved, state))) {
+        if (!(arraysEqual(fullPuzzle.solved, state))) {
             if (caseNum >= startNum || modifiers.has(caseNum)) {
-                postMessage({value: {index: solutionIndex, setup: stateStr, num: caseNum}, type: "next-state"})
+                postMessage({ value: { index: solutionIndex, setup: stateStr, num: caseNum }, type: "next-state" });
                 calcState(state, subPuzzles, input.showPost);
                 solutionIndex++;
             }
             caseNum++;
         }
     }
-    postMessage({value: null, type: "stop"});
-};
+    postMessage({ value: null, type: "stop" });
+}
 
 function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust, sorting) {
     let moves = puzzleDef;
