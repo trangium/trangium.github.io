@@ -696,21 +696,35 @@ class Puzzle {
         this.pruneDepth = maxDepth;
     }
 
+    // used only for createPrunSized
+    stopPruning(maxSize, highestCost, prevSizes) {
+        let sizeRatio = 0;
+        for (let i=prevSizes.length-highestCost; i<prevSizes.length; i++) {
+            if (i>0) {
+                sizeRatio = Math.max(sizeRatio, prevSizes[i]/(prevSizes[i-1]+1))
+            }
+        }
+        if (sizeRatio * prevSizes[prevSizes.length-1] > maxSize) {return true}
+        let hcPrevious = prevSizes.length-1-highestCost>=0 ? prevSizes[prevSizes.length-1-highestCost] : 0
+        let hc2Previous = prevSizes.length-1-2*highestCost>=0 ? prevSizes[prevSizes.length-1-2*highestCost] : 0
+        if (2*hcPrevious > prevSizes[prevSizes.length-1] + hc2Previous) {return true}
+        return false;
+    }
+
     // same as createPrun, but automatically determines a depth given a max size
     createPrunSized(maxSize) {
         let tempTable = new Map();
-        let prevSize = -1;
-        let diff = 1;
+        let highestCost = Math.ceil(this.moveWeights[this.moveNexts.indexOf(-1)]);
+        let prevSizes = [];
         let depth = 0;
         while (true) {
             for (let [cost, sequence] of this.getPruneSequences(depth)) {
                 let cubeStr = this.compressArr(this.execute(this.solved, sequence));
                 if (!(tempTable.has(cubeStr)) || tempTable.get(cubeStr)>cost) {tempTable.set(cubeStr, cost)}
             }
-            if (tempTable.size**2/prevSize > maxSize || tempTable.size - prevSize - diff < 0) {break}
+            prevSizes.push(tempTable.size)
+            if (this.stopPruning(maxSize, highestCost, prevSizes)) {break}
             depth++;
-            diff = tempTable.size - prevSize;
-            prevSize = tempTable.size;
         }
         this.pruneTable = tempTable;
         this.pruneDepth = depth;
