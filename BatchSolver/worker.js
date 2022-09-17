@@ -7,7 +7,8 @@ function main(input) {
     if (scramble.includes(":")) {
         postMessage({ value: "Colon notation for indicating adjust moves is deprecated.", type: "stop" });
     }
-    let [fullPuzzle, batchStates, subPuzzles] = setPuzzles(scramble, input.puzzle, input.ignore, input.subgroups, input.preAdjust, input.postAdjust, input.sorting);
+    let [fullPuzzle, batchStates, subPuzzles] = setPuzzles(scramble, input.puzzle, input.ignore, input.subgroups, input.preAdjust, input.postAdjust, input.sorting, input.esq);
+    postMessage({value: parseESQ(input.rankesq), type: "moveWeights"}); /**/
     let [modifiers, startNum] = parseModifiers(scramble);
     let caseNum = 1;
     let solutionIndex = 1;
@@ -25,7 +26,7 @@ function main(input) {
     postMessage({ value: null, type: "stop" });
 }
 
-function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust, sorting) {
+function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust, sorting, esq) {
     let moves = puzzleDef;
     let moveLines = moves.split('\n');
 
@@ -127,9 +128,12 @@ function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust, 
         }
     }
 
+    // parse ESQ input
+    let moveWeights = parseESQ(esq);
+
     // Validate full puzzle
-    let fullPuzzle = new Puzzle(cubeOri.slice(), moveList.slice(), clockwiseMoveStr.slice(), solvedState.slice());
-    let fullPuzzleDupe = new Puzzle(cubeOri.slice(), moveList.slice(), clockwiseMoveStr.slice(), solvedState.slice());
+    let fullPuzzle = new Puzzle(cubeOri.slice(), moveList.slice(), clockwiseMoveStr.slice(), solvedState.slice(), moveWeights);
+    let fullPuzzleDupe = new Puzzle(cubeOri.slice(), moveList.slice(), clockwiseMoveStr.slice(), solvedState.slice(), moveWeights);
     checkMoveGroup(fullPuzzle, adjust, "pre-adjust");
     checkMoveGroup(fullPuzzle, postAdjust, "post-adjust");
     for (let sub of subgroups) {checkMoveGroup(fullPuzzle, sub.subgroup, "a subgroup")}
@@ -167,6 +171,21 @@ function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust, 
 
     initCubeOri(fullPuzzle, pieceList, ignore);
     return [fullPuzzle, batchStates, subPuzzles];
+}
+
+function parseESQ(esq) {
+    let moveWeights = new Map();
+    for (let line of esq.split("\n")) {
+        let splitLine = line.split(":");
+        if (splitLine.length === 2) {
+            let moveNames = splitSubgroupStr(splitLine[0]);
+            let data = splitLine[1].trim();
+            for (let moveName of moveNames) {
+                moveWeights.set(moveName, parseFloat(data, 10));
+            }
+        }
+    }
+    return moveWeights;
 }
 
 function initCubeOri(pzl, pieceList, ignore) {
@@ -347,6 +366,17 @@ function splitSubgroupStr(s) {
     return removeBrackets(s).replaceAll(","," ").split(" ").filter(x => x !== "");
 }
 
+function lastAlpha(move) {
+    let needle = move.length-1;
+    while (needle >= 0) {
+        if (/[a-zA-Z]/.test(move[needle])) {
+            return needle;
+        }
+        needle--;
+    }
+    return -1;
+}
+
 // END HTML-SIDE JS
 
 function arraysEqual(arr1,arr2) {
@@ -363,6 +393,16 @@ function cartesian(arrays) {
     return prod;
 }
 
+function getMoveNexts(moveWeights) {
+    let moveOrder = moveWeights.map((elem, ind) => ([ind, elem])).sort((iep1, iep2) => (iep1[1]-iep2[1])).map(c => c[0]);
+    let moveNexts = [];
+    for (let i=0; i<moveWeights.length; i++) {
+        let moveRanking = moveOrder.indexOf(i)+1;
+        moveNexts.push(moveRanking === moveWeights.length ? -1 : moveOrder[moveRanking])
+    }
+    return moveNexts.concat(moveOrder[0]);
+}
+
 class Puzzle {
     // executes one move on specified start cube and outputs in result cube.
     mult (start, move, result) {
@@ -373,7 +413,7 @@ class Puzzle {
         }
     }
     
-    constructor (cubeOri, clockwiseMoves, clockwiseMoveStr, solvedState=null) {
+    constructor (cubeOri, clockwiseMoves, clockwiseMoveStr, solvedState=null, moveWeightsMap=new Map()) {
         // initialize cube constants
         this.cubeOri = cubeOri;
         this.pcCount = cubeOri.length; // 20
@@ -457,6 +497,33 @@ class Puzzle {
             this.adjustMovesTable[i] = false;
         }
         this.adjustCount = 0;
+
+        // initialize move weights 
+        this.moveWeightsMap = moveWeightsMap;
+        this.moveWeights = [];
+        for (let i=0; i<this.moves.length; i++) {
+            let moveName = this.moveStr[i];
+            let moveType = moveName.slice(0, lastAlpha(moveName)+1)+"_";
+            let moveAmount = "_"+moveName.slice(lastAlpha(moveName)+1);
+            if (moveWeightsMap.has(moveName)) {this.moveWeights.push(moveWeightsMap.get(moveName))}
+            else if (moveWeightsMap.has(moveType)) {this.moveWeights.push(moveWeightsMap.get(moveType))}
+            else if (moveWeightsMap.has(moveAmount)) {this.moveWeights.push(moveWeightsMap.get(moveAmount))}
+            else if (moveWeightsMap.has("__")) {this.moveWeights.push(moveWeightsMap.get("__"))}
+            else {this.moveWeights.push(1)}
+        }
+
+        this.inverseWeights = [];
+        for (let i=0; i<this.moves.length; i++) {
+            this.inverseWeights.push(this.moveWeights[this.inverse[i]]);
+        }
+
+        // the next move is the move with the next highest cost, or with the same cost and to the right.
+        // moveNexts.length === moves.length+1. The last entry corresponds to the cheapest move.
+        // the entry containing -1 corresponds to the most expensive move.
+        // this.moveNexts = [2, 4, 3, 5, 7, 6, 8, 10, 9, 11, 13, 12, 14, 16, 15, 17, -1, 1, 0]; // for SQTM
+        // this.moveNexts = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, -1, 0]; // for STM
+        this.moveNexts = getMoveNexts(this.moveWeights);
+        this.inverseNexts = getMoveNexts(this.inverseWeights);
     }
 
     // executes sequence on specified starting state
@@ -470,14 +537,14 @@ class Puzzle {
     }
 
     // returns next valid move given previous move. For example, U U2 is invalid, but U R is valid.
-    nextValid(prevMove, move) {
-        while (move < this.moves.length) {
-            move += 1;
-            if (this.validPairs[prevMove][move]) {
+    // if move == this.moves.length, returns first valid move after prevMove.
+    nextValid(prevMove, move, moveNextTable) {
+        while (true) {
+            move = moveNextTable[move];
+            if (move === -1 || this.validPairs[prevMove][move]) {
                 return move;
             }
         }
-        return -1;
     }
 
     // Convert a puzzle array like [2, 1, 6, 0, 5, 4, 3, 7] into a compact string. The totalBits is the number of bits to allocate per number. Takes place of strConv.
@@ -490,47 +557,81 @@ class Puzzle {
     }
 
     // like nextValid, but with the first move of a sequence.
-    nextValidInitial(move) {
-        let x = move+1;
-        while (x < this.moves.length) {
-            if (!(this.adjustMovesTable[x])) {return x};
-            x++;
+    nextValidInitial(move, moveNextTable) {
+        let x = moveNextTable[move];
+        while (true) {
+            if (x === -1 || !(this.adjustMovesTable[x])) {return x};
+            x = moveNextTable[x];
         }
-        return -1;
     }
 
-    // stores first valid array of moves with given length in arr
-    firstValidArray(length) {
-        let arr = [this.nextValidInitial(-1)];
-        for (let i=1; i<length; i++) {
-            arr[i] = this.nextValid(arr[i-1],-1);
+    getCost(sequence, weightTable) {
+        let cost = 0;
+        for (let move of sequence) {
+            cost += weightTable[move];
         }
-        return arr;
+        return cost;
     }
 
-    *getAllSequences(seqLength) {
+    popAndAdvance(arr, moveNextTable) {
+        do {
+            arr.pop(); // remove last element
+            // increment next last element
+            if (arr.length > 1) {
+                arr[arr.length-1] = this.nextValid(arr[arr.length-2], arr[arr.length-1], moveNextTable);
+            } else if (arr.length) {
+                arr[0] = this.nextValidInitial(arr[0], moveNextTable);
+                if (arr[0] === -1) {arr.pop()}
+            } 
+            if (arr.length === 0) {return}
+        } while (arr[arr.length-1] === -1)
+    }
+    
+    // generates all sequences with an effective length (with weights, not including adjustments)
+    // in the range (seqLength-1, seqLength]. Yields [cost excluding adjustments, sequence]
+    *getPruneSequences(seqLength) {
         if (seqLength === 0) {
             for (let sequence of this.adjustSequences) {
-                yield sequence; // need to account for adjust moves
+                yield [0, sequence]; // need to account for adjust moves
             }
             return;
         }
         postMessage({value: 1, type: "depthUpdate"});
-        let arr = this.firstValidArray(seqLength);
-        while (true) {
-            for (let sequence of this.adjustSequences) {
-                yield sequence.concat(arr); // need to account for adjust moves
-            }
-            let moveInd = seqLength-1;
-            while (moveInd < seqLength) {
-                if (moveInd) {
-                    arr[moveInd] = this.nextValid(arr[moveInd-1],arr[moveInd])
-                } else {
-                    arr[0] = this.nextValidInitial(arr[0]);
-                    if (arr[0] == -1) {return}
+        let arr = [this.nextValidInitial(this.moves.length, this.inverseNexts)];
+        while (arr.length) {
+            let effectiveLength = this.getCost(arr, this.inverseWeights) - 1e-9;
+            if (effectiveLength <= seqLength) {
+                if (effectiveLength > seqLength-1) {
+                    for (let sequence of this.adjustSequences) {
+                        yield [effectiveLength + 1e-9, sequence.concat(arr)]; // need to account for adjust moves
+                    }
                 }
-                if (arr[moveInd] == -1) {moveInd--} else {moveInd++}
+                // add an element to arr
+                arr.push(this.nextValid(arr[arr.length-1], this.moves.length, this.inverseNexts));
             }
+            if (effectiveLength + this.inverseWeights[arr[arr.length-1]] > seqLength) {this.popAndAdvance(arr, this.inverseNexts)}
+        }
+    }
+
+    // generates all sequences with an effective length (with weights, not including adjustments)
+    // in the range [seqLength-1, seqLength), NOT including the final move. Yields just the sequence.
+    *getSearchSequences(seqLength) {
+        if (seqLength === 0) {
+            yield * this.adjustSequences;
+            return;
+        }
+        postMessage({value: 1, type: "depthUpdate"});
+        let arr = [this.nextValidInitial(this.moves.length, this.moveNexts)];
+        while (arr.length) {
+            let effectiveLength = this.getCost(arr, this.moveWeights) + 1e-9;
+            if (effectiveLength - this.moveWeights[arr[arr.length-1]] < seqLength) {
+                if (effectiveLength - this.moveWeights[arr[arr.length-1]] >= seqLength-1) {
+                    for (let sequence of this.adjustSequences) {yield sequence.concat(arr)}
+                }
+                // add an element to arr
+                arr.push(this.nextValid(arr[arr.length-1], this.moves.length, this.moveNexts));            
+            } 
+            if (effectiveLength >= seqLength) {this.popAndAdvance(arr, this.moveNexts)}
         }
     }
 
@@ -586,9 +687,9 @@ class Puzzle {
     createPrun(maxDepth) {
         let tempTable = new Map();
         for (let depth=0; depth<=maxDepth; depth++) {
-            for (let sequence of this.getAllSequences(depth)) {
+            for (let [cost, sequence] of this.getPruneSequences(depth)) {
                 let cubeStr = this.compressArr(this.execute(this.solved, sequence));
-                if (!(tempTable.has(cubeStr))) {tempTable.set(cubeStr, depth)}
+                if (!(tempTable.has(cubeStr)) || tempTable.get(cubeStr)>cost) {tempTable.set(cubeStr, cost)}
             }
         }
         this.pruneTable = tempTable;
@@ -602,9 +703,9 @@ class Puzzle {
         let diff = 1;
         let depth = 0;
         while (true) {
-            for (let sequence of this.getAllSequences(depth)) {
+            for (let [cost, sequence] of this.getPruneSequences(depth)) {
                 let cubeStr = this.compressArr(this.execute(this.solved, sequence));
-                if (!(tempTable.has(cubeStr))) {tempTable.set(cubeStr, depth)}
+                if (!(tempTable.has(cubeStr)) || tempTable.get(cubeStr)>cost) {tempTable.set(cubeStr, cost)}
             }
             if (tempTable.size**2/prevSize > maxSize || tempTable.size - prevSize - diff < 0) {break}
             depth++;
@@ -616,21 +717,20 @@ class Puzzle {
     }
 
     // read all solutions from a given state under the prune table's depth
-    *readPrun(state, partialSolve=[], showPostAdj, exactDepth=false, maxDepth=this.pruneDepth) { // maxDepth should be the same as the prune table's maxDepth
+    // not done yet
+    *readPrun(state, partialSolve=[], showPostAdj, maxDepth=this.pruneDepth) { // maxDepth should be the same as the prune table's maxDepth
         for (let m=0; m<this.moves.length; m++) {
             if (partialSolve.length == 0 || this.validPairs[partialSolve[partialSolve.length-1]][m]) {
                 let nextState = this.execute(state, [m]);
                 let nextDistance = this.pruneTable.get(this.compressArr(nextState));
-                if (nextDistance == 0) { 
-                    if (maxDepth == 1 || !(exactDepth)) {
-                        let fullSolve = partialSolve.concat(m); // TODO: Find which adjust sequence to apply, then apply it
-                        if (!this.hasEndAdjust(fullSolve)) {
-                            if (showPostAdj) {yield * [this.moveListToStr(fullSolve, true) + " " + this.moveListToStr(this.getEndAdjust(nextState), true)]}
-                            else {yield * [this.moveListToStr(fullSolve, true)]}
-                        }
+                if (nextDistance === 0) { 
+                    let fullSolve = partialSolve.concat(m);
+                    if (!this.hasEndAdjust(fullSolve)) {
+                        if (showPostAdj) {yield * [this.moveListToStr(fullSolve, true) + " " + this.moveListToStr(this.getEndAdjust(nextState), true)]}
+                        else {yield * [this.moveListToStr(fullSolve, true)]}
                     }
                 } else if (nextDistance < maxDepth) { // false if nextDistance is undefined
-                    yield * this.readPrun(nextState, partialSolve.concat(m), showPostAdj, exactDepth, maxDepth-1);
+                    yield * this.readPrun(nextState, partialSolve.concat(m), showPostAdj, maxDepth-this.moveWeights[m]);
                 }
             }
         }
@@ -639,19 +739,11 @@ class Puzzle {
     // generating function that returns all solutions for a state
     *solve(state, searchDepth, showPostAdj, startDepth=0) {
         for (let depth=startDepth; depth<=searchDepth; depth++) {
-            for (let sequence of this.getAllSequences(depth)) {
+            for (let sequence of this.getSearchSequences(depth)) {
                 let nextState = this.execute(state, sequence);
                 let thisDistance = this.pruneTable.get(this.compressArr(nextState));
                 if (thisDistance !== undefined) {
-                    if (sequence.length === 0) {
-                        yield * this.readPrun(nextState, sequence, showPostAdj, false);
-                    } else {
-                        let prevState = this.execute(nextState, [this.inverse[sequence[sequence.length-1]]]);
-                        let prevDistance = this.pruneTable.get(this.compressArr(prevState));
-                        if (prevDistance === undefined || prevDistance <= this.pruneDepth || thisDistance >= prevDistance) {
-                            yield * this.readPrun(nextState, sequence, showPostAdj, true, Math.max(this.pruneDepth, thisDistance)); // false, address underlying problem
-                        }
-                    }
+                    yield * this.readPrun(nextState, sequence, showPostAdj);
                 }
             }   
         }  
@@ -743,7 +835,7 @@ class Puzzle {
             }
             genArray.push(this.execute(this.nullmove, this.moveStrToList(gen)));
         }
-        return new Puzzle(this.cubeOri.slice(), genArray, generators, this.solved.slice());
+        return new Puzzle(this.cubeOri.slice(), genArray, generators, this.solved.slice(), this.moveWeightsMap);
     }
     
     compressStr(str) {

@@ -360,38 +360,23 @@
             </div><br>
 
             <div id="esqOptions" hidden>
-                <table class="adv-layout">
-                    <tr>
-                        <th>Wrist Quarter Turns:</th>
-                        <th>
-                            <input type="range" value="1" max="5" step="0.1" oninput="wqt.value = this.value">
-                            <output id="wqt">1</output><br>
-                        </th>
-                    </tr>
-                    <tr>
-                        <th>Flick Quarter Turns:</th>
-                        <th>
-                            <input type="range" value="2" max="5" step="0.1" oninput="fqt.value = this.value">
-                            <output id="fqt">2</output><br>
-                        </th>
-                    </tr>
-                    <tr>
-                        <th>Wrist Half Turns:</th>
-                        <th>
-                            <input type="range" value="2" max="5" step="0.1" oninput="wht.value = this.value">
-                            <output id="wht">2</output><br>
-                        </th>
-                    </tr>
-                    <tr>
-                        <th>Flick Half Turns:</th>
-                        <th>
-                            <input type="range" value="3" max="5" step="0.1" oninput="fht.value = this.value">
-                            <output id="fht">3</output><br>
-                        </th>
-                    </tr>                     
-                </table>
-                <br>
-            </div>
+                <strong>Rank ESQ</strong><br>
+                <textarea id="rankESQ" rows="9" cols="64">R_ L_ r_ l_: 1
+R2 L2 r2 l2: 2
+__: 2
+_2: 3
+                </textarea>
+                <br><br>
+                <strong>Generation ESQ</strong>                    
+                <select id="esq-gen-select" onchange="esqGenSelected(this)">
+                    <option value="default">Default</option>
+                    <option value="match">Match</option>
+                    <option value="custom" selected>Custom</option>
+                </select><br>
+                <div id="genESQarea">
+                    <textarea id="generationESQ" rows="9" cols="64"></textarea><br>
+                </div>
+            </div><br>
 
             <div id="statistics">
                 <strong>Statistics</strong><br>
@@ -442,6 +427,7 @@
         let solutionsBuffer = [];
         let debugVars = [];
         let colMask;
+        let moveWeights = new Map();
 
         let startTime = Date.now();
         let failed = [];
@@ -469,6 +455,20 @@
             imgRot.hidden = type.value.includes("top");
             previewYaw.hidden = type.value.includes("top") || !previewVis.checked;
             generateImagePreview();
+        }
+
+        function esqGenSelected(opt) {
+            let esqGenField = document.getElementById("generationESQ");
+            let esqGenArea = document.getElementById("genESQarea")
+            if (opt.value === "default") {
+                esqGenField.value = ``;
+                esqGenArea.hidden = true;
+            } else if (opt.value === "match") {
+                esqGenField.value = document.getElementById("rankESQ").value;
+                esqGenArea.hidden = true;
+            } else {
+                esqGenArea.hidden = false;
+            }
         }
 
         function puzzleSelected(pzl) {
@@ -686,6 +686,8 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                     postAdjust: document.getElementById('post-adjustments').value,
                     subgroups: subgroupData,
                     sorting: sortData,
+                    esq: document.getElementById('generationESQ').value,
+                    rankesq: document.getElementById('rankESQ').value,
                     showPost: showPostAdj.checked};
         }
 
@@ -897,17 +899,13 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
         }
 
         function getESQ(move) {
-            let wrist1 = parseFloat(document.getElementById("wqt").innerHTML);
-            let wrist2 = parseFloat(document.getElementById("wht").innerHTML);
-            let flick1 = parseFloat(document.getElementById("fqt").innerHTML);
-            let flick2 = parseFloat(document.getElementById("fht").innerHTML);
-            let moveAmount = getSQTM(move);
-            let moveName = move.slice(0,lastAlpha(move)+1);
-            if (moveName.toLowerCase() == "r" || moveName.toLowerCase() == "l") {
-                return (2*wrist1-wrist2) + (wrist2-wrist1) * moveAmount;
-            } else {
-                return (2*flick1-flick2) + (flick2-flick1) * moveAmount;
-            }
+            let moveType = move.slice(0, lastAlpha(move)+1)+"_";
+            let moveAmount = "_"+move.slice(lastAlpha(move)+1);
+            if (moveWeights.has(move)) {return moveWeights.get(move)}
+            else if (moveWeights.has(moveType)) {return moveWeights.get(moveType)}
+            else if (moveWeights.has(moveAmount)) {return moveWeights.get(moveAmount)}
+            else if (moveWeights.has("__")) {return moveWeights.get("__")}
+            return 1;
         }
 
         function getMoveCount(alg, metric) {
@@ -925,7 +923,7 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                     count += metric(move);
                 }
             }
-            return count;
+            return Math.round(count*1e3)/1e3;
         }
 
         function updateStats() {
@@ -1026,8 +1024,9 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                     }
                 } else if (event.data.type === "num-states") {
                     document.getElementById("info-num-cases").innerHTML = event.data.value;
-                }
-                else if (event.data.type === "debug") {
+                } else if (event.data.type === "moveWeights") {
+                    moveWeights = event.data.value;
+                } else if (event.data.type === "debug") {
                     debugVars.push(event.data.value);
                 }
             }
