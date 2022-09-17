@@ -364,8 +364,7 @@
                 <textarea id="rankESQ" rows="9" cols="64">R_ L_ r_ l_: 1
 R2 L2 r2 l2: 2
 __: 2
-_2: 3
-                </textarea>
+_2: 3</textarea>
                 <br><br>
                 <strong>Generation ESQ</strong>                    
                 <select id="esq-gen-select" onchange="esqGenSelected(this)">
@@ -464,7 +463,6 @@ _2: 3
                 esqGenField.value = ``;
                 esqGenArea.hidden = true;
             } else if (opt.value === "match") {
-                esqGenField.value = document.getElementById("rankESQ").value;
                 esqGenArea.hidden = true;
             } else {
                 esqGenArea.hidden = false;
@@ -686,7 +684,7 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                     postAdjust: document.getElementById('post-adjustments').value,
                     subgroups: subgroupData,
                     sorting: sortData,
-                    esq: document.getElementById('generationESQ').value,
+                    esq: document.getElementById("esq-gen-select").value === "match" ? document.getElementById('rankESQ').value : document.getElementById('generationESQ').value,
                     rankesq: document.getElementById('rankESQ').value,
                     showPost: showPostAdj.checked};
         }

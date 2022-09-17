@@ -614,10 +614,12 @@ class Puzzle {
     }
 
     // generates all sequences with an effective length (with weights, not including adjustments)
-    // in the range [seqLength-1, seqLength), NOT including the final move. Yields just the sequence.
+    // in the range [seqLength-1, seqLength), NOT including the final move. Yields [cost excluding adjustments, sequence].
     *getSearchSequences(seqLength) {
         if (seqLength === 0) {
-            yield * this.adjustSequences;
+            for (let sequence of this.adjustSequences) {
+                yield [0, sequence]; // need to account for adjust moves
+            }
             return;
         }
         postMessage({value: 1, type: "depthUpdate"});
@@ -626,7 +628,9 @@ class Puzzle {
             let effectiveLength = this.getCost(arr, this.moveWeights) + 1e-9;
             if (effectiveLength - this.moveWeights[arr[arr.length-1]] < seqLength) {
                 if (effectiveLength - this.moveWeights[arr[arr.length-1]] >= seqLength-1) {
-                    for (let sequence of this.adjustSequences) {yield sequence.concat(arr)}
+                    for (let sequence of this.adjustSequences) {
+                        yield [effectiveLength - 1e-9, sequence.concat(arr)];
+                    }
                 }
                 // add an element to arr
                 arr.push(this.nextValid(arr[arr.length-1], this.moves.length, this.moveNexts));            
@@ -743,7 +747,7 @@ class Puzzle {
                         if (showPostAdj) {yield * [this.moveListToStr(fullSolve, true) + " " + this.moveListToStr(this.getEndAdjust(nextState), true)]}
                         else {yield * [this.moveListToStr(fullSolve, true)]}
                     }
-                } else if (nextDistance < maxDepth) { // false if nextDistance is undefined
+                } else if (nextDistance <= maxDepth-this.moveWeights[m]) { // false if nextDistance is undefined
                     yield * this.readPrun(nextState, partialSolve.concat(m), showPostAdj, maxDepth-this.moveWeights[m]);
                 }
             }
@@ -753,11 +757,11 @@ class Puzzle {
     // generating function that returns all solutions for a state
     *solve(state, searchDepth, showPostAdj, startDepth=0) {
         for (let depth=startDepth; depth<=searchDepth; depth++) {
-            for (let sequence of this.getSearchSequences(depth)) {
+            for (let [cost, sequence] of this.getSearchSequences(depth)) {
                 let nextState = this.execute(state, sequence);
                 let thisDistance = this.pruneTable.get(this.compressArr(nextState));
                 if (thisDistance !== undefined) {
-                    yield * this.readPrun(nextState, sequence, showPostAdj);
+                    yield * this.readPrun(nextState, sequence, showPostAdj, this.pruneDepth+searchDepth-cost);
                 }
             }   
         }  
