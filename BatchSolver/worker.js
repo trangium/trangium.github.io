@@ -761,7 +761,7 @@ class Puzzle {
                 let nextState = this.execute(state, sequence);
                 let thisDistance = this.pruneTable.get(this.compressArr(nextState));
                 if (thisDistance !== undefined) {
-                    yield * this.readPrun(nextState, sequence, showPostAdj, this.pruneDepth+searchDepth-cost);
+                    yield * this.readPrun(nextState, sequence, showPostAdj, Math.min(this.pruneDepth, this.pruneDepth+searchDepth-cost));
                 }
             }   
         }  
