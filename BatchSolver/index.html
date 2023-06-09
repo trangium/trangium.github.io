@@ -392,7 +392,7 @@ _2: 3</textarea>
             </div><br>
 
             <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="searchButtonHandler()" id="calc-button"><strong>Start Search</strong></button>
-            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="selectElement(document.getElementById('output-table'))" id="select-button"><strong>Select Output</strong></button>
+            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="exportTable()" id="select-button"><strong>Export Output</strong></button>
             <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="clearOutput()" id="clear-button"><strong>Clear Output</strong></button><br>
 
             <div id="table-area" hidden><br>
@@ -406,6 +406,8 @@ _2: 3</textarea>
         </div>
         <canvas hidden id="canvas" width="150" height="150"></canvas>
         <br><br><br><br><br><br><br><br><br><br><br>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" integrity="sha512-Qlv6VSKh1gDKGoJbnyA5RMXYcvnpIqhO++MhIM2fStMcGT9i2T//tSwYFlcyoRRDcDZ+TYHpH8azBBCyhpSeqw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js" integrity="sha512-UnrKxsCMN9hFk7M56t4I4ckB4N/2HHi0w/7+B/1JsXIX3DmyBcsGpT3/BsuZMZf+6mAr0vP81syWtfynHJ69JA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>    
     <script src="../algSpeed.js"></script>
     <script src="../twistysim.js"></script>
     <script>
@@ -984,7 +986,7 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
             depth = 0;
         }
 
-        function selectElement(el) {
+        function selectElement(el) { // currently vestigial
             range = document.createRange();
             sel = window.getSelection();
             sel.removeAllRanges();
@@ -995,6 +997,57 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
                 range.selectNode(el);
                 sel.addRange(range);
             }
+        }
+
+        function displayTextWidth(text, font) {
+            let canvas = displayTextWidth.canvas || (displayTextWidth.canvas = document.createElement("canvas"));
+            let context = canvas.getContext("2d");
+            context.font = font;
+            let metrics = context.measureText(text);
+            return metrics.width * 0.18 + 3;
+        }
+
+        function exportTable() {
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Batch Solver Algs');
+
+            worksheet.addRow([]);
+            worksheet.getRow(1).height = 18;
+
+            let column = 0;
+            for (let elem of document.getElementById("computation-header").children) {
+                worksheet.mergeCells(1, column+1, 1, column+2);
+                let img = elem.children[0].children[0];
+                let imgData = img.src;
+                worksheet.addImage(workbook.addImage({base64: imgData, extension: 'png'}), {
+                tl: { col: column, row: 0 },
+                ext: { width: img.naturalWidth, height: img.naturalHeight }
+                });
+                if (img.naturalHeight > worksheet.getRow(1).height) worksheet.getRow(1).height = img.naturalHeight;
+                column += 2
+            }
+
+            let headerRow = [];
+            for (let elem of document.getElementById("solutions-header").children) headerRow.push(elem.innerText);
+            worksheet.addRow(headerRow);
+
+            let row = 3;
+            let col = 1;
+            for (let elem of document.getElementById("output-data").children) {
+                for (let entry of elem.innerText.split("\n")) {
+                    worksheet.getCell(row, col).value = entry;
+                    row++;
+                    let textWidth = displayTextWidth(entry, "Calibri");
+                    if (worksheet.getColumn(col).width == undefined || worksheet.getColumn(col).width < textWidth) worksheet.getColumn(col).width = textWidth;
+                }
+                col++;
+                row = 3;
+            }
+
+            workbook.xlsx.writeBuffer().then((data) => {
+            const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8' });
+            saveAs(blob, 'algs.xlsx');
+            });
         }
 
         function clearOutput() {
