@@ -94,15 +94,14 @@
                 text-align: center;
             }
 
-            #computation-header th{
-                padding-top: 0.63rem;
-            }
-
             #table-area .output-left {
                 border-color: black;
                 border-width: 0.063rem 0.063rem 0 0.063rem;
                 border-style: solid;
-                
+            }
+
+            #table-area .case-header {
+                padding: 0.75rem;
             }
 
             .inputNum {
@@ -403,7 +402,7 @@ _2: 3</textarea>
                     <tr id="solutions-header"></tr>
                     <tr id="output-data"></tr>
                 </table>
-                <table cellspacing="0" id="transposed-table">
+                <table cellspacing="0" id="transposed-table" hidden>
                 </table>
             </div>
         </div>
@@ -487,18 +486,18 @@ F: (UF+1 FR+1 DF+1 FL+1) (UFR+1 DFR-1 DFL+1 UFL-1)
 D: (DF DR DB DL) (DFR DBR DBL DFL)
 L: (UL FL DL BL) (UFL+1 DFL-1 DBL+1 UBL-1)
 B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)
-u: (UF UL UB UR) (UFR UFL UBL UBR) (FR+1 FL+1 BL+1 BR+1) (FB RL+1 FB+1)
+u: (UF UL UB UR) (UFR UFL UBL UBR) (FR+1 FL+1 BL+1 BR+1) (RL FB+1 RL+1)
 r: (UR BR DR FR) (UFR-1 UBR+1 DBR-1 DFR+1) (UF+1 UB+1 DB+1 DF+1) (FB UD+1 FB+1)
 f: (UF+1 FR+1 DF+1 FL+1) (UFR+1 DFR-1 DFL+1 UFL-1) (UR+1 DR+1 DL+1 UL+1) (UD RL+1 UD+1)
-d: (DF DR DB DL) (DFR DBR DBL DFL) (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)
+d: (DF DR DB DL) (DFR DBR DBL DFL) (FR+1 BR+1 BL+1 FL+1) (FB RL+1 FB+1)
 l: (UL FL DL BL) (UFL+1 DFL-1 DBL+1 UBL-1) (UF+1 DF+1 DB+1 UB+1) (UD FB+1 UD+1)
 b: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1) (UR+1 UL+1 DL+1 DR+1) (RL UD+1 RL+1)
 M: (UF+1 DF+1 DB+1 UB+1) (UD FB+1 UD+1)
 S: (UR+1 DR+1 DL+1 UL+1) (UD RL+1 UD+1)
-E: (FR+1 BR+1 BL+1 FL+1) (RL FB+1 RL+1)
-x: (UR BR DR FR) (UFR-1 UBR+1 DBR-1 DFR+1) (UL BL DL FL) (UFL-1 UBL+1 DBL-1 DFL+1) (UF+1 UB+1 DB+1 DF+1) (UD FB+1 UD+1)
+E: (FR+1 BR+1 BL+1 FL+1) (FB RL+1 FB+1)
+x: (UR BR DR FR) (UFR-1 UBR+1 DBR-1 DFR+1) (UL BL DL FL) (UFL+1 UBL-1 DBL+1 DFL-1) (UF+1 UB+1 DB+1 DF+1) (FB UD+1 FB+1)
 y: (UF UL UB UR) (UFR UFL UBL UBR) (DF DL DB DR) (DFR DFL DBL DBR) (FR+1 FL+1 BL+1 BR+1) (RL FB+1 RL+1)
-z: (UF+1 FR+1 DF+1 FL+1) (UFR+1 DFR-1 DFL+1 UFL-1) (UB+1 BR+1 DB+1 BL+1) (UBR+1 DBR-1 DBL+1 UBL-1) (UR+1 DR+1 DL+1 UL+1) (UD RL+1 UD+1)`;
+z: (UF+1 FR+1 DF+1 FL+1) (UFR+1 DFR-1 DFL+1 UFL-1) (UB+1 BR+1 DB+1 BL+1) (UBR-1 DBR+1 DBL-1 UBL+1) (UR+1 DR+1 DL+1 UL+1) (UD RL+1 UD+1)`;
                     break;
                 case ("2x2x2"):
                     pzlField.value = 
@@ -576,9 +575,23 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
         generateImagePreview();
 
         function createSolutionTable() {
-            document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left"><span id=caseHeader'+solveID+'></span><br><span id="progUpdate'+solveID+'"></span></th>';
-            document.getElementById("solutions-header").innerHTML += '<th class="output-left">&nbsp;'+sortCriteria+'&nbsp;<th>&nbsp;Solutions&nbsp;</th></th>';
-            document.getElementById("output-data").innerHTML += '<td class="output-left" id="speed'+solveID+'"></td><td id="solutions'+solveID+'"></td>';
+            let transb = document.getElementById("transposed-table");
+            if (document.getElementById("transposed-table").hidden) {
+                document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left case-header"><span id=caseHeader'+solveID+'></span><br><span id="progUpdate'+solveID+'"></span></th>';
+                document.getElementById("solutions-header").innerHTML += '<th class="output-left">&nbsp;'+sortCriteria+'&nbsp;<th>&nbsp;Solutions&nbsp;</th></th>';
+                document.getElementById("output-data").innerHTML += '<td class="output-left" id="speed'+solveID+'"></td><td id="solutions'+solveID+'"></td>';
+            } else {
+                let id1 = solveID*2+1;
+                let id2 = solveID*2+2;
+                let tr1 = document.createElement("tr");
+                tr1.setAttribute("id", id1);
+                tr1.innerHTML = '<th colspan="1" class="output-left case-header" rowspan="2"><span id="caseHeader'+solveID+'"></span><br><span id="progUpdate'+solveID+'"></span></th><th class="output-left">&nbsp;MCC&nbsp;</th><th>&nbsp;Solutions&nbsp;</th>'
+                let tr2 = document.createElement("tr");
+                tr2.setAttribute("id", id2);
+                tr2.innerHTML = '<td class="output-left" id="speed'+solveID+'"></td><td id="solutions'+solveID+'"></td>'
+                transb.appendChild(tr1);
+                transb.appendChild(tr2);
+            }
         }
 
         function transposeTable() {
@@ -628,7 +641,7 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
         }
 
         function toggleTranspose() {
-            if (document.getElementById("transpose").checked) {
+            if (document.getElementById("transposed-table").hidden) {
                 transposeTable();
             } else {
                 untransposeTable();
@@ -650,7 +663,7 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
             img.onload = function () {
                 ctx.drawImage(img, 0, 0);
                 DOMURL.revokeObjectURL(url);
-                var imgURI = canvas.toDataURL('image/png')
+                var imgURI = canvas.toDataURL('image/png');
                 document.getElementById('caseHeader'+num).innerHTML = `<img src=${imgURI} title="#${caseNum}" alt="#${caseNum}"/>`
             };
             img.src = url;
@@ -1056,6 +1069,7 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
 
         function clearOutput() {
             document.getElementById("output-table").innerHTML = '<tr id="computation-header"></tr><tr id="solutions-header"></tr><tr id="output-data"></tr>';
+            document.getElementById("transposed-table").innerHTML = '<table cellspacing="0" id="transposed-table">'
             document.getElementById("table-area").hidden = true;
             solveID = 0;
         }
