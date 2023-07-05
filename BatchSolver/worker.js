@@ -2,13 +2,20 @@ self.onmessage = function (msg) {
     if (msg.data.puzzle) {main(msg.data)}
 };
 
+/**
+ * @param {{ puzzle: String; ignore: String; solve: String; preAdjust: String; postAdjust: String; subgroups: { subgroup: String; prune: String; search: String; }[]; sorting: { type: String; pieces: String; }[]; esq: string; rankesq: string; showPost: boolean; }} input 
+ * Posts messages:
+ * - "stop" - indicates deprecated notation or end of search
+ * - "moveWeights" - returns parsed rank ESQ
+ * - "next-state" - returns setup info (not solution) for next state
+ */
 function main(input) {
     let scramble = input.solve;
     if (scramble.includes(":")) {
         postMessage({ value: "Colon notation for indicating adjust moves is deprecated.", type: "stop" });
     }
     let [fullPuzzle, batchStates, subPuzzles] = setPuzzles(scramble, input.puzzle, input.ignore, input.subgroups, input.preAdjust, input.postAdjust, input.sorting, input.esq);
-    postMessage({value: parseESQ(input.rankesq), type: "moveWeights"}); /**/
+    postMessage({value: parseESQ(input.rankesq), type: "moveWeights"}); 
     let [modifiers, startNum] = parseModifiers(scramble);
     let caseNum = 1;
     let solutionIndex = 1;
@@ -26,6 +33,17 @@ function main(input) {
     postMessage({ value: null, type: "stop" });
 }
 
+/**
+ * @param {String} scramble - Raw user input (Scramble field)
+ * @param {String} puzzleDef - Raw user input (Puzzle field)
+ * @param {String} ignore - Raw user input (Unique Orientations & Equivalences field)
+ * @param {{ subgroup: String; prune: String; search: String; }[]} subgroups - Each entry represents one row of user input (Subgroup, Prune, Search)
+ * @param {String} adjust - Raw user input (Pre-Adjust)
+ * @param {String} postAdjust - Raw user input (Post-Adjust)
+ * @param {{ type: String; pieces: String; }[]} sorting - Type: one of {"priority", "ori-of", "ori-at", "perm-of", "perm-at"}. Pieces: One row of raw user input (Sorting field)
+ * @param {String} esq - Raw user input (Rank ESQ field if dropdown set to "Match", else Generation ESQ field)
+ * @return {[Puzzle, Set<String>, {puzzle: any; search: any;}]} [fullPuzzle, batchStates, subPuzzles] TODO: REPLACE THE any WITH REAL TYPES
+ */
 function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust, sorting, esq) {
     let moves = puzzleDef;
     let moveLines = moves.split('\n');
@@ -37,6 +55,10 @@ function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust, 
     let moveList = [];
     let clockwiseMoveStr = [];
 
+    /**
+     * @param {string} data One line of raw Puzzle input, after the colon
+     * @return {number[][][]} List of cycles, where each cycle is a list of two-element lists containing the piece index and twist
+     */
     function parseMove(data) {
         let cycleList = [];
         let openParenSplit = data.split("(");
@@ -148,7 +170,7 @@ function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust, 
     initCubeOri(fullPuzzleDupe, pieceList, ignore);
 
     // calculate batch states
-    let batchStates = fullPuzzleDupe.getBatchStates(scramble, adjust, postAdjust, pieceList, sorting, fullPuzzle);
+    let batchStates = fullPuzzleDupe.getBatchStates(scramble, adjust, postAdjust, pieceList, sorting);
     let numStates = 0;
     let solutionIndex = 1;
     let [modifiers, startNum] = parseModifiers(scramble)
@@ -217,6 +239,15 @@ function initCubeOri(pzl, pieceList, ignore) {
     }
 }
 
+/**
+ * @param {String[]} pieceList - Ordered array of named pieces defined in Puzzle
+ * @param {Puzzle} fullPuzzle - Puzzle generated from all fields except Subgroup
+ * @param {String} ignore - Raw user input (Unique Orientations & Equivalences field)
+ * @param {String} subgroup - Raw user input
+ * @param {String} prune - Raw user input
+ * @param {String[]} adjust - List of all moves defined in the Pre-Adjust field
+ * @return {Puzzle} Puzzle with given subgroup and prune table
+ */
 function getSubPuzzle(pieceList, fullPuzzle, ignore, subgroup, prune, adjust) {
     let generators = (subgroup.replace(" ","").length > 0) ? splitSubgroupStr(subgroup) : fullPuzzle.clockwiseMoveStr;
     
@@ -362,6 +393,10 @@ function removeBrackets(s) { // Removes (), {}, <>, and []
     return s.replace(/\(|\)|\[|\]|{|}|<|>/g, "");
 }
 
+/**
+ * @param {String} s - Denotes a subgroup string such as "<R U>" or "M E S" 
+ * @return {String[]} Array of move strings contained in the input string
+ */
 function splitSubgroupStr(s) {
     return removeBrackets(s).replaceAll(","," ").split(" ").filter(x => x !== "");
 }
@@ -379,6 +414,10 @@ function lastAlpha(move) {
 
 // END HTML-SIDE JS
 
+/**
+ * @param {any[]} arr1 
+ * @param {any[]} arr2 
+ */
 function arraysEqual(arr1,arr2) {
     for (let i=0; i<arr1.length; i++) {
         if (arr1[i] !== arr2[i]) {return false}
@@ -386,6 +425,12 @@ function arraysEqual(arr1,arr2) {
     return true
 }
 
+/**
+ * @param {any[][]} arrays 
+ * @return {any[][]} All possible arrays that can be constructed by
+ * optionally selecting an element from arrays[0], then optionally
+ * selecting an element from arrays[1], etc. Always contains the empty array.
+ */
 function cartesian(arrays) { 
 	let singleStep = (arrays, add) => {return arrays.concat(...add.map(next => arrays.map( arr => arr.concat(next) )))} 
 	let prod = [[]];
@@ -393,6 +438,20 @@ function cartesian(arrays) {
     return prod;
 }
 
+/**
+ * @param {*} moveWeights 
+ * @returns An array serving as a lookup table where the indices are move IDs, and the entry
+ * at each index is the move to be searched next after that move, or -1 if that move ID is
+ * the most expensive, with the cheapest move appended at the end.
+ * 
+ * The next move is the move with the next highest weight, or with the same weight and to the right.
+ * 
+ * getMoveNexts(moveWeights).length === moveWeights.length + 1.
+ * 
+ * @example
+ * this.moveNexts = [2, 4, 3, 5, 7, 6, 8, 10, 9, 11, 13, 12, 14, 16, 15, 17, -1, 1, 0]; // for 3x3x3 SQTM
+ * this.moveNexts = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, -1, 0]; // for 3x3x3 STM
+ */
 function getMoveNexts(moveWeights) {
     let moveOrder = moveWeights.map((elem, ind) => ([ind, elem])).sort((iep1, iep2) => (iep1[1]-iep2[1])).map(c => c[0]);
     let moveNexts = [];
@@ -904,6 +963,12 @@ class Puzzle {
         return (adjStr == "") ? [[]] : cartesian(splitSubgroupStr(adjStr).map(str => this.getMoveMultiples(this.moveStr.indexOf(str))));
     }
 
+    /**
+     * @param {String[]} states - List of setups (derived from Scramble field)
+     * @param {String} preAdjust - Raw user input (Pre-Adjust)
+     * @param {String} postAdjust - Raw user input (Post-Adjust)
+     * @return {Set<String>} - List of setups with states differing by only a pre- or post- adjust removed
+     */
     getReducedSet(states, preAdjust, postAdjust) {
         let preAdjustSequences = this.getAdjustFromStr(preAdjust);
         let postAdjustSequences = this.getAdjustFromStr(postAdjust);
@@ -931,6 +996,14 @@ class Puzzle {
         return 0;
     }
 
+    /**
+     * @param {String} input - Raw user input (Scramble field)
+     * @param {String} preAdjust - Raw user input (Pre-Adjust)
+     * @param {String} postAdjust - Raw user input (Post-Adjust)
+     * @param {String[]} pieceList - Ordered array of named pieces defined in Puzzle
+     * @param {{ type: String; pieces: String; }[]} sorting - Type: one of {"priority", "ori-of", "ori-at", "perm-of", "perm-at"}. Pieces: One row of raw user input (Sorting field)
+     * @return {Set<String>} Sorted list of setups to all distinct states
+     */
     getBatchStates(input, preAdjust, postAdjust, pieceList, sorting) {
         input = (input.includes("#") ? input.slice(0, input.indexOf("#")) : input).replaceAll("\n", "");
         let parsedInput = parseBatch(input);
