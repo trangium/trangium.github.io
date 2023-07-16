@@ -5,6 +5,10 @@
     <meta charset="utf-8" />
     <title>Batch testing</title>
     <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+        }
+
         .button {
             border: none;
             color: white;
@@ -50,25 +54,60 @@
 </head>
 
 <body>
-    <table id="testTable">
-        <tr>
-            <td>1</td>
-            <td>karina!</td>
-        </tr>
-        <tr>
-            <td>cami!</td>
-            <td><img src="../Yoyleberry/barrel.png" alt="W3Schools.com"></td>
-        </tr>
-    </table>
+    <strong>Solutions</strong><br><br>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" integrity="sha512-Qlv6VSKh1gDKGoJbnyA5RMXYcvnpIqhO++MhIM2fStMcGT9i2T//tSwYFlcyoRRDcDZ+TYHpH8azBBCyhpSeqw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js" integrity="sha512-UnrKxsCMN9hFk7M56t4I4ckB4N/2HHi0w/7+B/1JsXIX3DmyBcsGpT3/BsuZMZf+6mAr0vP81syWtfynHJ69JA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     
     <script src="../BatchSolver/worker.js"></script>
 
     <script>
+        let input = {
         
+        puzzle: `U: (UF UL UB UR) (UFR UFL UBL UBR)
+R: (UR BR DR FR) (UFR-1 UBR+1 DBR-1 DFR+1)
+F: (UF+1 FR+1 DF+1 FL+1) (UFR+1 DFR-1 DFL+1 UFL-1)
+D: (DF DR DB DL) (DFR DBR DBL DFL)
+L: (UL FL DL BL) (UFL+1 DFL-1 DBL+1 UBL-1)
+B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)`,
 
+        ignore: `{UF UL UB UR} {UFR UFL UBL UBR}`,
+
+        solve: `[F R U R' U' F', R2 D R' U2 R D' R' U2 R']`,
+
+        preAdjust: `U`,
+
+        postAdjust: `U`, 
+
+        subgroups: [
+            {subgroup: `R U F`, prune: `5`, search: `7`},
+        ],
+
+        sorting: [
+            {type: `ori-at`, pieces: `UF UL UB UR`},
+            {type: `ori-at`, pieces: `UFR UBR UBL UFL`},
+        ],
+
+        esq: ``,
+
+        rankesq: `__: 2
+        _2: 3`,
+
+        showPost: false
+        }
+
+        work = new Worker("../BatchSolver/worker.js");
+        work.onmessage = function(event) {
+            document.write(JSON.stringify(event.data) + "<br>");
+        }
+
+        work.postMessage(input);
+
+        // main()
+
+        // TWOPHASE STUFF
+        /* 
         function ex(rc, str) {return rc.execute(rc.solved, rc.moveStrToList(str))}
+
         let ht = 1.7;
        
         let erc = new Puzzle([2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2], [[3, 0, 1, 2, 4, 5, 6, 7, 8, 9, 10, 11], [0, 1, 2, 6, 3, 4, 5, 7, 8, 9, 10, 11], [24, 1, 2, 3, 4, 5, 16, 22, 23, 9, 10, 11], [0, 1, 2, 3, 4, 7, 6, 10, 8, 5, 9, 11], [0, 11, 2, 3, 4, 5, 6, 7, 1, 9, 8, 10], [0, 1, 20, 3, 25, 5, 6, 7, 8, 27, 10, 18]] ,["U", "R", "F", "D", "L", "B"])
@@ -125,8 +164,10 @@
         drfn.createPrun(8);
  
         function twophase(scr) {
-            for (let part1 of dr.solve(ex(dr, scr), 7)) {let part2 = drfn.solve(ex(rc, scr + " " + part1), 6).next(); if (part2.done === false) {return part1 + " " + part2.value}}
+            for (let part1 of dr.solve(ex(dr, scr), 7)) {console.log(part1); let part2 = drfn.solve(ex(rc, scr + " " + part1), 8).next(); if (part2.done === false) {return part1 + " " + part2.value}}
         }
+
+        */
 
     </script>
 

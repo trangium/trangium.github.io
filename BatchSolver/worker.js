@@ -42,7 +42,7 @@ function main(input) {
  * @param {String} postAdjust - Raw user input (Post-Adjust)
  * @param {{ type: String; pieces: String; }[]} sorting - Type: one of {"priority", "ori-of", "ori-at", "perm-of", "perm-at"}. Pieces: One row of raw user input (Sorting field)
  * @param {String} esq - Raw user input (Rank ESQ field if dropdown set to "Match", else Generation ESQ field)
- * @return {[Puzzle, Set<String>, {puzzle: any; search: any;}]} [fullPuzzle, batchStates, subPuzzles] TODO: REPLACE THE any WITH REAL TYPES
+ * @return {[Puzzle, Set<String>, {puzzle: Puzzle; search: string;}[]]} [fullPuzzle, batchStates, subPuzzles]
  */
 function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust, sorting, esq) {
     let moves = puzzleDef;
