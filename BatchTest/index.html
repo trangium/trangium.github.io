@@ -7,6 +7,8 @@
     <style>
         body {
             font-family: 'Courier New', Courier, monospace;
+            background-color:black;
+            color: powderblue;
         }
 
         .button {
@@ -50,15 +52,19 @@
             white-space: nowrap;
         }
 
+        p {
+            margin: 1rem;
+        }
+
     </style>
 </head>
 
 <body>
-    <strong>Solutions</strong><br><br>
+    <strong id="heading">Solutions</strong><br><br>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" integrity="sha512-Qlv6VSKh1gDKGoJbnyA5RMXYcvnpIqhO++MhIM2fStMcGT9i2T//tSwYFlcyoRRDcDZ+TYHpH8azBBCyhpSeqw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js" integrity="sha512-UnrKxsCMN9hFk7M56t4I4ckB4N/2HHi0w/7+B/1JsXIX3DmyBcsGpT3/BsuZMZf+6mAr0vP81syWtfynHJ69JA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     
-    <script src="../BatchSolver/worker.js"></script>
+    <script src="worker.js"></script>
 
     <script>
         let input = {
@@ -68,18 +74,19 @@ R: (UR BR DR FR) (UFR-1 UBR+1 DBR-1 DFR+1)
 F: (UF+1 FR+1 DF+1 FL+1) (UFR+1 DFR-1 DFL+1 UFL-1)
 D: (DF DR DB DL) (DFR DBR DBL DFL)
 L: (UL FL DL BL) (UFL+1 DFL-1 DBL+1 UBL-1)
-B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)`,
+B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)
+r: (UR BR DR FR) (UFR-1 UBR+1 DBR-1 DFR+1) (UF+1 UB+1 DB+1 DF+1) (FB UD+1 FB+1)`,
 
-        ignore: `{UF UL UB UR} {UFR UFL UBL UBR}`,
+        ignore: `1: {UF UL UB UR} {UFR UFL UBL UBR}`,
 
-        solve: `[F R U R' U' F', R2 D R' U2 R D' R' U2 R']`,
+        solve: ``,
 
-        preAdjust: `U`,
+        preAdjust: ``,
 
         postAdjust: `U`, 
 
         subgroups: [
-            {subgroup: `R U F`, prune: `5`, search: `7`},
+            {subgroup: `R U F r`, prune: `1m`, search: `=`},
         ],
 
         sorting: [
@@ -89,15 +96,45 @@ B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)`,
 
         esq: ``,
 
-        rankesq: `__: 2
-        _2: 3`,
+        rankesq: ``,
 
-        showPost: false
+        showPost: true
         }
 
-        work = new Worker("../BatchSolver/worker.js");
+        let pllPuzzle = setPuzzles("", input.puzzle, "{UF UL UB UR} {UFR UFL UBL UBR}", [], input.preAdjust, input.postAdjust, [], input.esq)[0]
+
+        let work = new Worker("worker.js");
+        let startTime = Date.now();
+
+        let seenOLLs = new Map();
+        let ollCount = 0;
+
+        function getCaseID(solutionStr) {
+            return pllPuzzle.compressArr(pllPuzzle.execute(pllPuzzle.solved, pllPuzzle.invert(pllPuzzle.moveStrToList(solutionStr))))
+        }
+
         work.onmessage = function(event) {
-            document.write(JSON.stringify(event.data) + "<br>");
+            if (event.data.type === "solution") {
+                let solution = event.data.value
+                let oll = getCaseID(solution);
+                if (seenOLLs.has(oll)) {
+                    let index = seenOLLs.get(oll);
+                    let g = document.getElementById("p"+index);
+                    // g.innerHTML += event.data.value + "<br>"
+                } else {
+                    ollCount++;
+                    for (let adjust of ["", "U ", "U2 ", "U' "]) {
+                        seenOLLs.set(getCaseID(adjust + solution), ollCount);
+                    }
+                    let g = document.body.appendChild(document.createElement("p"));
+                    g.id = "p"+ollCount;
+                    g.innerHTML += solution + "<br>"
+                }
+            }
+            if (event.data.type === "stop") {
+                document.getElementById("heading").innerHTML += " - " + (Date.now()-startTime) / 1000 + " seconds"
+                console.log("done!")
+            }
         }
 
         work.postMessage(input);
