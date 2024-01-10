@@ -42,49 +42,79 @@
     </div>
     
     <script>
-        let moveTable = new Map();
-        moveTable.set("R", [[" high", new Map([ ["rwrist", [0, 0, 1.25]] ]), 0.75], 
-                            [" home", new Map([ ["rwrist", [-1.25, -1.25, 0]] ]), 0.75], 
-                            [" roll", new Map([ ["rwrist", [1.25, 1.25, 2]], ["rindex", [-1, 1.5]], ["lindex", [-0.75, 2]] ]), 1],
-                            ]);
-        moveTable.set("R'", [[" low", new Map([ ["rwrist", [0, 0, -1.25]] ]), 0.75], 
-                            [" home", new Map([ ["rwrist", [1.25, 1.25, 0]] ]), 0.75], 
-                            [" home", new Map([ ["rwrist", [2, 2, 0]] ]), 0.75],
-                            ]);
-        moveTable.set("R2", [ [" roll", new Map([ ["rwrist", [0, 0, 2]], ["rindex", [-1, 1.5]] ]), 1.5], 
-                            [" high", new Map([ ["rwrist", [-1.25, -1.25, 1.25]] ]), 1.25], 
-                            ["' low", new Map([ ["rwrist", [1.25, 1.25, -1.25]] ]), 1.25], 
-                            ["' low", new Map([ ["rwrist", [2, 2, -1.25]] ]), 1.25],
-                            ]);
-        moveTable.set("U", [[" push", new Map([ ["lindex", [0, 2, -1]], ["lmiddle", [0, 1.5, 0]], ["rwrist", [1.25, 1.25, 1.25]] ]), 1],
-                            [" push", new Map([ ["lindex", [0, 2, -1]], ["lmiddle", [0, 1.5, 0]] ]), 1.5],
-                            [" oh flick", new Map([ ["lindex", [1.5, 1.5, 0]], ["lring", [-1, -1, -1]] ]), 1.25],
-                            [" flick", new Map([ ["rwrist", [0, 0, 0]], ["rindex", [-1, 0, 1]] ]), 1],
-                            [" middle flick", new Map([ ["rwrist", [0, 0, 0]], ["rindex", [1, 2, 1.5]], ["rmiddle", [0, 0, 1.5]], ["rring", [-1, -1, -1]] ]), 1],
-                            [" pinch", new Map([ ["rwrist", [1.25, 1.25, 1.25]], ["rindex", [1, 1, 2]], ["rring", [-1, -1, -1]] ]), 1],
-                            ]);
-        moveTable.set("U'", [[" flick", new Map([ ["lindex", [-1, 0, 1]] ]), 1],
-                            [" middle flick", new Map([ ["lindex", [1, 2, 1.5]], ["lmiddle", [0, 0, 1.5]], ["lring", [-1, -1, -1]]]), 1],
-                            [" push", new Map([ ["rwrist", [0, 0, 0]], ["rindex", [0, 2, -1]], ["rmiddle", [0, 1.5, 0]] ]), 1.5],
-                            [" oh flick", new Map([ ["rwrist", [0, 0, 0]], ["rindex", [1.5, 1.5, 0]], ["rring", [-1, -1, -1]] ]), 1.25],
-                            ]);
-        moveTable.set("U2", [["' lefty", new Map([ ["lindex", [-1, 0, 1.5]], ["lmiddle", [0, 0, 1.5]], ["lring", [-1, -1, -1]] ]), 1.5], 
-                            [" righty", new Map([ ["rwrist", [0, 0, 0]], ["rindex", [-1, 0, 1.5]], ["rmiddle", [0, 0, 1.5]], ["rring", [-1, -1, -1]] ]), 1.5],
-                            ]);
-        moveTable.set("D", [[" flick", new Map([ ["lring", [0, 0, 1]] ]), 1.25], 
-                            [" push", new Map([ ["rwrist", [0, 0, 0]], ["rring", [1, 1, 0]] ]), 1.5],
-                            ]);
-        moveTable.set("D'", [[" push", new Map([ ["lring", [1, 1, 0]] ]), 1.5], 
-                            [" flick", new Map([ ["rwrist", [0, 0, 0]], ["rring", [0, 0, 1]] ]), 1.25],
-                            ]);
-        moveTable.set("D2", [[" lefty", new Map([ ["lring", [0, 0, 1]] ]), 1.75], 
-                            ["' righty", new Map([ ["rwrist", [0, 0, 0]], ["rring", [0, 0, 1]] ]), 1.75],
-                            ]);
-        
-        const startingExecData = {trickList:[], gripMap: new Map([["rwrist", [0, -1]], ["lindex", [0, -1]], ["lmiddle", [0, -1]], ["lring", [0, -1]], ["rindex", [0, -1]], ["rmiddle", [0, -1]], ["rring", [0, -1]]]), score: 0.0};
         const axisMap = new Map([["R", 0], ["L", 0], ["M", 0], ["U", 1], ["D", 1], ["E", 1], ["F", 2], ["B", 2], ["S", 2]]);
+        function axis(moveName) {
+            return axisMap.get(moveName[0].toUpperCase())
+        }
+
+        function moveForm(moveName) { 
+            // valid moveforms are "" (CW faceturn), "'" (CCW face), "2" (half face), "S" (quarter slice), "S2" (half slice)
+            if (moveName[0] === "M" || moveName[0] === "E" || moveName[0] === "S") {
+                if (moveName[1] === "2") {return "S2"} else {return "S"};
+            }
+            return moveName.slice(1);
+        }
+
+        let reducedMoveTable = new Map();
+
+        function combine(rot1, rot2) {
+            return {"U": rot2[rot1["U"]], "R": rot2[rot1["R"]], "F": rot2[rot1["F"]], "D": rot2[rot1["D"]], "L": rot2[rot1["L"]], "B": rot2[rot1["B"]]};
+        }
+
+        const X_1 = {"U": "B", "R": "R", "F": "U", "D": "F", "L": "L", "B": "D"};
+        const X_2 = combine(X_1, X_1);
+        const X_3 = combine(X_1, X_2);
+        const Y_1 = {"U": "U", "R": "F", "F": "L", "D": "D", "L": "B", "B": "R"};
+        const Y_2 = combine(Y_1, Y_1);
+        const Y_3 = combine(Y_1, Y_2);
+        const Z_1 = combine(combine(X_1, Y_1), X_3);
+        const Z_2 = combine(Z_1, Z_1);
+        const Z_3 = combine(Z_1, Z_2);
+        const nullRot = combine(X_2, X_2);
+
+        const face2Slice = {"U": "E'", "R": "M'", "F": "S", "D": "E", "L": "M", "B": "S'", "U2": "E2", "R2": "M2", "F2": "S2", "D2": "E2", "L2": "M2", "B2": "S2"};
+        const slice2Face = {"E'": "U", "M'": "R", "S": "F", "E": "D", "M": "L", "S'": "B", "M2": "L2", "S2": "F2", "E2": "D2"};
+        function transformMove(moveName, rot) {
+            // if the move is in <U, D, L, R, F, B> use the rot as a map
+            // if the move is a slice then turn it into a face move, transform it, then turn it back into a slice
+            let isSlice = (moveName[0] === "M" || moveName[0] === "E" || moveName[0] === "S");
+            let faceName = isSlice ? (slice2Face[moveName]) : moveName;
+            let rotatedFaceName = rot[faceName[0]] + faceName.slice(1);
+            if (isSlice) {return face2Slice[rotatedFaceName]} else {return rotatedFaceName}
+        }
+
+        function addMove(form, lgrip=null, rgrip=null, name=lgrip, lrot=nullRot, rrot=nullRot, score=1, overworks=[]) {
+            reducedMoveTable.put(form, {lgrip: lgrip, rgrip: rgrip, name: name, lrot: lrot, rrot: rrot, score: score, overworks: new Map(overworks)})
+        }
+
+        addMove(form="", lgrip="R", rgrip="R", rrot=X_3, score=0.75, overworks=[["thumbx", [1, 1, 1]]])
+        addMove(form="'", lgrip="R'", rgrip="R'", rrot=X_1, score=0.75, overworks=[["thumbx", [1, 1, 1]]])
+        addMove(form="2", lgrip="R2", rgrip="R2", rrot=X_2, score=1.25, overworks=[["thumbx", [1, 1, 1]]])
+        addMove(form="", lgrip="L", rgrip="L", lrot=X_1, score=0.75, overworks=[["thumbx", [0, 0, 0]]])
+        addMove(form="'", lgrip="L'", rgrip="L'", lrot=X_3, score=0.75, overworks=[["thumbx", [0, 0, 0]]])
+        addMove(form="2", lgrip="L2", rgrip="L2", lrot=X_2, score=1.25, overworks=[["thumbx", [0, 0, 0]]])
+        addMove(form="", rgrip="U", name="U flick", overworks=[["rindex", [-1, 0, 1]]])
+        addMove(form="'", lgrip="U'", name="U' flick", overworks=[["lindex", [-1, 0, 1]]])
+        addMove(form="2", rgrip="U2", name="U2 doubleflick", score=1.5, overworks=[["rindex", [-1, 0, 1.5]], ["rmiddle", [0, 0, 1.5]], ["rring", [-1, -1, -1]]])
+        addMove(form="2", lgrip="U2", name="U2' doubleflick", score=1.5, overworks=[["lindex", [-1, 0, 1.5]], ["lmiddle", [0, 0, 1.5]], ["lring", [-1, -1, -1]]])
+        addMove(form="'", lgrip="F'", rgrip="U'", name="F' pinch", overworks=[["lindex", [1, 1, 2]], ["lring", [-1, -1, -1]]])
+        addMove(form="", lgrip="U", rgrip="F", name="U pinch", overworks=[["rindex", [1, 1, 2]], ["rring", [-1, -1, -1]]])
+        addMove(form="", lgrip="B", rgrip="B", name="f flick", lrot=Z_1, rrot=Z_1, overworks=[["rindex", [1, 1, 2]], ["rring", [-1, -1, -1]]])
+        addMove(form="'", lgrip="B'", rgrip="B'", name="f' flick", lrot=Z_3, rrot=Z_3, overworks=[["lindex", [1, 1, 2]], ["lring", [-1, -1, -1]]])
+        addMove(form="S", lgrip="M'", rgrip="M'", name="M' flick", overworks=[["lindex", [-2, -2, -2]], ["lmiddle", [-1, -1, -2]], ["lring", [-2, -2, -2]]])
+        addMove(form="S", lgrip="M", rgrip="M", name="M push", overworks=[["lindex", [-2, -2, -2]], ["lmiddle", [-2, -2, -1]], ["lring", [-2, -2, -2]]])
+        addMove(form="S2", lgrip="M2", rgrip="M2", name="M2 doubleflick", overworks=[["lindex", [-2, -2, -2]], ["lmiddle", [-1, -1, -2]], ["lring", [-2, -2, -2]]])
+
+
+        // variable moveTable was removed.
+        // todo 1: update the form of startingExecData to make it consistent
+        // todo 2: update all references to moveTable
+
+        // also: auto update startingExecData and gripRanges in addMove()
+        
+        const startingExecData = {trickList:[], lrot: nullRot, rrot: nullRot, gripMap: new Map([["thumbx", [0, -1]], ["lindex", [0, -1]], ["lmiddle", [0, -1]], ["lring", [0, -1]], ["rindex", [0, -1]], ["rmiddle", [0, -1]], ["rring", [0, -1]]]), score: 0.0};
         const minResetPenalty = 1.25;
-        const gripRanges = new Map([["rwrist", [-1.25, 2]], ["lindex", [-1, 2]], ["rindex", [-1, 2]], ["lmiddle", [0, 1.5]], ["rmiddle", [0, 1.5]], ["lring", [-1, 1]], ["rring", [-1, 1]]]);
+        const gripRanges = new Map([["thumbx", [0, 1]], ["lindex", [-2, 2]], ["rindex", [-1, 2]], ["lmiddle", [-2, 1.5]], ["rmiddle", [0, 1.5]], ["lring", [-2, 1]], ["rring", [-1, 1]]]);
         function getMaxResetPenalty(gripName, gripNum) {
             let [min, max] = gripRanges.get(gripName);
             return minResetPenalty + (max - min)/2 + Math.abs(gripNum - (max + min)/2);
@@ -96,10 +126,6 @@
             else {return currentScore}
         }
 
-        function axis(moveName) {
-            return axisMap.get(moveName[0].toUpperCase())
-        }
-
         function getTransforms(moveList) {
             if (moveList.length === 2) {
                 return [moveList, [moveList[1], moveList[0]]];
@@ -109,16 +135,21 @@
         }
 
         function execDataOnMove(execData, moveName, moveData) {
-            /* execData: [["home R", "lefty U2'", "high R'"], 
-               new Map([["rwrist", ["home", 3.5]], ["lindex", ["home", 2.5]], ["lring", ["equator", 2.5]], ["rindex", ["home", 2.5]], ["rring", ["home", -1]]]), 3.5] */
-            // moveData: [["lefty U2'", new Map([["lindex", ["home", "doubleflicked"]], ["lring", ["equator", "equator"]]]), 1.5]
+            // execData: {trickList: [["B", "f flick", 1.25], ["U", "R roll", 1]], 
+            //              gripMap: Map([["thumbx", [0, -1]], ["lindex", [0, -1]], ["lmiddle", [0, -1]], ["lring", [0, -1]], 
+            //                           ["rindex", [2, 1.25]], ["rmiddle", [0, -1]], ["rring", [0, -1]]]), 
+            //              score: 0.0};
 
-            // gripMap: new Map([["rwrist", ["home", 3.5]], ["lindex", ["home", 2.5]], ["lring", ["equator", 2.5]], ["rindex", ["home", 2.5]], ["rring", ["home", -1]]])
-            // transitionMap: new Map([["lindex", [0, 0, 1.5]], ["lring", [-1, -1, -1]]])
+            
+            // moveData: {lgrip: "U", rgrip: null, name: "flick", lrot: Y_1, rrot: null, score: 1, 
+            //            overworks: Map([["lindex", [1, 1, 2]], ["lring", [-1, -1, -1]]])}
+
+            // transitionMap: moveData.overworks
 
             let newScore = execData.score;
             let [trickName, transitionMap, moveScore] = moveData;
 
+            // determine whether this move can be done simultaneously with the previous, and deal with consequences
             let simulBonus = 0;
             let prevMoveName; 
             if (execData.trickList.length > 0) {
@@ -130,6 +161,7 @@
             }
             let baseScore = newScore;
 
+            // compute score after resets + doing the move
             let resetName;
             for (let [gripName, gripData] of transitionMap) {
                 let currentGripData = execData.gripMap.get(gripName);
@@ -142,6 +174,7 @@
             let resetScore = newScore - baseScore;
             newScore += moveScore;
 
+            // compute positions of all resets
             let newGripMap = new Map();
             for (let [gripName, gripData] of execData.gripMap) {
                 if (transitionMap.has(gripName) && transitionMap.get(gripName).length > 2) {
@@ -151,6 +184,7 @@
                 }
             }
 
+            // a simultaneous move cannot make the total score lower
             if (newScore < execData.score) {
                 simulBonus -= (execData.score - newScore);
                 newScore = execData.score;
@@ -166,7 +200,7 @@
 
         function stringifyExecData(execData) {
             /* execData: [["home R", "lefty U2'", "high R'"], 
-               new Map([["rwrist", ["home", 3.5]], ["lindex", ["home", 2.5]], ["lring", ["equator", 2.5]], ["rindex", ["home", 2.5]], ["rring", ["home", -1]]]), 3.5] */
+               new Map([["wrist", ["home", 3.5]], ["lindex", ["home", 2.5]], ["lring", ["equator", 2.5]], ["rindex", ["home", 2.5]], ["rring", ["home", -1]]]), 3.5] */
 
             let accum = "";
             for (let [gripName, grip] of execData.gripMap.entries()) {
@@ -191,7 +225,7 @@
                 for (let i=0; i<moveList.length; i++) {
                     let move = moveList[i];
                     for (let [gripHash, execData] of prevExecMap.entries()) {
-                        for (let moveData of moveTable.get(move)) {
+                        for (let moveData of reducedMoveTable.get(moveForm(move))) {
                             let newExecData = execDataOnMove(execData, move, moveData);
                             let dataStr = stringifyExecData(newExecData);
                             if (i === moveList.length-1) {
