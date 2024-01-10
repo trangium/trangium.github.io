@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Batch testing</title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            background-color:white;
+            color: purple;
+        }
+
+        .button {
+            border: none;
+            color: white;
+            padding: 16px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            transition-duration: 0.4s;
+            cursor: pointer;
+        }
+
+        .importantButton {
+            background-color: white;
+            color: black;
+            border: 2px solid #000000;
+        }
+
+        .importantButton:hover {
+            background-color: #000000;
+            color: white;
+        }
+
+        table {
+            border-color: black;
+            border-width: 0 0 0.063rem 0.063rem;
+            border-style: solid;
+        }
+
+        td {
+            border-color: black;
+            border-width: 0.063rem 0.063rem 0 0;
+            border-style: solid;
+            padding: 0.188rem;
+            height: 1em;
+            text-align: left;
+            vertical-align: top;
+            white-space: nowrap;
+        }
+
+        p {
+            margin: 1rem;
+        }
+
+    </style>
+</head>
+
+<body>
+    <strong id="heading">Solutions</strong><br><br>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" integrity="sha512-Qlv6VSKh1gDKGoJbnyA5RMXYcvnpIqhO++MhIM2fStMcGT9i2T//tSwYFlcyoRRDcDZ+TYHpH8azBBCyhpSeqw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js" integrity="sha512-UnrKxsCMN9hFk7M56t4I4ckB4N/2HHi0w/7+B/1JsXIX3DmyBcsGpT3/BsuZMZf+6mAr0vP81syWtfynHJ69JA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    
+    <script src="worker.js"></script>
+
+    <script>
+
+        let work = new Worker("worker.js");
+
+        work.postMessage(null);
+
+        work.onmessage = function(event) {
+            console.log(event.data.value);
+        }
+    </script>
+
+</body>
+
+</html>
