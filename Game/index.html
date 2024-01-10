@@ -296,7 +296,15 @@
 
         var visited = createArray(grid.length, grid[0].length);
 
-        var score = 0;
+        var score, distance, moves;
+        function initStats() {
+            score = 0;
+            distance = 0;
+            moves = 0;
+        }
+
+        initStats();
+
         var moveDirection = [0, 0];
         var moving = false;
         var finished = false;
@@ -341,6 +349,7 @@
                     if (score >= goal && !finished) {
                         finished = time();
                         let timeAchieved = ((finished - starttime) / 1000).toFixed(2);
+                        console.log(goal + "\t" + (time() - starttime));
                         let bestTime = parseFloat(getCookie("fastest" + listUsed));
                         if ((isNaN(bestTime) || bestTime > timeAchieved) && randomLevel == 0) {
                             document.cookie = "fastest" + listUsed + "=" + timeAchieved + ";expires=26 Mar 9999 17:04:51 UTC";
@@ -359,11 +368,11 @@
             var date = new Date;
             return date.getTime();
         }
+
         function slide(direction) {
-            while (move(direction)) {
-                null
-            }
+            while (move(direction)) {}
         }
+
         function convert(x) {
             if (x instanceof Array) {
                 return [convert(x[0]), convert(x[1])];
@@ -442,29 +451,34 @@
 
         function moveFrame() {
             moving = move(moveDirection);
+            distance += moving;
         }
 
         function upKey() {
             if (!moving) {
                 moveDirection = [0, -1];
+                moves++;
             }
         }
 
         function downKey() {
             if (!moving) {
                 moveDirection = [0, 1];
+                moves++;
             }
         }
 
         function leftKey() {
             if (!moving) {
                 moveDirection = [-1, 0];
+                moves++;
             }
         }
 
         function rightKey() {
             if (!moving) {
                 moveDirection = [1, 0];
+                moves++;
             }
         }
 
@@ -481,14 +495,14 @@
                 if (e.keyCode == 187) { useList((gridNum == weightslist.length - 1) ? 0 : gridNum + 1) } else { useList((gridNum == 0) ? weightslist.length - 1 : gridNum - 1) }
                 visited = createArray(grid.length, grid[0].length);
                 weightsize = new Map([[0, Math.round(size * .08)], [1, Math.round(size * .08)], [2, Math.round(size * .12)], [4, Math.round(size * .16)], [8, Math.round(size * .2)]]);
-                score = 0;
+                initStats();
                 randomLevel = 0;
                 starttime = time();
                 finished = false;
                 moveDirection = [0, 0];
             } else if (e.keyCode == 32) {
                 visited = createArray(grid.length, grid[0].length);
-                score = 0;
+                initStats();
                 ballx = misclist[listUsed][0];
                 bally = misclist[listUsed][1];
                 if (randomLevel != 0) {
@@ -499,7 +513,7 @@
                 finished = false;
                 moveDirection = [0, 0];
             } else if (e.keyCode == 191) {
-                score = 0;
+                initStats();
                 randomLevel = 12;
                 randLevel(12, 12);
                 visited = createArray(grid.length, grid[0].length);
