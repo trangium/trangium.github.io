@@ -113,7 +113,7 @@ canvas.addEventListener('mousedown', (e) => {
 });
 
 document.addEventListener('keydown', function(event) {
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' || event.key === ' ') {
         factor_input(FLAG_DIVIDE);
     } else if (event.key === 'Backspace') {
         if (buffer[buffer.length - 1] > 10) {
