@@ -3,7 +3,7 @@ const ctx = canvas.getContext('2d');
 
 const minnum = 100;
 const maxnum = 3500;
-const maxtime = 240;
+const maxtime = 120;
 const timepenalty = 1;
 const scorepenalty = 5;
 const primes = [2, 3, 5, 7, 11, 13, 17, 19];
@@ -77,7 +77,7 @@ function factor_input(prime) {
     if (z % prod === 0) {
       z /= prod;
       corranim = 1;
-      scdta = Math.floor(Math.log2(prod) * (z === 1 ? (bonus ? 10 : 5) : 1));
+      scdta = Math.floor(Math.log2(prod) * (z === 1 ? (bonus ? 10 : 5) : 1.28));
       score += scdta;
     } else {
       score -= scorepenalty;
