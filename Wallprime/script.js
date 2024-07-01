@@ -118,10 +118,10 @@ document.addEventListener('keydown', function(event) {
     } else if (event.key === 'Backspace') {
         if (buffer[buffer.length - 1] > 10) {
             buffer[buffer.length - 1] = 1;
+        } else {
+            if (buffer.length > 0) buffer.pop();
         }
-        factor_input(FLAG_RESET);
-    }
-    if (buffer[buffer.length - 1] === 1) {
+    } else if (buffer[buffer.length - 1] === 1) {
         if (event.key === "1") {
             buffer[buffer.length - 1] = 11;
         } else if (event.key === "3") {
