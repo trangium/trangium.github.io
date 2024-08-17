@@ -163,7 +163,7 @@ function setPuzzles(scramble, puzzleDef, ignore, subgroups, adjust, postAdjust, 
     for (let i=0; i<adjustList.length; i++) {
         for (let j=0; j<i; j++) {
             if (!fullPuzzle.commutes(fullPuzzle.moveStr.indexOf(adjustList[i]), fullPuzzle.moveStr.indexOf(adjustList[j]))) {
-                postMessage({value: '"' + adjust + '" is an invalid pre-adjust because all moves in pre-adjust must commute.', type: "stop"})
+                // postMessage({value: '"' + adjust + '" is an invalid pre-adjust because all moves in pre-adjust must commute.', type: "stop"})
             }
         }
     }

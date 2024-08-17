@@ -43,8 +43,8 @@ class FactoredNumber {
   }
 }
 
-export function schreierSims(g: Perm[], disp: (s: string) => void): bigint {
-  const n = g[0].p.length;
+export function schreierSims(g: Perm[]): Perm[][] {
+  const n = g[0].n;
   const e = identity(n);
   let sgs: Perm[][] = [];
   let sgsi: Perm[][] = [];
@@ -52,8 +52,8 @@ export function schreierSims(g: Perm[], disp: (s: string) => void): bigint {
   let Tk: Perm[][] = [];
   let Tklen: number[][] = [];
   function resolve(p: Perm): boolean {
-    for (let i = p.p.length - 1; i >= 0; i--) {
-      const j = p.p[i];
+    for (let i = p.n - 1; i >= 0; i--) {
+      const j = p.at(i);
       if (j !== i) {
         if (!sgs[i][j]) {
           return false;
@@ -73,7 +73,7 @@ export function schreierSims(g: Perm[], disp: (s: string) => void): bigint {
     }
   }
   function knuthb(k: number, p: Perm, len: number): void {
-    const j = p.p[k];
+    const j = p.at(k);
     if (!sgs[k][j]) {
       sgs[k][j] = p;
       sgsi[k][j] = p.inv();
@@ -88,7 +88,7 @@ export function schreierSims(g: Perm[], disp: (s: string) => void): bigint {
       knutha(k - 1, p2, len + sgslen[k][j]);
     }
   }
-  function getsgs(): bigint {
+  function getsgs(): Perm[][] {
     sgs = [];
     sgsi = [];
     Tk = [];
@@ -134,14 +134,16 @@ export function schreierSims(g: Perm[], disp: (s: string) => void): bigint {
         avgs.push(avg);
         sollen += avg;
       }
-      disp(
+      /* disp(
         `${i}: sz ${sz} T ${tks} sol ${sollen} none ${none} mults ${mults.toString()}`,
-      );
+      ); */
     }
+    /*
     for (let i = 0; i < sgs.length; i++) {
       disp(` -- sgs: ${sgs[i]}`);
     }
-    return sz;
+    */
+    return sgs;
   }
   return getsgs();
 }

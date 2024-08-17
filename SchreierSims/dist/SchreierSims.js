@@ -40,8 +40,8 @@ class FactoredNumber {
         return r;
     }
 }
-export function schreierSims(g, disp) {
-    const n = g[0].p.length;
+export function schreierSims(g) {
+    const n = g[0].n;
     const e = identity(n);
     let sgs = [];
     let sgsi = [];
@@ -49,8 +49,8 @@ export function schreierSims(g, disp) {
     let Tk = [];
     let Tklen = [];
     function resolve(p) {
-        for (let i = p.p.length - 1; i >= 0; i--) {
-            const j = p.p[i];
+        for (let i = p.n - 1; i >= 0; i--) {
+            const j = p.at(i);
             if (j !== i) {
                 if (!sgs[i][j]) {
                     return false;
@@ -70,7 +70,7 @@ export function schreierSims(g, disp) {
         }
     }
     function knuthb(k, p, len) {
-        const j = p.p[k];
+        const j = p.at(k);
         if (!sgs[k][j]) {
             sgs[k][j] = p;
             sgsi[k][j] = p.inv();
@@ -131,12 +131,16 @@ export function schreierSims(g, disp) {
                 avgs.push(avg);
                 sollen += avg;
             }
-            disp(`${i}: sz ${sz} T ${tks} sol ${sollen} none ${none} mults ${mults.toString()}`);
+            /* disp(
+              `${i}: sz ${sz} T ${tks} sol ${sollen} none ${none} mults ${mults.toString()}`,
+            ); */
         }
+        /*
         for (let i = 0; i < sgs.length; i++) {
-            disp(` -- sgs: ${sgs[i]}`);
+          disp(` -- sgs: ${sgs[i]}`);
         }
-        return sz;
+        */
+        return sgs;
     }
     return getsgs();
 }

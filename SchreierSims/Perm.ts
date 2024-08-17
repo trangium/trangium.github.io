@@ -71,15 +71,18 @@ export function lcm(a: number, b: number): number {
 
 export class Perm {
   public n: number; // length
-  public p: number[]; // The permutation itself
+  private p: number[]; // The permutation itself
   constructor(a: number[]) {
     this.n = a.length;
     this.p = a;
   }
 
   public toString(): string {
-    // stringify
-    return `Perm[${this.p.join(" ")}]`;
+    return String.fromCodePoint(...this.p);
+  }
+
+  public at(index: number) {
+    return this.p[index];
   }
 
   public mul(p2: Perm): Perm {
@@ -116,6 +119,12 @@ export class Perm {
       }
     }
     return 0;
+  }
+
+  public commutes(p2: Perm) : boolean {
+    let p12 = this.mul(p2);
+    let p21 = this.rmul(p2);
+    return (p12.compareTo(p21) == 0);
   }
 
   public toGap(): string {

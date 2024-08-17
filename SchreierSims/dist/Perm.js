@@ -67,8 +67,10 @@ export class Perm {
         this.p = a;
     }
     toString() {
-        // stringify
-        return `Perm[${this.p.join(" ")}]`;
+        return String.fromCodePoint(...this.p);
+    }
+    at(index) {
+        return this.p[index];
     }
     mul(p2) {
         // multiply
@@ -101,6 +103,11 @@ export class Perm {
             }
         }
         return 0;
+    }
+    commutes(p2) {
+        let p12 = this.mul(p2);
+        let p21 = this.rmul(p2);
+        return (p12.compareTo(p21) == 0);
     }
     toGap() {
         const cyc = new Array();
