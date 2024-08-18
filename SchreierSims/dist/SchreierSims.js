@@ -140,7 +140,34 @@ export function schreierSims(g) {
           disp(` -- sgs: ${sgs[i]}`);
         }
         */
+        for (let i = 0; i < sgs.length; i++) {
+            sgs[i] = sgs[i].filter(x => x);
+        }
         return sgs;
     }
     return getsgs();
+}
+export function canonicalize(sgs, state) {
+    state = state.inv();
+    for (let stabIndex = sgs.length - 1; stabIndex >= 0; stabIndex--) {
+        let stabilizers = sgs[stabIndex];
+        let max_stabilizer;
+        // choose stabilizer to maximize state[stabilizer[stabIndex]]
+        {
+            max_stabilizer = stabilizers[0];
+            let max_val = -1;
+            for (let stabilizer of stabilizers) {
+                let val = state.at(stabilizer.at(stabIndex));
+                if (val > max_val) {
+                    max_val = val;
+                    max_stabilizer = stabilizer;
+                }
+            }
+        }
+        state = state.rmul(max_stabilizer);
+    }
+    return state;
+}
+export function canonStr(sgs, state) {
+    return canonicalize(sgs, state).toString();
 }

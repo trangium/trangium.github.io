@@ -1,34 +1,5 @@
-import { schreierSims } from "./SchreierSims.js";
-import { Perm, identity } from "./Perm.js";
-function cleansgs(sgs) {
-    for (let i = 0; i < sgs.length; i++) {
-        sgs[i] = sgs[i].filter(x => x);
-    }
-}
-export function canonicalize(sgs, state) {
-    state = state.inv();
-    for (let stabIndex = sgs.length - 1; stabIndex >= 0; stabIndex--) {
-        let stabilizers = sgs[stabIndex];
-        let max_stabilizer;
-        // choose stabilizer to maximize state[stabilizer[stabIndex]]
-        {
-            max_stabilizer = stabilizers[0];
-            let max_val = -1;
-            for (let stabilizer of stabilizers) {
-                let val = state.at(stabilizer.at(stabIndex));
-                if (val > max_val) {
-                    max_val = val;
-                    max_stabilizer = stabilizer;
-                }
-            }
-        }
-        state = state.rmul(max_stabilizer);
-    }
-    return state;
-}
-function canonStr(sgs, state) {
-    return canonicalize(sgs, state).toString();
-}
+import { schreierSims, canonStr } from "./SchreierSims.js";
+import { identity } from "./Perm.js";
 export function exec(puzzle, str) {
     let pzl = puzzle.identity;
     for (let moveStr of str.split(" ")) {
@@ -46,7 +17,7 @@ export class Puzzle {
             return true;
         }
         ;
-        if (permset.has(j.mul(i).toString())) {
+        if (permset.has(j.rmul(i).toString())) {
             return false;
         }
         ;
@@ -70,7 +41,6 @@ export class Puzzle {
         this.identity = identity(_moveset[0].perm.n);
         this.commTable = Puzzle._getCommTable(_moveset);
         this.sgs = schreierSims(_subgroup);
-        cleansgs(this.sgs);
     }
 }
 function getEndTable(puzzle, maxWeight, end) {
@@ -108,22 +78,3 @@ export function* solve(puzzle, pruneWeight, maxWeight, start, end) {
     let endTable = getEndTable(puzzle, pruneWeight, end);
     yield* dfs(puzzle, maxWeight, start, canonStr(puzzle.sgs, start), canonStr(puzzle.sgs, end), endTable, pruneWeight);
 }
-let U1 = { str: "U", perm: new Perm([6, 7, 0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]), weight: 1 };
-let U2 = { str: "U2", perm: U1.perm.mul(U1.perm), weight: 1 };
-let U3 = { str: "U'", perm: U2.perm.mul(U1.perm), weight: 1 };
-let D1 = { str: "D", perm: new Perm([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 18, 19, 12, 13, 14, 15, 16, 17]), weight: 1 };
-let D2 = { str: "D2", perm: D1.perm.mul(D1.perm), weight: 1 };
-let D3 = { str: "D'", perm: D2.perm.mul(D1.perm), weight: 1 };
-let y1 = { str: "y", perm: new Perm([6, 7, 0, 1, 2, 3, 4, 5, 11, 8, 9, 10, 14, 15, 16, 17, 18, 19, 12, 13]), weight: 10 };
-let R2 = { str: "R2", perm: new Perm([0, 1, 14, 15, 16, 5, 6, 7, 8, 10, 9, 11, 12, 13, 2, 3, 4, 17, 18, 19]), weight: 1 };
-let B2 = { str: "B2", perm: y1.perm.rmul(R2.perm.rmul(y1.perm.rmul(y1.perm.rmul(y1.perm)))), weight: 1 };
-let L2 = { str: "L2", perm: y1.perm.rmul(B2.perm.rmul(y1.perm.rmul(y1.perm.rmul(y1.perm)))), weight: 1 };
-let F2 = { str: "F2", perm: y1.perm.rmul(L2.perm.rmul(y1.perm.rmul(y1.perm.rmul(y1.perm)))), weight: 1 };
-let drhtr = new Puzzle([U1, U2, U3, D1, D2, D3, R2, B2, L2, F2], [U2.perm, D2.perm, R2.perm, B2.perm, L2.perm, F2.perm]);
-let gen = solve(drhtr, 6, 11, exec(drhtr, "R2 U' R2 U' R2 U R2 D' R2 U R2 U' R2 D R2"), drhtr.identity);
-let solCount = 0;
-for (let val of gen) {
-    console.log(val);
-    solCount++;
-}
-console.log(solCount, "of 1024 solutions");
