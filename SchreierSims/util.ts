@@ -3,21 +3,22 @@ import {Perm, identity} from "./Perm.js";
 
 function cleansgs(sgs: Perm[][]): void {
     for (let i=0; i<sgs.length; i++) {
-        sgs[i] = sgs[i].filter(x => x).map(perm => perm.inv());
+        sgs[i] = sgs[i].filter(x => x);
     }
 }
 
-function canonicalize(sgs: Perm[][], state: Perm): Perm {
+export function canonicalize(sgs: Perm[][], state: Perm): Perm {
+    state = state.inv();
     for (let stabIndex = sgs.length-1; stabIndex >= 0; stabIndex--) {
         let stabilizers = sgs[stabIndex];
         let max_stabilizer: Perm;
 
-        // choose stabilizer to maximize stabilizer[state[stabIndex]]
+        // choose stabilizer to maximize state[stabilizer[stabIndex]]
         {
             max_stabilizer = stabilizers[0];
             let max_val = -1;
             for (let stabilizer of stabilizers) {
-                let val = stabilizer.at(state.at(stabIndex));
+                let val = state.at(stabilizer.at(stabIndex));
                 if (val > max_val) {
                     max_val = val;
                     max_stabilizer = stabilizer;
@@ -25,7 +26,7 @@ function canonicalize(sgs: Perm[][], state: Perm): Perm {
             }
         }
 
-        state = state.mul(max_stabilizer);
+        state = state.rmul(max_stabilizer);
     }
     return state;
 }
@@ -34,7 +35,7 @@ function canonStr(sgs: Perm[][], state: Perm): string {
     return canonicalize(sgs, state).toString();
 }
 
-function exec(puzzle: Puzzle, str: string): Perm {
+export function exec(puzzle: Puzzle, str: string): Perm {
     let pzl = puzzle.identity;
     for (let moveStr of str.split(" ")) {
         for (let move of puzzle.moveset) {
@@ -46,13 +47,13 @@ function exec(puzzle: Puzzle, str: string): Perm {
     return pzl;
 }
 
-type Move = {
+export type Move = {
     str: string;
     perm: Perm;
     weight: number;
 }
 
-class Puzzle {
+export class Puzzle {
     public moveset: Move[];
     public commTable: Map<Move, Set<Move>>;
     public identity: Perm;
@@ -121,12 +122,10 @@ function* dfs(puzzle: Puzzle, maxWeight: number, start: Perm, startStr: string, 
     }
 }
 
-function* solve(puzzle: Puzzle, pruneWeight: number, maxWeight: number, start: Perm, end: Perm) {
+export function* solve(puzzle: Puzzle, pruneWeight: number, maxWeight: number, start: Perm, end: Perm) {
     let endTable = getEndTable(puzzle, pruneWeight, end);
     yield* dfs(puzzle, maxWeight, start, canonStr(puzzle.sgs, start), canonStr(puzzle.sgs, end), endTable, pruneWeight);
 }
-
-// console.log(canonicalize(sgs, new Perm([2, 4, 3, 0, 1]))); // expected: [0, 2, 1, 3, 4]
 
 let U1: Move = {str: "U", perm: new Perm([6, 7, 0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]), weight: 1}
 let U2: Move = {str: "U2", perm: U1.perm.mul(U1.perm), weight: 1}
@@ -142,9 +141,13 @@ let F2: Move = {str: "F2", perm: y1.perm.rmul(L2.perm.rmul(y1.perm.rmul(y1.perm.
 
 let drhtr = new Puzzle([U1, U2, U3, D1, D2, D3, R2, B2, L2, F2], [U2.perm, D2.perm, R2.perm, B2.perm, L2.perm, F2.perm]);
 
-let gen = solve(drhtr, 6, 12, exec(drhtr, "R2 U' R2 U' R2 U R2 D' R2 U R2 U' R2 D R2"), 
+let gen = solve(drhtr, 6, 11, exec(drhtr, "R2 U' R2 U' R2 U R2 D' R2 U R2 U' R2 D R2"), 
     drhtr.identity);
 
+let solCount = 0;
 for (let val of gen) {
     console.log(val);
+    solCount++;
 }
+
+console.log(solCount, "of 1024 solutions");

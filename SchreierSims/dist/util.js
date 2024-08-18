@@ -2,33 +2,34 @@ import { schreierSims } from "./SchreierSims.js";
 import { Perm, identity } from "./Perm.js";
 function cleansgs(sgs) {
     for (let i = 0; i < sgs.length; i++) {
-        sgs[i] = sgs[i].filter(x => x).map(perm => perm.inv());
+        sgs[i] = sgs[i].filter(x => x);
     }
 }
-function canonicalize(sgs, state) {
+export function canonicalize(sgs, state) {
+    state = state.inv();
     for (let stabIndex = sgs.length - 1; stabIndex >= 0; stabIndex--) {
         let stabilizers = sgs[stabIndex];
         let max_stabilizer;
-        // choose stabilizer to maximize stabilizer[state[stabIndex]]
+        // choose stabilizer to maximize state[stabilizer[stabIndex]]
         {
             max_stabilizer = stabilizers[0];
             let max_val = -1;
             for (let stabilizer of stabilizers) {
-                let val = stabilizer.at(state.at(stabIndex));
+                let val = state.at(stabilizer.at(stabIndex));
                 if (val > max_val) {
                     max_val = val;
                     max_stabilizer = stabilizer;
                 }
             }
         }
-        state = state.mul(max_stabilizer);
+        state = state.rmul(max_stabilizer);
     }
     return state;
 }
 function canonStr(sgs, state) {
     return canonicalize(sgs, state).toString();
 }
-function exec(puzzle, str) {
+export function exec(puzzle, str) {
     let pzl = puzzle.identity;
     for (let moveStr of str.split(" ")) {
         for (let move of puzzle.moveset) {
@@ -39,7 +40,7 @@ function exec(puzzle, str) {
     }
     return pzl;
 }
-class Puzzle {
+export class Puzzle {
     static _isValidPair(permset, i, j) {
         if (!j.commutes(i)) {
             return true;
@@ -103,11 +104,10 @@ function* dfs(puzzle, maxWeight, start, startStr, endStr, endTable, endDepth, mo
         }
     }
 }
-function* solve(puzzle, pruneWeight, maxWeight, start, end) {
+export function* solve(puzzle, pruneWeight, maxWeight, start, end) {
     let endTable = getEndTable(puzzle, pruneWeight, end);
     yield* dfs(puzzle, maxWeight, start, canonStr(puzzle.sgs, start), canonStr(puzzle.sgs, end), endTable, pruneWeight);
 }
-// console.log(canonicalize(sgs, new Perm([2, 4, 3, 0, 1]))); // expected: [0, 2, 1, 3, 4]
 let U1 = { str: "U", perm: new Perm([6, 7, 0, 1, 2, 3, 4, 5, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]), weight: 1 };
 let U2 = { str: "U2", perm: U1.perm.mul(U1.perm), weight: 1 };
 let U3 = { str: "U'", perm: U2.perm.mul(U1.perm), weight: 1 };
@@ -120,7 +120,10 @@ let B2 = { str: "B2", perm: y1.perm.rmul(R2.perm.rmul(y1.perm.rmul(y1.perm.rmul(
 let L2 = { str: "L2", perm: y1.perm.rmul(B2.perm.rmul(y1.perm.rmul(y1.perm.rmul(y1.perm)))), weight: 1 };
 let F2 = { str: "F2", perm: y1.perm.rmul(L2.perm.rmul(y1.perm.rmul(y1.perm.rmul(y1.perm)))), weight: 1 };
 let drhtr = new Puzzle([U1, U2, U3, D1, D2, D3, R2, B2, L2, F2], [U2.perm, D2.perm, R2.perm, B2.perm, L2.perm, F2.perm]);
-let gen = solve(drhtr, 6, 12, exec(drhtr, "R2 U' R2 U' R2 U R2 D' R2 U R2 U' R2 D R2"), drhtr.identity);
+let gen = solve(drhtr, 6, 11, exec(drhtr, "R2 U' R2 U' R2 U R2 D' R2 U R2 U' R2 D R2"), drhtr.identity);
+let solCount = 0;
 for (let val of gen) {
     console.log(val);
+    solCount++;
 }
+console.log(solCount, "of 1024 solutions");
