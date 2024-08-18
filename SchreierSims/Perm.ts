@@ -89,7 +89,7 @@ export class Perm {
     // multiply
     const c: number[] = Array(this.n);
     for (let i = 0; i < this.n; i++) {
-      c[i] = p2.p[this.p[i]];
+      c[i] = p2.at(this.at(i));
     }
     return new Perm(c);
   }
@@ -98,7 +98,7 @@ export class Perm {
     // multiply the other way
     const c = Array(this.n);
     for (let i = 0; i < this.n; i++) {
-      c[i] = this.p[p2.p[i]];
+      c[i] = this.at(p2.at(i));
     }
     return new Perm(c);
   }
@@ -106,7 +106,7 @@ export class Perm {
   public inv(): Perm {
     const c = Array(this.n);
     for (let i = 0; i < this.n; i++) {
-      c[this.p[i]] = i;
+      c[this.at(i)] = i;
     }
     return new Perm(c);
   }
@@ -131,11 +131,11 @@ export class Perm {
     const cyc = new Array<string>();
     const seen = new Array<boolean>(this.n);
     for (let i = 0; i < this.p.length; i++) {
-      if (seen[i] || this.p[i] === i) {
+      if (seen[i] || this.at(i) === i) {
         continue;
       }
       const incyc = new Array<number>();
-      for (let j = this.p[i]; !seen[j]; j = this.p[j]) {
+      for (let j = this.at(i); !seen[j]; j = this.at(j)) {
         incyc.push(1 + j);
         seen[j] = true;
       }
@@ -148,11 +148,11 @@ export class Perm {
     const cyc = new Array<string>();
     const seen = new Array<boolean>(this.n);
     for (let i = 0; i < this.p.length; i++) {
-      if (seen[i] || this.p[i] === i) {
+      if (seen[i] || this.at(i) === i) {
         continue;
       }
       const incyc = new Array<number>();
-      for (let j = this.p[i]; !seen[j]; j = this.p[j]) {
+      for (let j = this.at(i); !seen[j]; j = this.at(j)) {
         incyc.push(1 + j);
         seen[j] = true;
       }
@@ -165,11 +165,11 @@ export class Perm {
     let r = 1;
     const seen = new Array<boolean>(this.n);
     for (let i = 0; i < this.p.length; i++) {
-      if (seen[i] || this.p[i] === i) {
+      if (seen[i] || this.at(i) === i) {
         continue;
       }
       let cs = 0;
-      for (let j = i; !seen[j]; j = this.p[j]) {
+      for (let j = i; !seen[j]; j = this.at(j)) {
         cs++;
         seen[j] = true;
       }
