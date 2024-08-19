@@ -69,9 +69,13 @@ export function lcm(a: number, b: number): number {
   return (a / gcd(a, b)) * b;
 }
 
+export class CycSet {
+  cycles: number[][]
+}
+
 export class Perm {
   public n: number; // length
-  private p: number[]; // The permutation itself
+  public p: number[]; // The permutation itself
   constructor(a: number[]) {
     this.n = a.length;
     this.p = a;
@@ -81,15 +85,11 @@ export class Perm {
     return String.fromCodePoint(...this.p);
   }
 
-  public at(index: number) {
-    return this.p[index];
-  }
-
   public mul(p2: Perm): Perm {
     // multiply
     const c: number[] = Array(this.n);
     for (let i = 0; i < this.n; i++) {
-      c[i] = p2.at(this.at(i));
+      c[i] = p2.p[this.p[i]];
     }
     return new Perm(c);
   }
@@ -98,15 +98,25 @@ export class Perm {
     // multiply the other way
     const c = Array(this.n);
     for (let i = 0; i < this.n; i++) {
-      c[i] = this.at(p2.at(i));
+      c[i] = this.p[p2.p[i]];
     }
     return new Perm(c);
+  }
+
+  public cmul(p2: CycSet) {
+    for (let cyc of p2.cycles) {
+      let temp = this.p[cyc[cyc.length-1]];
+      for (let i=cyc.length-1; i>0; i--) {
+        this.p[cyc[i]] = this.p[cyc[i-1]];
+      }
+      this.p[0] = temp;
+    }
   }
 
   public inv(): Perm {
     const c = Array(this.n);
     for (let i = 0; i < this.n; i++) {
-      c[this.at(i)] = i;
+      c[this.p[i]] = i;
     }
     return new Perm(c);
   }
@@ -131,11 +141,11 @@ export class Perm {
     const cyc = new Array<string>();
     const seen = new Array<boolean>(this.n);
     for (let i = 0; i < this.p.length; i++) {
-      if (seen[i] || this.at(i) === i) {
+      if (seen[i] || this.p[i] === i) {
         continue;
       }
       const incyc = new Array<number>();
-      for (let j = this.at(i); !seen[j]; j = this.at(j)) {
+      for (let j = this.p[i]; !seen[j]; j = this.p[j]) {
         incyc.push(1 + j);
         seen[j] = true;
       }
@@ -148,11 +158,11 @@ export class Perm {
     const cyc = new Array<string>();
     const seen = new Array<boolean>(this.n);
     for (let i = 0; i < this.p.length; i++) {
-      if (seen[i] || this.at(i) === i) {
+      if (seen[i] || this.p[i] === i) {
         continue;
       }
       const incyc = new Array<number>();
-      for (let j = this.at(i); !seen[j]; j = this.at(j)) {
+      for (let j = this.p[i]; !seen[j]; j = this.p[j]) {
         incyc.push(1 + j);
         seen[j] = true;
       }
@@ -165,11 +175,11 @@ export class Perm {
     let r = 1;
     const seen = new Array<boolean>(this.n);
     for (let i = 0; i < this.p.length; i++) {
-      if (seen[i] || this.at(i) === i) {
+      if (seen[i] || this.p[i] === i) {
         continue;
       }
       let cs = 0;
-      for (let j = i; !seen[j]; j = this.at(j)) {
+      for (let j = i; !seen[j]; j = this.p[j]) {
         cs++;
         seen[j] = true;
       }

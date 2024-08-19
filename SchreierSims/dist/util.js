@@ -1,16 +1,5 @@
 import { schreierSims, canonStr } from "./SchreierSims.js";
 import { identity } from "./Perm.js";
-export function exec(puzzle, str) {
-    let pzl = puzzle.identity;
-    for (let moveStr of str.split(" ")) {
-        for (let move of puzzle.moveset) {
-            if (move.str === moveStr) {
-                pzl = pzl.rmul(move.perm);
-            }
-        }
-    }
-    return pzl;
-}
 export class Puzzle {
     static _isValidPair(permset, i, j) {
         if (!j.commutes(i)) {
@@ -42,6 +31,17 @@ export class Puzzle {
         this.commTable = Puzzle._getCommTable(_moveset);
         this.sgs = schreierSims(_subgroup);
     }
+}
+export function exec(puzzle, str) {
+    let pzl = puzzle.identity;
+    for (let moveStr of str.split(" ")) {
+        for (let move of puzzle.moveset) {
+            if (move.str === moveStr) {
+                pzl = pzl.rmul(move.perm);
+            }
+        }
+    }
+    return pzl;
 }
 function getEndTable(puzzle, maxWeight, end) {
     const invTable = new Map(puzzle.moveset.map((move) => [move, move.perm.inv()]));

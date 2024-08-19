@@ -61,6 +61,8 @@ function gcd(a, b) {
 export function lcm(a, b) {
     return (a / gcd(a, b)) * b;
 }
+export class CycSet {
+}
 export class Perm {
     constructor(a) {
         this.n = a.length;
@@ -69,14 +71,11 @@ export class Perm {
     toString() {
         return String.fromCodePoint(...this.p);
     }
-    at(index) {
-        return this.p[index];
-    }
     mul(p2) {
         // multiply
         const c = Array(this.n);
         for (let i = 0; i < this.n; i++) {
-            c[i] = p2.at(this.at(i));
+            c[i] = p2.p[this.p[i]];
         }
         return new Perm(c);
     }
@@ -84,14 +83,23 @@ export class Perm {
         // multiply the other way
         const c = Array(this.n);
         for (let i = 0; i < this.n; i++) {
-            c[i] = this.at(p2.at(i));
+            c[i] = this.p[p2.p[i]];
         }
         return new Perm(c);
+    }
+    cmul(p2) {
+        for (let cyc of p2.cycles) {
+            let temp = this.p[cyc[cyc.length - 1]];
+            for (let i = cyc.length - 1; i > 0; i--) {
+                this.p[cyc[i]] = this.p[cyc[i - 1]];
+            }
+            this.p[0] = temp;
+        }
     }
     inv() {
         const c = Array(this.n);
         for (let i = 0; i < this.n; i++) {
-            c[this.at(i)] = i;
+            c[this.p[i]] = i;
         }
         return new Perm(c);
     }
@@ -113,11 +121,11 @@ export class Perm {
         const cyc = new Array();
         const seen = new Array(this.n);
         for (let i = 0; i < this.p.length; i++) {
-            if (seen[i] || this.at(i) === i) {
+            if (seen[i] || this.p[i] === i) {
                 continue;
             }
             const incyc = new Array();
-            for (let j = this.at(i); !seen[j]; j = this.at(j)) {
+            for (let j = this.p[i]; !seen[j]; j = this.p[j]) {
                 incyc.push(1 + j);
                 seen[j] = true;
             }
@@ -129,11 +137,11 @@ export class Perm {
         const cyc = new Array();
         const seen = new Array(this.n);
         for (let i = 0; i < this.p.length; i++) {
-            if (seen[i] || this.at(i) === i) {
+            if (seen[i] || this.p[i] === i) {
                 continue;
             }
             const incyc = new Array();
-            for (let j = this.at(i); !seen[j]; j = this.at(j)) {
+            for (let j = this.p[i]; !seen[j]; j = this.p[j]) {
                 incyc.push(1 + j);
                 seen[j] = true;
             }
@@ -145,11 +153,11 @@ export class Perm {
         let r = 1;
         const seen = new Array(this.n);
         for (let i = 0; i < this.p.length; i++) {
-            if (seen[i] || this.at(i) === i) {
+            if (seen[i] || this.p[i] === i) {
                 continue;
             }
             let cs = 0;
-            for (let j = i; !seen[j]; j = this.at(j)) {
+            for (let j = i; !seen[j]; j = this.p[j]) {
                 cs++;
                 seen[j] = true;
             }

@@ -53,7 +53,7 @@ export function schreierSims(g: Perm[]): Perm[][] {
   let Tklen: number[][] = [];
   function resolve(p: Perm): boolean {
     for (let i = p.n - 1; i >= 0; i--) {
-      const j = p.at(i);
+      const j = p.p[i];
       if (j !== i) {
         if (!sgs[i][j]) {
           return false;
@@ -73,7 +73,7 @@ export function schreierSims(g: Perm[]): Perm[][] {
     }
   }
   function knuthb(k: number, p: Perm, len: number): void {
-    const j = p.at(k);
+    const j = p.p[k];
     if (!sgs[k][j]) {
       sgs[k][j] = p;
       sgsi[k][j] = p.inv();
@@ -162,7 +162,7 @@ export function canonicalize(sgs: Perm[][], state: Perm): Perm {
       max_stabilizer = stabilizers[0];
       let max_val = -1;
       for (let stabilizer of stabilizers) {
-        let val = state.at(stabilizer.at(stabIndex));
+        let val = state.p[stabilizer.p[stabIndex]];
         if (val > max_val) {
           max_val = val;
           max_stabilizer = stabilizer;

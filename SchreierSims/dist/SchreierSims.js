@@ -50,7 +50,7 @@ export function schreierSims(g) {
     let Tklen = [];
     function resolve(p) {
         for (let i = p.n - 1; i >= 0; i--) {
-            const j = p.at(i);
+            const j = p.p[i];
             if (j !== i) {
                 if (!sgs[i][j]) {
                     return false;
@@ -70,7 +70,7 @@ export function schreierSims(g) {
         }
     }
     function knuthb(k, p, len) {
-        const j = p.at(k);
+        const j = p.p[k];
         if (!sgs[k][j]) {
             sgs[k][j] = p;
             sgsi[k][j] = p.inv();
@@ -157,7 +157,7 @@ export function canonicalize(sgs, state) {
             max_stabilizer = stabilizers[0];
             let max_val = -1;
             for (let stabilizer of stabilizers) {
-                let val = state.at(stabilizer.at(stabIndex));
+                let val = state.p[stabilizer.p[stabIndex]];
                 if (val > max_val) {
                     max_val = val;
                     max_stabilizer = stabilizer;
