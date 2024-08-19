@@ -21,7 +21,11 @@ export function iota(n) {
     return iotaCache[n];
 }
 export function identity(n) {
-    return new Perm(iota(n));
+    let c = Array(n);
+    for (let i = 0; i < n; i++) {
+        c[i] = i;
+    }
+    return new Perm(c);
 }
 export function random(n) {
     // random
@@ -61,7 +65,32 @@ function gcd(a, b) {
 export function lcm(a, b) {
     return (a / gcd(a, b)) * b;
 }
-export class CycSet {
+export class CycPerm {
+    constructor(n, _cycles) {
+        this.cycles = _cycles;
+        let perm = identity(n);
+        perm.cmul(this);
+        this.p = perm.p;
+    }
+    static fromPerm(perm) {
+        const visited = new Array(perm.n).fill(false);
+        const cycles = [];
+        for (let i = 0; i < perm.n; i++) {
+            if (!visited[i]) {
+                const cycle = [];
+                let current = i;
+                while (!visited[current]) {
+                    visited[current] = true;
+                    cycle.push(current);
+                    current = perm.p[current];
+                }
+                if (cycle.length > 1) {
+                    cycles.push(cycle);
+                }
+            }
+        }
+        return new CycPerm(perm.n, cycles);
+    }
 }
 export class Perm {
     constructor(a) {
@@ -93,7 +122,7 @@ export class Perm {
             for (let i = cyc.length - 1; i > 0; i--) {
                 this.p[cyc[i]] = this.p[cyc[i - 1]];
             }
-            this.p[0] = temp;
+            this.p[cyc[0]] = temp;
         }
     }
     inv() {

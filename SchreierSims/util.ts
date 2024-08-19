@@ -1,5 +1,5 @@
 import {schreierSims, canonStr} from "./SchreierSims.js";
-import {Perm, identity} from "./Perm.js";
+import {Perm, CycPerm, identity} from "./Perm.js";
 
 export type Move = {
     str: string;
@@ -11,7 +11,6 @@ export class Puzzle {
     public moveset: Move[];
     public commTable: Map<Move, Set<Move>>;
     public identity: Perm; // oriPerm
-    public sgs: Perm[][]; // cycPerm[][]
 
     private static _isValidPair(permset: Set<String>, i: Perm, j: Perm) {
         if (!j.commutes(i)) {return true};
@@ -30,11 +29,10 @@ export class Puzzle {
         return table;
     }
 
-    constructor(_moveset: Move[], _subgroup: Perm[]) {
+    constructor(_moveset: Move[]) {
         this.moveset = _moveset;
         this.identity = identity(_moveset[0].perm.n);
         this.commTable = Puzzle._getCommTable(_moveset);
-        this.sgs = schreierSims(_subgroup);
     }
 }
 
@@ -50,14 +48,14 @@ export function exec(puzzle: Puzzle, str: string): Perm {
     return pzl;
 }
 
-function getEndTable(puzzle: Puzzle, maxWeight: number, end: Perm): Map<string, number> {
+function getEndTable(puzzle: Puzzle, sgs: CycPerm[][], maxWeight: number, end: Perm): Map<string, number> {
     const invTable: Map<Move, Perm> = new Map(puzzle.moveset.map((move) => [move, move.perm.inv()]));
     const endTable = new Map<string, number>();
     const stack: [Perm, number, (Move | null)][] = [[end, 0, null]];
 
     while (stack.length > 0) {
         const [currentPerm, currentWeight, prevMove] = stack.pop();
-        const permKey = canonStr(puzzle.sgs, currentPerm);
+        const permKey = canonStr(sgs, currentPerm);
 
         if (!endTable.has(permKey) || endTable.get(permKey) > currentWeight) {
             endTable.set(permKey, currentWeight);
@@ -73,21 +71,21 @@ function getEndTable(puzzle: Puzzle, maxWeight: number, end: Perm): Map<string, 
     return endTable;
 }
 
-function* dfs(puzzle: Puzzle, maxWeight: number, start: Perm, startStr: string, endStr: string, endTable: Map<string, number>, endDepth: number, moves: Move[] = []) {
+function* dfs(puzzle: Puzzle, sgs: CycPerm[][], maxWeight: number, start: Perm, startStr: string, endStr: string, endTable: Map<string, number>, endDepth: number, moves: Move[] = []) {
     if (startStr === endStr) {
         yield moves.reduce((partial, current) => partial + current.str + " ", "");
     }
     for (let move of puzzle.moveset) {
         let next = start.rmul(move.perm);
-        let nextStr = canonStr(puzzle.sgs, next);
+        let nextStr = canonStr(sgs, next);
         let distCheck = endTable.has(nextStr) ? (maxWeight-move.weight >= endTable.get(nextStr)) : (maxWeight-move.weight > endDepth);
         if ((moves.length === 0 || (puzzle.commTable.get(moves[moves.length-1]).has(move))) && distCheck) {
-            yield* dfs(puzzle, maxWeight-move.weight, next, nextStr, endStr, endTable, endDepth, moves.concat([move]));
+            yield* dfs(puzzle, sgs, maxWeight-move.weight, next, nextStr, endStr, endTable, endDepth, moves.concat([move]));
         }
     }
 }
 
-export function* solve(puzzle: Puzzle, pruneWeight: number, maxWeight: number, start: Perm, end: Perm) {
-    let endTable = getEndTable(puzzle, pruneWeight, end);
-    yield* dfs(puzzle, maxWeight, start, canonStr(puzzle.sgs, start), canonStr(puzzle.sgs, end), endTable, pruneWeight);
+export function* solve(puzzle: Puzzle, sgs: CycPerm[][], pruneWeight: number, maxWeight: number, start: Perm, end: Perm) {
+    let endTable = getEndTable(puzzle, sgs, pruneWeight, end);
+    yield* dfs(puzzle, sgs, maxWeight, start, canonStr(sgs, start), canonStr(sgs, end), endTable, pruneWeight);
 }

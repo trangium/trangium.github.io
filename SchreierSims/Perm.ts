@@ -24,7 +24,11 @@ export function iota(n: number): number[] {
 }
 
 export function identity(n: number): Perm {
-  return new Perm(iota(n));
+  let c = Array(n);
+  for (let i=0; i<n; i++) {
+    c[i] = i;
+  }
+  return new Perm(c);
 }
 
 export function random(n: number): Perm {
@@ -69,8 +73,40 @@ export function lcm(a: number, b: number): number {
   return (a / gcd(a, b)) * b;
 }
 
-export class CycSet {
+export class CycPerm {
   cycles: number[][]
+  p: number[]
+
+  constructor(n: number, _cycles: number[][]) {
+    this.cycles = _cycles;
+    let perm: Perm = identity(n);
+    perm.cmul(this);
+    this.p = perm.p;
+  }
+
+  static fromPerm(perm: Perm) {
+    const visited = new Array(perm.n).fill(false);
+    const cycles: number[][] = [];
+
+    for (let i = 0; i < perm.n; i++) {
+      if (!visited[i]) {
+        const cycle: number[] = [];
+        let current = i;
+
+        while (!visited[current]) {
+          visited[current] = true;
+          cycle.push(current);
+          current = perm.p[current];
+        }
+
+        if (cycle.length > 1) {
+          cycles.push(cycle);
+        }
+      }
+    }
+
+    return new CycPerm(perm.n, cycles);
+  }
 }
 
 export class Perm {
@@ -103,13 +139,13 @@ export class Perm {
     return new Perm(c);
   }
 
-  public cmul(p2: CycSet) {
+  public cmul(p2: CycPerm) {
     for (let cyc of p2.cycles) {
       let temp = this.p[cyc[cyc.length-1]];
       for (let i=cyc.length-1; i>0; i--) {
         this.p[cyc[i]] = this.p[cyc[i-1]];
       }
-      this.p[0] = temp;
+      this.p[cyc[0]] = temp;
     }
   }
 

@@ -1,4 +1,4 @@
-import { identity } from "./Perm.js";
+import { identity, CycPerm } from "./Perm.js";
 class FactoredNumber {
     constructor() {
         this.mult = [];
@@ -39,6 +39,55 @@ class FactoredNumber {
         }
         return r;
     }
+}
+function permReduce(sgs, state) {
+    for (let stabIndex = sgs.length - 1; stabIndex >= 0; stabIndex--) {
+        let stabilizers = sgs[stabIndex];
+        let min_stabilizer;
+        // choose stabilizer to fix state[stabilizer[stabIndex]]
+        // minimize if fixing is not possible
+        {
+            min_stabilizer = stabilizers[0];
+            let min_val = stabIndex;
+            for (let stabilizer of stabilizers) {
+                let val = state.p[stabilizer.p[stabIndex]];
+                if (val === stabIndex) {
+                    min_stabilizer = stabilizer;
+                    break;
+                }
+                if (val < min_val) {
+                    min_val = val;
+                    min_stabilizer = stabilizer;
+                }
+            }
+        }
+        state = state.rmul(min_stabilizer);
+    }
+    return CycPerm.fromPerm(state);
+}
+export function canonicalize(sgs, state) {
+    state = state.inv();
+    for (let stabIndex = sgs.length - 1; stabIndex >= 0; stabIndex--) {
+        let stabilizers = sgs[stabIndex];
+        let max_stabilizer;
+        // choose stabilizer to maximize state[stabilizer[stabIndex]]
+        {
+            max_stabilizer = stabilizers[0];
+            let max_val = -1;
+            for (let stabilizer of stabilizers) {
+                let val = state.p[stabilizer.p[stabIndex]];
+                if (val > max_val) {
+                    max_val = val;
+                    max_stabilizer = stabilizer;
+                }
+            }
+        }
+        state.cmul(max_stabilizer);
+    }
+    return state;
+}
+export function canonStr(sgs, state) {
+    return canonicalize(sgs, state).toString();
 }
 export function schreierSims(g) {
     const n = g[0].n;
@@ -143,31 +192,11 @@ export function schreierSims(g) {
         for (let i = 0; i < sgs.length; i++) {
             sgs[i] = sgs[i].filter(x => x);
         }
-        return sgs;
+        let reducedsgs = [];
+        for (let i = 0; i < sgs.length; i++) {
+            reducedsgs[i] = sgs[i].map(x => permReduce(sgs.slice(0, i), x));
+        }
+        return reducedsgs;
     }
     return getsgs();
-}
-export function canonicalize(sgs, state) {
-    state = state.inv();
-    for (let stabIndex = sgs.length - 1; stabIndex >= 0; stabIndex--) {
-        let stabilizers = sgs[stabIndex];
-        let max_stabilizer;
-        // choose stabilizer to maximize state[stabilizer[stabIndex]]
-        {
-            max_stabilizer = stabilizers[0];
-            let max_val = -1;
-            for (let stabilizer of stabilizers) {
-                let val = state.p[stabilizer.p[stabIndex]];
-                if (val > max_val) {
-                    max_val = val;
-                    max_stabilizer = stabilizer;
-                }
-            }
-        }
-        state = state.rmul(max_stabilizer);
-    }
-    return state;
-}
-export function canonStr(sgs, state) {
-    return canonicalize(sgs, state).toString();
 }
