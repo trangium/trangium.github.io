@@ -68,7 +68,7 @@ function permReduce(sgs: Perm[][], state: Perm): CycPerm {
 
     state = state.rmul(min_stabilizer);
   }
-  return CycPerm.fromPerm(state);
+  return CycPerm.fromPerm(state.inv()); 
 }
 
 export function canonicalize(sgs: CycPerm[][], state: Perm): Perm {
