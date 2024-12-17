@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resultDiv.textContent = 'Computing...';
         worker.postMessage({
             type: 'compute',
-            value: 42 // Example input
+            value: '52' // Example input
         });
     });
 });

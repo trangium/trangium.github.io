@@ -1,16 +1,20 @@
-// worker.js
 let wasmModule = null;
 
-// Use importScripts to load the Emscripten-generated JavaScript
+var Module = {
+    preRun:[],
+    onRuntimeInitialized: function load_done_callback() {
+        wasmModule = Module;
+    },
+};
+
 try {
-    importScripts('compute.js');
-    let p = Module();
+    importScripts('a.out.js');
+    console.log(Module);
     p.then((value) => {wasmModule = value});
 } catch (error) {
     self.postMessage(`Script import error: ${error.message}`)
 }
 
-// Wait for the WebAssembly module to be ready
 self.onmessage = async function(e) {
-    self.postMessage(wasmModule._compute(13))
+    self.postMessage(wasmModule.compute(e.data.value))
 };
