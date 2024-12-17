@@ -9,8 +9,6 @@ var Module = {
 
 try {
     importScripts('a.out.js');
-    console.log(Module);
-    p.then((value) => {wasmModule = value});
 } catch (error) {
     self.postMessage(`Script import error: ${error.message}`)
 }
