@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C++ WebAssembly Starter</title>
+    <style>            
+        button {
+            border: none;
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            transition-duration: 0.4s;
+            cursor: pointer;
+            background-color: white;
+            color: black;
+            border: 0.125rem solid #000;
+            padding: 0.5rem 0.875rem;
+            margin: 0.125rem 0.063rem;
+            font-size: 22px;
+            font-family: courier new;
+        }
+        
+        button:hover {
+                background-color: #000;
+                color: white;
+        }
+
+        body {
+            font-family: courier new;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <h1>C++ and WebAssembly Starter</h1>
+    <textarea id="input" rows="15" cols="88"></textarea><br><br>
+    <button onclick="clicked(this)"><strong>Run</strong></button>
+    <p id="output">Result:</p>
+
+    <script src="a.out.js"></script>
+    <script>
+        let wasmModule = null;
+        Module.onRuntimeInitialized = _ => {
+            wasmModule = Module;
+            window.clicked = function () {
+                const res = wasmModule.add(input.value);
+                document.getElementById("output").textContent = `Result: ${res}`;
+
+                let work = new Worker("worker.js");
+                work.postMessage(10);
+                work.onmessage = function(event) {
+                    console.log(event);
+                }
+            };
+        };
+    </script>
+</body>
+</html>
