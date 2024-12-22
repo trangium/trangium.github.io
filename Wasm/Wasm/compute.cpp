@@ -20,7 +20,7 @@ vector<string> compute(string x) {
 
 EMSCRIPTEN_BINDINGS(my_module) {
     // Explicitly register std::string and std::vector types
-    register_vector<string>("VectorString");
+    register_vector<string>("doesntmatter");
     
     // Bind the function with explicit type
     function("compute", &compute, 
