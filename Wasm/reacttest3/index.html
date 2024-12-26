@@ -3,18 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dynamic Form</title>
+    <title>Batch Solver [Gamma]</title>
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
     <style>
-
         * {
             box-sizing: border-box;
         }
 
-        /* Base styles */
         body {
             font-family: "courier new", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             margin: 0;
@@ -22,9 +20,7 @@
             background-color: #f5f5f5;
         }
 
-        /* Container styles */
         .container {
-            max-width: 1000px;
             margin: 0 auto;
             padding: 24px;
             background-color: white;
@@ -32,58 +28,108 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
-        /* Form group spacing */
         .form-group {
             margin-bottom: 24px;
         }
 
-        /* Label styles */
         .label {
             display: block;
-            font-size: 14px;
-            font-weight: 500;
-            color: #374151;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
             margin-bottom: 8px;
         }
 
-        /* Input styles */
-        .input {
+        .contained-label {
+            display: block;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0px;
+        }
+
+        .weak-label {
+            display: block;
+            font-size: 16px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 0px;
+        }
+
+        .input, .select {
             font-family:'Courier New', Courier, monospace;
-            width: 100%;
             padding: 8px 12px;
             border: 1px solid #d1d5db;
             border-radius: 6px;
             font-size: 14px;
             line-height: 1.5;
             transition: border-color 0.15s ease-in-out;
-            
         }
 
-        .input:focus {
+        .options-group .input {
+            padding: 0px 4px;
+        }
+
+        .options-group .select {
+            padding: 2px 4px;
+        } 
+
+        .input:focus, .select:focus {
             outline: none;
             border-color: #2563eb;
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
 
-        /* Three column layout */
+        .large-input, .medium-input, .three-columns .input, .two-columns .input, .sorting-input-container .input {
+            width: 100%;
+        }
+
+        .input {
+            width: 360px;
+        }
+
+        .input[type=number] {
+            width: 100px;
+        }
+
         .three-columns {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: 1fr 1fr 3fr;
             gap: 16px;
+            width: 100%;
+            max-width: 720px;
         }
 
-        /* Dynamic input container */
-        .dynamic-input-container {
+        .three-columns > *:nth-child(n+4):nth-child(-n+6) {
+        margin-top: -16px;
+        }
+
+        .two-columns {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            max-width: 420px;
+        }
+
+        .options {
+            display: grid;
+            grid-template-columns: repeat(1, 1fr);
+        }
+
+        .sorting-input-container {
             display: flex;
-            gap: 8px;
+            gap: 16px;
             margin-bottom: 12px;
+            max-width: 720px;
         }
 
-        .dynamic-input {
-            flex-grow: 1;
+        .add-remove-container {
+            display: flex;
+            align-items: stretch;
+            gap: 8px;
+            width: 100%;
         }
 
-        /* Button styles */
         .button {
             padding: 8px 12px;
             border: none;
@@ -95,21 +141,21 @@
         }
 
         .button-add {
-            background-color: #888;
+            background-color: #666;
             color: white;
         }
 
         .button-add:hover {
-            background-color: #555;
+            background-color: #333;
         }
 
         .button-remove {
-            background-color: #888;
+            background-color: #666;
             color: white;
         }
 
         .button-remove:hover {
-            background-color: #555;
+            background-color: #333;
         }
 
         .button-remove:disabled {
@@ -117,12 +163,31 @@
             cursor: not-allowed;
         }
 
-        /* Large input specific styles */
         .large-input {
-            padding: 12px 16px;
-            font-size: 16px;
-            height: 200px;
-            resize: vertical;
+            height: 228px;
+            width: 720px;
+            max-width: 100%;
+        }
+
+        .medium-input {
+            height: 84px;
+            width: 720px;
+            max-width: 100%;
+        }
+
+        .labeled-input-container {
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
         }
 
     </style>
@@ -131,102 +196,420 @@
     <div id="root"></div>
     
     <script type="text/babel">
-        const DynamicForm = () => {
-            const [dynamicInputs, setDynamicInputs] = React.useState([{ id: 1, value: '' }]);
+        const SortingForm = () => {
+            const presetTexts = {
+                '3x3x3': 'U: (UF UL UB UR) (UFR UFL UBL UBR)\nR: (UR BR DR FR) (UFR-1 UBR+1 DBR-1 DFR+1)\nF: (UF+1 FR+1 DF+1 FL+1) (UFR+1 DFR-1 DFL+1 UFL-1)\nD: (DF DR DB DL) (DFR DBR DBL DFL)\nL: (UL FL DL BL) (UFL+1 DFL-1 DBL+1 UBL-1)\nB: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)',
+                'Megaminx': 'U: (UF UL UBl UBr UR) (UFR UFL ULB UDB URB)\nR: (UR RB RDr RDl RF) (UFR-1 URB+1 RDB-1 RDD RDF+1)\nL: (UL LF LDr LDl LB) (ULB-1 UFL+1 LDF-1 LDD LDB+1)\nF: (UF+1 RF+1 FDr+1 FDl LF+1) (UFL-1 UFR+1 RDF-1 FDD LDF+1)\nDfr: (RDl+1 DFrr+1 DFrb+1 DFrl FDr+1) (RDF-1 RDD+1 DFRr-1 DFRl FDD+1)\nBr: ( UBr+1 DB+1 BRd+1 BRf RB+1) (URB-1 UDB+1 BRB-1 BRD RDB+1)\nBl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)',
+                'FTO': 'U: (UF UN UM) (Ur Ul Ub) (lUr bUl rUb) (uRf uLn uBm) (fLu nBu mRu)\nD: (FM FN+1 MN+1) (Fd Nd Md) (mDf fDn nDm) (dFr dNl dMb) (lFd bNd rMd)\nF: (UF FM FN) (Fl Fr Fd) (rFl dFr lFd) (uRf mDf nLf) (fLu fRm fDn)\nB: (UM+1 UN MN+1) (Ub Mb Nb) (mBn uBm nBu) (rUb lNb dMb) (bUl bNd bMr)\nL: (UF+1 FN UN+1) (Ul Fl Nl) (nLf uLn fLu) (lUr lFd lNb) (rFl dNl bUl)\nR: (UF+1 UM FM+1) (Ur Mr Fr) (fRm uRf mRu) (lUr bMr dFr) (rFl rUb rMd)\nBL: (UN FN+1 MN+1) (Nl Nd Nb) (lNb bNd dNl) (uLn fDn mBn) (nLf nDm nBu)\nBR: (UM MN+1 FM+1) (Mr Mb Md) (bMr dMb rMd) (mRu mBn mDf) (fRm uBm nDm)',
+                'Custom': ''
+            };
+            const imageTypes = ['3x3x3', '3x3x3 top', 'Megaminx'];
+            const [sortingInputs, setSortingInputs] = React.useState([{ id: 1, value: '', sortType: 'Set Priority' }]);
+            const [subgroupInputs, setSubgroupInputs] = React.useState([{ id: 1, pruneValue: '', searchValue: '', subgroupValue: ''}]);
+            const [puzzlePreset, setPuzzlePreset] = React.useState('3x3x3');
+            const [puzzleText, setPuzzleText] = React.useState(presetTexts['3x3x3']); 
+            const [showImageOpts, setShowImageOpts] = React.useState(true);
+            const [showEsqOpts, setShowEsqOpts] = React.useState(true);
+            const [showImages, setShowImages] = React.useState(true);
+            const [imageType, setImageType] = React.useState('3x3x3');
+            const [imageSize, setImageSize] = React.useState(150);
+            const [imageXrot, setImageXrot] = React.useState(30);
+            const [imageYrot, setImageYrot] = React.useState(40);
+            const [imageMask, setImageMask] = React.useState('');
+            const [showPreview, setShowPreview] = React.useState(false);
 
-            const addInput = (currentId, currentValue) => {
-                const newId = Math.max(...dynamicInputs.map(input => input.id)) + 1;
-                const currentIndex = dynamicInputs.findIndex(input => input.id === currentId);
+            const addSortingInput = (currentId, currentValue) => {
+                const newId = Math.max(...sortingInputs.map(input => input.id)) + 1;
+                const currentIndex = sortingInputs.findIndex(input => input.id === currentId);
                 
-                // Create new array with the new input inserted after the current one
                 const newInputs = [
-                    ...dynamicInputs.slice(0, currentIndex + 1),
-                    { id: newId, value: currentValue },
-                    ...dynamicInputs.slice(currentIndex + 1)
+                    ...sortingInputs.slice(0, currentIndex + 1),
+                    { id: newId, value: currentValue, sortType: 'Set Priority' },
+                    ...sortingInputs.slice(currentIndex + 1)
                 ];
                 
-                setDynamicInputs(newInputs);
+                setSortingInputs(newInputs);
             };
 
-            const removeInput = (id) => {
-                if (dynamicInputs.length > 1) {
-                    setDynamicInputs(dynamicInputs.filter(input => input.id !== id));
+            const removeSortingInput = (id) => {
+                if (sortingInputs.length > 1) {
+                    setSortingInputs(sortingInputs.filter(input => input.id !== id));
                 }
             };
 
-            const handleDynamicInputChange = (id, value) => {
-                setDynamicInputs(dynamicInputs.map(input => 
+            const addSubgroupInput = (currentId) => {
+                const newId = Math.max(...subgroupInputs.map(input => input.id)) + 1;
+                const currentIndex = subgroupInputs.findIndex(input => input.id === currentId);
+                
+                const newInputs = [
+                    ...subgroupInputs.slice(0, currentIndex + 1),
+                    { id: newId, pruneValue: '', searchValue: '', subgroupValue: ''},
+                    ...subgroupInputs.slice(currentIndex + 1)
+                ];
+                
+                setSubgroupInputs(newInputs);
+            };
+
+            const removeSubgroupInput = (id) => {
+                if (subgroupInputs.length > 1) {
+                    setSubgroupInputs(subgroupInputs.filter(input => input.id !== id));
+                }
+            };
+
+            const handleSortingInputChange = (id, value) => {
+                setSortingInputs(sortingInputs.map(input => 
                     input.id === id ? { ...input, value } : input
                 ));
             };
 
+            const handleSortTypeChange = (id, sortType) => {
+                setSortingInputs(sortingInputs.map(input => 
+                    input.id === id ? { ...input, sortType } : input
+                ));
+            };
+            
+            const handleSubgroupInputChange = (id, key, value) => {
+                setSubgroupInputs(subgroupInputs.map(input => 
+                    input.id === id ? { ...input, [key]: value } : input
+                ));
+            };
+
+            const handlePresetChange = (e) => {
+                const value = e.target.value;
+                setPuzzlePreset(value);
+                if (value !== "Custom") {
+                    setPuzzleText(presetTexts[value]);
+                }
+            };
+
+            const handleImageTypeChange = (e) => {
+                const value = e.target.value;
+                setImageType(value);
+            }
+
             return (
                 <div className="container" spellCheck="false">
-                    {/* Large top input */}
                     <div className="form-group">
-                        <label htmlFor="topInput" className="label">
-                            Main Input
-                        </label>
+                        <div className="labeled-input-container">
+                            <label htmlFor="puzzlePreset" className="contained-label">
+                                Puzzle
+                            </label>
+                            <div className="select-container">
+                                <select
+                                    id="puzzlePreset"
+                                    className="select"
+                                    value={puzzlePreset}
+                                    onChange={handlePresetChange}
+                                >
+                                {Object.keys(presetTexts).map((k) => (
+                                    <option value={k}>{k}</option>
+                                ))}
+                                </select>
+                            </div>
+                        </div>
                         <textarea
                             id="topInput"
-                            type="text"
+                            value={puzzleText}
+                            onChange={(e) => setPuzzleText(e.target.value)}
                             className="input large-input"
-                            placeholder="Enter main text"
                         />
                     </div>
 
-                    {/* Three smaller inputs in a row */}
+                    <div className="form-group">
+                        <label htmlFor="uoe" className="label">
+                            Unique Orientations & Equivalences
+                        </label>
+                        <textarea
+                            id="uoe"
+                            type="text"
+                            className="input medium-input"
+                        />
+                    </div>
+
                     <div className="form-group">
                         <div className="three-columns">
-                            {['First', 'Second', 'Third'].map((label, index) => (
+                            {['Prune', 'Search', 'Subgroup'].map((label, index) => (
                                 <div key={index}>
                                     <label className="label">
-                                        {label} Input
+                                        {label}
+                                    </label>
+                                </div>
+                            ))}
+                            {subgroupInputs.map((input) => (
+                                <React.Fragment key={input.id}>
+                                    <input
+                                        type="text"
+                                        value={input.pruneValue}
+                                        onChange={(e) => handleSubgroupInputChange(input.id, "pruneValue", e.target.value)}
+                                        className="input subgroup-input"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={input.searchValue}
+                                        onChange={(e) => handleSubgroupInputChange(input.id, "searchValue", e.target.value)}
+                                        className="input subgroup-input"
+                                    />
+                                    <div className="add-remove-container">
+                                    <input
+                                        type="text"
+                                        value={input.subgroupValue}
+                                        onChange={(e) => handleSubgroupInputChange(input.id, "subgroupValue", e.target.value)}
+                                        className="input subgroup-input"
+                                    />
+                                        <button
+                                            onClick={() => addSubgroupInput(input.id)}
+                                            className="button button-add"
+                                            >
+                                                +
+                                        </button>
+                                        <button
+                                            onClick={() => removeSubgroupInput(input.id)}
+                                            className={`button button-remove ${subgroupInputs.length <= 1 ? 'disabled' : ''}`}
+                                            disabled={subgroupInputs.length <= 1}
+                                        >
+                                            &ndash;
+                                        </button>
+                                    </div>
+                                </React.Fragment>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="form-group">
+                        <label htmlFor="scramble" className="label">
+                            Scramble
+                        </label>
+                        <textarea
+                            id="scramble"
+                            type="text"
+                            className="input medium-input"
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <div className="two-columns">
+                            {['Pre-Adjust', 'Post-Adjust'].map((label, index) => (
+                                <div key={index}>
+                                    <label className="label">
+                                        {label}
                                     </label>
                                     <input
                                         type="text"
                                         className="input"
-                                        placeholder={`Enter ${label.toLowerCase()} text`}
                                     />
                                 </div>
                             ))}
                         </div>
                     </div>
 
-                    {/* Dynamic input fields */}
                     <div className="form-group">
-                        {dynamicInputs.map((input) => (
-                            <div key={input.id} className="dynamic-input-container">
-                                <input
-                                    type="text"
-                                    value={input.value}
-                                    onChange={(e) => handleDynamicInputChange(input.id, e.target.value)}
-                                    className="input dynamic-input"
-                                    placeholder="Dynamic input"
-                                />
-                                <button
-                                    onClick={() => addInput(input.id, input.value)}
-                                    className="button button-add"
+                        <label className="label">
+                            Case Sorting
+                        </label>
+                        {sortingInputs.map((input) => (
+                            <div key={input.id} className="sorting-input-container">
+                                <select
+                                    className="select sort-select"
+                                    value={input.sortType}
+                                    onChange={(e) => handleSortTypeChange(input.id, e.target.value)}
                                 >
-                                    +
-                                </button>
-                                <button
-                                    onClick={() => removeInput(input.id)}
-                                    className={`button button-remove ${dynamicInputs.length <= 1 ? 'disabled' : ''}`}
-                                    disabled={dynamicInputs.length <= 1}
-                                >
-                                    &ndash;
-                                </button>
+                                    <option value="Set Priority">Set Priority</option>
+                                    <option value="Orientation of">Orientation of</option>
+                                    <option value="Orientation at">Orientation at</option>
+                                    <option value="Permutation of">Permutation of</option>
+                                    <option value="Permutation at">Permutation at</option>
+                                </select>
+                                <div className="add-remove-container">
+                                    <input
+                                        type="text"
+                                        value={input.value}
+                                        onChange={(e) => handleSortingInputChange(input.id, e.target.value)}
+                                        className="input sorting-input"
+                                    />
+                                    <button
+                                        onClick={() => addSortingInput(input.id, input.value)}
+                                        className="button button-add"
+                                    >
+                                        +
+                                    </button>
+                                    <button
+                                        onClick={() => removeSortingInput(input.id)}
+                                        className={`button button-remove ${sortingInputs.length <= 1 ? 'disabled' : ''}`}
+                                        disabled={sortingInputs.length <= 1}
+                                    >
+                                        &ndash;
+                                    </button>
+                                </div>
                             </div>
                         ))}
                     </div>
+
+                    <div className="form-group">
+                        <div className="options">
+                            <label className="label">
+                                Options
+                            </label>
+                            <div className="checkbox-container">
+                                <input
+                                    type="checkbox"
+                                    id="showImageOpts"
+                                    checked={showImageOpts}
+                                    onChange={(e) => setShowImageOpts(e.target.checked)}
+                                />
+                                <label htmlFor="showImageOpts" className="weak-label">
+                                    Show Image Options
+                                </label>
+                            </div>
+                            <div className="checkbox-container">
+                                <input
+                                    type="checkbox"
+                                    id="showEsqOpts"
+                                    checked={showEsqOpts}
+                                    onChange={(e) => setShowEsqOpts(e.target.checked)}
+                                />
+                                <label htmlFor="showEsqOpts" className="weak-label">
+                                    Show ESQ Options
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    {showImageOpts && (
+                        <div className="form-group">
+                            <div className="options-group">
+                                <label className="label">
+                                    Image Options
+                                </label>
+
+                                <div className="checkbox-container">
+                                    <input
+                                        type="checkbox"
+                                        id="showImages"
+                                        checked={showImages}
+                                        onChange={(e) => setShowImages(e.target.checked)}
+                                    />
+                                    <label htmlFor="showImages" className="weak-label">
+                                        Show Images
+                                    </label>
+                                </div>
+
+                                <div className="labeled-input-container">
+                                    <label htmlFor="imageType" className="weak-label">
+                                        Image Type: 
+                                    </label>
+                                    <select
+                                        id="imageType"
+                                        className="select"
+                                        value={imageType}
+                                        onChange={handleImageTypeChange}
+                                    >
+                                    {(imageTypes).map((x) => (
+                                        <option value={x}>{x}</option>
+                                    ))}
+                                    </select>
+                                </div>
+
+                                <div className="labeled-input-container">
+                                    <label htmlFor="imageSize" className="weak-label">
+                                        Image Size: 
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="imageSize"
+                                        value={imageSize}
+                                        onChange={(e) => setImageSize(e.target.value)}
+                                        className="input"
+                                    />
+                                </div>
+
+                                <div className="labeled-input-container">
+                                    <label htmlFor="imageXrot" className="weak-label">
+                                        X rotation:
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="imageXrot"
+                                        value={imageXrot}
+                                        onChange={(e) => setImageXrot(e.target.value)}
+                                        className="input"
+                                    />
+                                    <label htmlFor="imageYrot" className="weak-label">
+                                        Y rotation:
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="imageYrot"
+                                        value={imageYrot}
+                                        onChange={(e) => setImageXrot(e.target.value)}
+                                        className="input"
+                                    />
+                                </div>
+
+                                <div className="labeled-input-container">
+                                    <label htmlFor="imageMask" className="weak-label">
+                                        Image Mask: 
+                                    </label>
+                                    <input
+                                        type="text"
+                                        id="imageMask"
+                                        value={imageMask}
+                                        onChange={(e) => setImageMask(e.target.value)}
+                                        className="input"
+                                    />
+                                </div>
+
+                                <div className="checkbox-container">
+                                    <input
+                                        type="checkbox"
+                                        id="showPreview"
+                                        checked={showPreview}
+                                        onChange={(e) => setShowPreview(e.target.checked)}
+                                    />
+                                    <label htmlFor="showPreview" className="weak-label">
+                                        Show Preview
+                                    </label>
+                                </div>
+
+                            </div>
+                        </div>
+                    )}
+
+                    {showEsqOpts && (
+                        <div className="form-group">
+                            <div className="esq-opts">
+
+                            <label htmlFor="rankesq" className="label">
+                            Rank ESQ
+                            </label>
+                            <textarea
+                                id="rankesq"
+                                type="text"
+                                className="input medium-input"
+                            />
+                        </div>
+                        
+                        <div className="form-group">
+                            <label htmlFor="generationesq" className="label">
+                            Ganeration ESQ
+                            </label>
+                            <textarea
+                                id="generationesq"
+                                type="text"
+                                className="input medium-input"
+                            />
+
+                            </div>
+                        </div>
+                    )}
+
+                    <br/><br/><br/><br/><br/><br/><br/><br/><br/>
                 </div>
             );
         };
 
         // Render the app
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<DynamicForm />);
+        root.render(<SortingForm />);
     </script>
 </body>
 </html>
