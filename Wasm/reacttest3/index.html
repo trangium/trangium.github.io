@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,13 +9,14 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <script src="../../twistysim.js"></script>
     <style>
         * {
             box-sizing: border-box;
         }
 
         body {
-            font-family: "courier new", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: "Courier New", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, serif;
             margin: 0;
             padding: 20px;
             background-color: #f5f5f5;
@@ -56,8 +58,9 @@
             margin-bottom: 0px;
         }
 
-        .input, .select {
-            font-family:'Courier New', Courier, monospace;
+        .input,
+        .select {
+            font-family: 'Courier New', Courier, monospace;
             padding: 8px 12px;
             border: 1px solid #d1d5db;
             border-radius: 6px;
@@ -72,15 +75,21 @@
 
         .options-group .select {
             padding: 2px 4px;
-        } 
+        }
 
-        .input:focus, .select:focus {
+        .input:focus,
+        .select:focus {
             outline: none;
             border-color: #2563eb;
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
 
-        .large-input, .medium-input, .three-columns .input, .two-columns .input, .sorting-input-container .input {
+        .large-input,
+        .medium-input,
+        .small-input,
+        .three-columns .input,
+        .two-columns .input,
+        .sorting-input-container .input {
             width: 100%;
         }
 
@@ -100,8 +109,8 @@
             max-width: 720px;
         }
 
-        .three-columns > *:nth-child(n+4):nth-child(-n+6) {
-        margin-top: -16px;
+        .three-columns>*:nth-child(n+4):nth-child(-n+6) {
+            margin-top: -16px;
         }
 
         .two-columns {
@@ -132,35 +141,33 @@
 
         .button {
             padding: 8px 12px;
-            border: none;
+            border: 0.125rem solid #000;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 16px;
+            font-family: 'Courier New', Courier, monospace;
             font-weight: 500;
             cursor: pointer;
             transition: all 0.15s ease-in-out;
+            color: black;
+            background-color: white;
         }
 
-        .button-add {
-            background-color: #666;
+        .button:hover {
+            background-color: black;
             color: white;
         }
 
-        .button-add:hover {
-            background-color: #333;
+        .button:disabled {
+            opacity: 0.3;
+            cursor: none;
+            pointer-events: none;
         }
 
-        .button-remove {
-            background-color: #666;
-            color: white;
-        }
-
-        .button-remove:hover {
-            background-color: #333;
-        }
-
-        .button-remove:disabled {
-            background-color: #d1d5db;
-            cursor: not-allowed;
+        .button-big {
+            white-space: pre;
+            font-weight: 600;
+            padding: 16px 24px;
+            margin-right: 20px;
         }
 
         .large-input {
@@ -175,13 +182,18 @@
             max-width: 100%;
         }
 
+        .small-input {
+            height: 168px;
+            width: 540px;
+            max-width: 100%;
+        }
+
         .labeled-input-container {
             display: flex;
             gap: 16px;
             align-items: center;
             margin-bottom: 8px;
         }
-
 
         .checkbox-container {
             display: flex;
@@ -190,11 +202,25 @@
             margin-bottom: 8px;
         }
 
+        .img-preview {
+            margin-top: -8px;
+        }
+
+        input[type="range"] {
+            width: 168px;
+            margin-top: 8px;
+            margin-bottom: 8px;
+        }
+
+        .stats-display {
+            line-height: 1.5em;
+        }
     </style>
 </head>
+
 <body>
     <div id="root"></div>
-    
+
     <script type="text/babel">
         const SortingForm = () => {
             const presetTexts = {
@@ -203,31 +229,60 @@
                 'FTO': 'U: (UF UN UM) (Ur Ul Ub) (lUr bUl rUb) (uRf uLn uBm) (fLu nBu mRu)\nD: (FM FN+1 MN+1) (Fd Nd Md) (mDf fDn nDm) (dFr dNl dMb) (lFd bNd rMd)\nF: (UF FM FN) (Fl Fr Fd) (rFl dFr lFd) (uRf mDf nLf) (fLu fRm fDn)\nB: (UM+1 UN MN+1) (Ub Mb Nb) (mBn uBm nBu) (rUb lNb dMb) (bUl bNd bMr)\nL: (UF+1 FN UN+1) (Ul Fl Nl) (nLf uLn fLu) (lUr lFd lNb) (rFl dNl bUl)\nR: (UF+1 UM FM+1) (Ur Mr Fr) (fRm uRf mRu) (lUr bMr dFr) (rFl rUb rMd)\nBL: (UN FN+1 MN+1) (Nl Nd Nb) (lNb bNd dNl) (uLn fDn mBn) (nLf nDm nBu)\nBR: (UM MN+1 FM+1) (Mr Mb Md) (bMr dMb rMd) (mRu mBn mDf) (fRm uBm nDm)',
                 'Custom': ''
             };
-            const imageTypes = ['3x3x3', '3x3x3 top', 'Megaminx'];
+            const imageTypes = ['3x3x3', '3x3x3 top', '2x2x2', '2x2x2 top', '4x4x4', '5x5x5', 'Pyraminx', 'Megaminx'];
+            const topImageTypes = ['3x3x3 top', '2x2x2 top']
+            const algSortTypes = ['MCC', 'STM', 'SQTM', 'ESQ'];
+            const containerRef = React.useRef(null);
+            const workerRef = React.useRef(null);
             const [sortingInputs, setSortingInputs] = React.useState([{ id: 1, value: '', sortType: 'Set Priority' }]);
-            const [subgroupInputs, setSubgroupInputs] = React.useState([{ id: 1, pruneValue: '', searchValue: '', subgroupValue: ''}]);
+            const [subgroupInputs, setSubgroupInputs] = React.useState([{ id: 1, pruneValue: '', searchValue: '', subgroupValue: '' }]);
             const [puzzlePreset, setPuzzlePreset] = React.useState('3x3x3');
-            const [puzzleText, setPuzzleText] = React.useState(presetTexts['3x3x3']); 
+            const [puzzleText, setPuzzleText] = React.useState(presetTexts['3x3x3']);
+            const [sortAlgsBy, setSortAlgsBy] = React.useState('MCC');
+            const [secondaryMetric, setSecondaryMetric] = React.useState('None');
             const [showImageOpts, setShowImageOpts] = React.useState(true);
-            const [showEsqOpts, setShowEsqOpts] = React.useState(true);
+            const [showEsqOpts, setShowEsqOpts] = React.useState(false);
             const [showImages, setShowImages] = React.useState(true);
+            const [showTopX, setShowTopX] = React.useState(20);
             const [imageType, setImageType] = React.useState('3x3x3');
             const [imageSize, setImageSize] = React.useState(150);
             const [imageXrot, setImageXrot] = React.useState(30);
             const [imageYrot, setImageYrot] = React.useState(40);
             const [imageMask, setImageMask] = React.useState('');
             const [showPreview, setShowPreview] = React.useState(false);
+            const [previewAngle, setPreviewAngle] = React.useState(0);
+            const [showAdvancedMccOpts, setShowAdvancedMccOpts] = React.useState(false);
+            const [mccWtm, setMccWtm] = React.useState(0.8);
+            const [mccPtm, setMccPtm] = React.useState(1.3);
+            const [mccRtm, setMccRtm] = React.useState(1.4);
+            const [mccDp, setMccDp] = React.useState(0.5);
+            const [mccSrp, setMccSrp] = React.useState(1.0);
+            const [mccHtm, setMccHtm] = React.useState(1.65);
+            const [mccSesm, setMccSesm] = React.useState(1.25);
+            const [mccOp, setMccOp] = React.useState(2.25);
+            const [mccMbp, setMccMbp] = React.useState(0.8);
+            const [mccYzr, setMccYzr] = React.useState(3.5);
+            const [showEndingAdjusts, setShowEndingAdjusts] = React.useState(false);
+            const [genesqSelect, setGenesqSelect] = React.useState('Custom');
+            const [statsCaseNum, setStatsCaseNum] = React.useState(0);
+            const [statsCaseDenom, setStatsCaseDenom] = React.useState(0);
+            const [statsRate, setStatsRate] = React.useState(0.0);
+            const [statsMcc, setStatsMcc] = React.useState(0.0);
+            const [statsStm, setStatsStm] = React.useState(0.0);
+            const [statsSqtm, setStatsSqtm] = React.useState(0.0);
+            const [statsEsq, setStatsEsq] = React.useState(0.0);
+            const [isSearching, setIsSearching] = React.useState(false);
 
             const addSortingInput = (currentId, currentValue) => {
                 const newId = Math.max(...sortingInputs.map(input => input.id)) + 1;
                 const currentIndex = sortingInputs.findIndex(input => input.id === currentId);
-                
+
                 const newInputs = [
                     ...sortingInputs.slice(0, currentIndex + 1),
                     { id: newId, value: currentValue, sortType: 'Set Priority' },
                     ...sortingInputs.slice(currentIndex + 1)
                 ];
-                
+
                 setSortingInputs(newInputs);
             };
 
@@ -240,13 +295,13 @@
             const addSubgroupInput = (currentId) => {
                 const newId = Math.max(...subgroupInputs.map(input => input.id)) + 1;
                 const currentIndex = subgroupInputs.findIndex(input => input.id === currentId);
-                
+
                 const newInputs = [
                     ...subgroupInputs.slice(0, currentIndex + 1),
-                    { id: newId, pruneValue: '', searchValue: '', subgroupValue: ''},
+                    { id: newId, pruneValue: '', searchValue: '', subgroupValue: '' },
                     ...subgroupInputs.slice(currentIndex + 1)
                 ];
-                
+
                 setSubgroupInputs(newInputs);
             };
 
@@ -257,19 +312,19 @@
             };
 
             const handleSortingInputChange = (id, value) => {
-                setSortingInputs(sortingInputs.map(input => 
+                setSortingInputs(sortingInputs.map(input =>
                     input.id === id ? { ...input, value } : input
                 ));
             };
 
             const handleSortTypeChange = (id, sortType) => {
-                setSortingInputs(sortingInputs.map(input => 
+                setSortingInputs(sortingInputs.map(input =>
                     input.id === id ? { ...input, sortType } : input
                 ));
             };
-            
+
             const handleSubgroupInputChange = (id, key, value) => {
-                setSubgroupInputs(subgroupInputs.map(input => 
+                setSubgroupInputs(subgroupInputs.map(input =>
                     input.id === id ? { ...input, [key]: value } : input
                 ));
             };
@@ -282,10 +337,82 @@
                 }
             };
 
-            const handleImageTypeChange = (e) => {
-                const value = e.target.value;
-                setImageType(value);
+            const cubeImage = (fc, setup = "", yawOffset = 0) => {
+                let cube;
+                if (imageType == "3x3x3 top") {
+                    cube = TTk.TwistyPuzzle(3).alg(setup);
+                    cube.context().projection().focalFac(-0.89).near(0.83);
+                    cube.context().transform().pitch(Math.PI / 2).yaw(0);
+                } else if (imageType == "2x2x2 top") {
+                    cube = TTk.TwistyPuzzle(2).alg(setup);
+                    cube.context().projection().focalFac(-0.96).near(0.882);
+                    cube.context().transform().pitch(Math.PI / 2).yaw(0);
+                } else {
+                    let cMap = { "3x3x3": 3, "2x2x2": 2, "4x4x4": 4, "5x5x5": 5, "Skewb": "skewb", "Pyraminx": "pyraminx", "Megaminx": "megaminx" };
+                    cube = TTk.TwistyPuzzle(cMap[imageType]).alg(setup);
+                    cube.context().transform().pitch(imageXrot / 180 * Math.PI).yaw((yawOffset + imageYrot) / 180 * Math.PI);
+                }
+                cube = cube.size({ width: imageSize, height: imageSize })
+                if (fc.trim() === "" && imageType == "Megaminx") { cube = cube.fc("wwwwwwwwwwwaaaaaaaaaaarrrrrrrrrrrbbbbbbbbbbbyyyyyyyyyyymmmmmmmmmmmgggggggggggpppppppppppGGGGGGGGGGGoooooooooooBBBBBBBBBBBYYYYYYYYYYY") }
+                else if (fc.trim() !== "") { cube = cube.fc(fc) }
+                return cube;
             }
+
+            const generateImagePreview = () => {
+                if (containerRef.current && containerRef.current.firstChild) {
+                    containerRef.current.removeChild(containerRef.current.firstChild);
+                }
+                let cube = cubeImage(imageMask, "", previewAngle * 1);
+                cube("#img-preview");
+            }
+
+            React.useEffect(() => {
+                if (showPreview) {
+                    generateImagePreview();
+                }
+            }, [imageType, imageSize, imageXrot, imageYrot, imageMask, showPreview, previewAngle]);
+
+            const processInput = () => {
+                console.log(puzzleText)
+                workerRef.current.postMessage(puzzleText.slice(0, 255));
+            }
+
+            const processOutput = (e) => {
+                console.log(e.data);
+                setStatsMcc(e.data.length);
+            }
+
+            React.useEffect(() => {
+                workerRef.current = new Worker('./worker.js');
+
+                workerRef.current.onmessage = (e) => {
+                    processOutput(e);
+                    setIsSearching(false);
+                };
+
+                return () => {
+                    workerRef.current.terminate();
+                };
+            }, []);
+
+            const handleSearchClick = () => {
+                if (isSearching) {
+                    workerRef.current.terminate();
+                    workerRef.current = null;
+                    setIsSearching(false);
+                } else {
+                    setIsSearching(true);
+                    processInput();
+                }
+            };
+
+            const handleClearClick = () => {
+                console.log("clear function will be added later");
+            };
+
+            const handleExportClick = () => {
+                console.log("export function will be added later");
+            };
 
             return (
                 <div className="container" spellCheck="false">
@@ -301,9 +428,9 @@
                                     value={puzzlePreset}
                                     onChange={handlePresetChange}
                                 >
-                                {Object.keys(presetTexts).map((k) => (
-                                    <option value={k}>{k}</option>
-                                ))}
+                                    {Object.keys(presetTexts).map((k) => (
+                                        <option value={k}>{k}</option>
+                                    ))}
                                 </select>
                             </div>
                         </div>
@@ -350,17 +477,17 @@
                                         className="input subgroup-input"
                                     />
                                     <div className="add-remove-container">
-                                    <input
-                                        type="text"
-                                        value={input.subgroupValue}
-                                        onChange={(e) => handleSubgroupInputChange(input.id, "subgroupValue", e.target.value)}
-                                        className="input subgroup-input"
-                                    />
+                                        <input
+                                            type="text"
+                                            value={input.subgroupValue}
+                                            onChange={(e) => handleSubgroupInputChange(input.id, "subgroupValue", e.target.value)}
+                                            className="input subgroup-input"
+                                        />
                                         <button
                                             onClick={() => addSubgroupInput(input.id)}
                                             className="button button-add"
-                                            >
-                                                +
+                                        >
+                                            +
                                         </button>
                                         <button
                                             onClick={() => removeSubgroupInput(input.id)}
@@ -445,10 +572,44 @@
                     </div>
 
                     <div className="form-group">
-                        <div className="options">
+                        <div className="options-group">
                             <label className="label">
                                 Options
                             </label>
+
+                            <div className="labeled-input-container">
+                                <label htmlFor="sortAlgsBy" className="weak-label">
+                                    Sort Algs By:
+                                </label>
+                                <select
+                                    id="sortAlgsBy"
+                                    className="select"
+                                    value={sortAlgsBy}
+                                    onChange={(e) => setSortAlgsBy(e.value)}
+                                >
+                                    {(algSortTypes).map((x) => (
+                                        <option value={x}>{x}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="labeled-input-container">
+                                <label htmlFor="secondaryMetric" className="weak-label">
+                                    Secondary Metric:
+                                </label>
+                                <select
+                                    id="secondaryMetric"
+                                    className="select"
+                                    value={secondaryMetric}
+                                    onChange={(e) => setSecondaryMetric(e.value)}
+                                >
+                                    <option value="None">None</option>
+                                    {(algSortTypes).map((x) => (
+                                        <option value={x}>{x}</option>
+                                    ))}
+                                </select>
+                            </div>
+
                             <div className="checkbox-container">
                                 <input
                                     type="checkbox"
@@ -463,6 +624,17 @@
                             <div className="checkbox-container">
                                 <input
                                     type="checkbox"
+                                    id="showAdvancedMccOpts"
+                                    checked={showAdvancedMccOpts}
+                                    onChange={(e) => setShowAdvancedMccOpts(e.target.checked)}
+                                />
+                                <label htmlFor="showAdvancedMccOpts" className="weak-label">
+                                    Show Advanced MCC Options
+                                </label>
+                            </div>
+                            <div className="checkbox-container">
+                                <input
+                                    type="checkbox"
                                     id="showEsqOpts"
                                     checked={showEsqOpts}
                                     onChange={(e) => setShowEsqOpts(e.target.checked)}
@@ -471,6 +643,34 @@
                                     Show ESQ Options
                                 </label>
                             </div>
+                            <div className="checkbox-container">
+                                <input
+                                    type="checkbox"
+                                    id="showEndingAdjusts"
+                                    checked={showEndingAdjusts}
+                                    onChange={(e) => setShowEndingAdjusts(e.target.checked)}
+                                />
+                                <label htmlFor="showEndingAdjusts" className="weak-label">
+                                    Show Ending Adjustments
+                                </label>
+                            </div>
+
+                            <div className="labeled-input-container">
+                                <label htmlFor="showTopX" className="weak-label">
+                                    Show top
+                                </label>
+                                <input
+                                    type="number"
+                                    id="showTopX"
+                                    value={showTopX}
+                                    onChange={(e) => setShowTopX(e.target.value)}
+                                    className="input"
+                                />
+                                <label htmlFor="showTopX" className="weak-label">
+                                    solutions for each case
+                                </label>
+                            </div>
+
                         </div>
                     </div>
 
@@ -495,23 +695,23 @@
 
                                 <div className="labeled-input-container">
                                     <label htmlFor="imageType" className="weak-label">
-                                        Image Type: 
+                                        Image Type:
                                     </label>
                                     <select
                                         id="imageType"
                                         className="select"
                                         value={imageType}
-                                        onChange={handleImageTypeChange}
+                                        onChange={(e) => setImageType(e.target.value)}
                                     >
-                                    {(imageTypes).map((x) => (
-                                        <option value={x}>{x}</option>
-                                    ))}
+                                        {(imageTypes).map((x) => (
+                                            <option value={x}>{x}</option>
+                                        ))}
                                     </select>
                                 </div>
 
                                 <div className="labeled-input-container">
                                     <label htmlFor="imageSize" className="weak-label">
-                                        Image Size: 
+                                        Image Size:
                                     </label>
                                     <input
                                         type="number"
@@ -522,32 +722,33 @@
                                     />
                                 </div>
 
-                                <div className="labeled-input-container">
-                                    <label htmlFor="imageXrot" className="weak-label">
-                                        X rotation:
-                                    </label>
-                                    <input
-                                        type="number"
-                                        id="imageXrot"
-                                        value={imageXrot}
-                                        onChange={(e) => setImageXrot(e.target.value)}
-                                        className="input"
-                                    />
-                                    <label htmlFor="imageYrot" className="weak-label">
-                                        Y rotation:
-                                    </label>
-                                    <input
-                                        type="number"
-                                        id="imageYrot"
-                                        value={imageYrot}
-                                        onChange={(e) => setImageXrot(e.target.value)}
-                                        className="input"
-                                    />
-                                </div>
+                                {!topImageTypes.includes(imageType) &&
+                                    <div className="labeled-input-container">
+                                        <label htmlFor="imageXrot" className="weak-label">
+                                            X rotation:
+                                        </label>
+                                        <input
+                                            type="number"
+                                            id="imageXrot"
+                                            value={imageXrot}
+                                            onChange={(e) => setImageXrot(e.target.value)}
+                                            className="input"
+                                        />
+                                        <label htmlFor="imageYrot" className="weak-label">
+                                            Y rotation:
+                                        </label>
+                                        <input
+                                            type="number"
+                                            id="imageYrot"
+                                            value={imageYrot}
+                                            onChange={(e) => setImageYrot(e.target.value)}
+                                            className="input"
+                                        />
+                                    </div>}
 
                                 <div className="labeled-input-container">
                                     <label htmlFor="imageMask" className="weak-label">
-                                        Image Mask: 
+                                        Image Mask:
                                     </label>
                                     <input
                                         type="text"
@@ -569,7 +770,165 @@
                                         Show Preview
                                     </label>
                                 </div>
+                            </div>
+                        </div>
+                    )}
 
+                    {showPreview && (
+                        <div className="form-group">
+                            <div ref={containerRef} className="img-preview" id="img-preview"></div>
+                            {!topImageTypes.includes(imageType) &&
+                                <input
+                                    id="img-preview-angle" min="-225" max="225" type="range"
+                                    onChange={(e) => { setPreviewAngle(Number(e.target.value)) }}
+                                ></input>
+                            }
+                        </div>
+                    )}
+
+                    {showAdvancedMccOpts && (
+                        <div className="form-group">
+                            <div className="options-group">
+                                <label className="label">
+                                    Advanced MCC Options
+                                </label>
+                                <div className="labeled-input-container">
+                                    <label htmlFor="mcc-wtm" className="weak-label">
+                                        Wrist Turn Multiplier:
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="mcc-wtm"
+                                        value={mccWtm}
+                                        onChange={(e) => setMccWtm(e.target.value)}
+                                        className="input"
+                                    />
+                                </div>
+                                <div className="labeled-input-container">
+                                    <label htmlFor="mcc-ptm" className="weak-label">
+                                        Push Turn Multiplier:
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="mcc-ptm"
+                                        value={mccPtm}
+                                        onChange={(e) => setMccPtm(e.target.value)}
+                                        className="input"
+                                    />
+                                </div>
+                                <div className="labeled-input-container">
+                                    <label htmlFor="mcc-rtm" className="weak-label">
+                                        Ring Turn Multiplier:
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="mcc-rtm"
+                                        value={mccRtm}
+                                        onChange={(e) => setMccRtm(e.target.value)}
+                                        className="input"
+                                    />
+                                </div>
+                                <div className="labeled-input-container">
+                                    <label htmlFor="mcc-dp" className="weak-label">
+                                        Destabilize Penalty:
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="mcc-dp"
+                                        value={mccDp}
+                                        onChange={(e) => setMccDp(e.target.value)}
+                                        className="input"
+                                    />
+                                </div>
+                                <div className="labeled-input-container">
+                                    <label htmlFor="mcc-srp" className="weak-label">
+                                        Soft Regrip Penalty:
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="mcc-srp"
+                                        value={mccSrp}
+                                        onChange={(e) => setMccSrp(e.target.value)}
+                                        className="input"
+                                    />
+                                </div>
+                                <div className="labeled-input-container">
+                                    <label htmlFor="mcc-htm" className="weak-label">
+                                        Half Turn Multiplier:
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="mcc-htm"
+                                        value={mccHtm}
+                                        onChange={(e) => setMccHtm(e.target.value)}
+                                        className="input"
+                                    />
+                                </div>
+                                <div className="labeled-input-container">
+                                    <label htmlFor="mcc-sesm" className="weak-label">
+                                        S/E Slice Multiplier:
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="mcc-sesm"
+                                        value={mccSesm}
+                                        onChange={(e) => setMccSesm(e.target.value)}
+                                        className="input"
+                                    />
+                                </div>
+                                <div className="labeled-input-container">
+                                    <label htmlFor="mcc-op" className="weak-label">
+                                        Overwork Penalty:
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="mcc-op"
+                                        value={mccOp}
+                                        onChange={(e) => setMccOp(e.target.value)}
+                                        className="input"
+                                    />
+                                </div>
+                                <div className="labeled-input-container">
+                                    <label htmlFor="mcc-mbp" className="weak-label">
+                                        Move Block Penalty:
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="mcc-mbp"
+                                        value={mccMbp}
+                                        onChange={(e) => setMccMbp(e.target.value)}
+                                        className="input"
+                                    />
+                                </div>
+                                <div className="labeled-input-container">
+                                    <label htmlFor="mcc-yzr" className="weak-label">
+                                        y/z Rotation:
+                                    </label>
+                                    <input
+                                        type="number"
+                                        id="mcc-yzr"
+                                        value={mccYzr}
+                                        onChange={(e) => setMccYzr(e.target.value)}
+                                        className="input"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                    )}
+
+                    {showEsqOpts && (
+                        <div className="form-group">
+                            <div className="esq-opts">
+
+                                <label htmlFor="rankesq" className="label">
+                                    Rank ESQ
+                                </label>
+                                <textarea
+                                    id="rankesq"
+                                    type="text"
+                                    className="input small-input"
+                                />
                             </div>
                         </div>
                     )}
@@ -578,31 +937,72 @@
                         <div className="form-group">
                             <div className="esq-opts">
 
-                            <label htmlFor="rankesq" className="label">
-                            Rank ESQ
-                            </label>
-                            <textarea
-                                id="rankesq"
-                                type="text"
-                                className="input medium-input"
-                            />
-                        </div>
-                        
-                        <div className="form-group">
-                            <label htmlFor="generationesq" className="label">
-                            Ganeration ESQ
-                            </label>
-                            <textarea
-                                id="generationesq"
-                                type="text"
-                                className="input medium-input"
-                            />
+                                <div className="labeled-input-container">
+                                    <label htmlFor="genesq-select" className="contained-label">
+                                        Generation ESQ
+                                    </label>
+                                    <div className="select-container">
+                                        <select
+                                            id="genesq-select"
+                                            className="select"
+                                            value={genesqSelect}
+                                            onChange={(e) => { setGenesqSelect(e.target.value) }}
+                                        >
+                                            <option value="Default">Default</option>
+                                            <option value="Match">Match</option>
+                                            <option value="Custom">Custom</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {(genesqSelect == 'Custom') && (<textarea
+                                    id="generationesq"
+                                    type="text"
+                                    className="input small-input"
+                                />)}
 
                             </div>
                         </div>
                     )}
 
-                    <br/><br/><br/><br/><br/><br/><br/><br/><br/>
+                    <div className="form-group">
+                        <label className="label">
+                            Statistics
+                        </label>
+                        <div className="stats-display">
+                            Case: {statsCaseNum}/{statsCaseDenom} <br />
+                            Rate: {statsRate.toFixed(2)} sec/case <br />
+                            MCC:  {statsMcc.toFixed(2)} <br />
+                            STM:  {statsStm.toFixed(2)} <br />
+                            SQTM: {statsSqtm.toFixed(2)} <br />
+                            ESQ:  {statsEsq.toFixed(2)} <br />
+                        </div>
+                    </div>
+
+                    <div className="form-group">
+                        <div className="submit-buttons">
+                            <button
+                                onClick={handleSearchClick}
+                                className="button button-big"
+                            >
+                                {isSearching ? ' End Search ' : 'Start Search'}
+                            </button>
+                            <button
+                                onClick={handleExportClick}
+                                className="button button-big"
+                            >
+                                Export Output
+                            </button>
+                            <button
+                                onClick={handleClearClick}
+                                className="button button-big"
+                            >
+                                Clear Output
+                            </button>
+                        </div>
+                    </div>
+
+                    <br /><br /><br /><br /><br /><br /><br /><br /><br />
                 </div>
             );
         };
@@ -612,4 +1012,5 @@
         root.render(<SortingForm />);
     </script>
 </body>
+
 </html>

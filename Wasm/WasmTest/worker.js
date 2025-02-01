@@ -12,6 +12,5 @@ self.onmessage = function (evt) {
     console.log(evt);  
     var objData = evt.data;     
     var sMessagePurpose = objData.MessagePurpose; 
-    console.log(g_objInstance);
     postMessage(20);
 }
