@@ -15,10 +15,9 @@ try {
 
 self.onmessage = async function(e) {
     const res = wasmModule.compute(e.data);
-    let acc = "";
+    let acc = [];
     for (let i=0; i<res.size(); i++) {
-        acc += res.get(i);
-        if (i<res.size()-1) acc += ", ";
+        acc.push(res.get(i));
     }
     self.postMessage(acc);
 };

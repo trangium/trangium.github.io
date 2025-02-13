@@ -374,7 +374,7 @@
 
             const processInput = () => {
                 console.log(puzzleText)
-                workerRef.current.postMessage(puzzleText.slice(0, 255));
+                workerRef.current.postMessage(puzzleText);
             }
 
             const processOutput = (e) => {
