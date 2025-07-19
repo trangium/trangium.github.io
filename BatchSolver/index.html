@@ -164,6 +164,7 @@
                     <select id="puzzle-select" onchange="puzzleSelected(this)">
                         <option value="3x3x3">3x3x3</option>
                         <option value="2x2x2">2x2x2</option>
+                        <option value="4x4x4">4x4x4</option>
                         <option value="Skewb">Skewb</option>
                         <option value="Pyraminx">Pyraminx</option>
                         <option value="Megaminx">Megaminx</option>
@@ -470,6 +471,7 @@ _2: 3</textarea>
 
         function puzzleSelected(pzl) {
             let pzlField = document.getElementById('puzzle');
+            let uoeField = document.getElementById('ignore');
             if (pzl.value === "Custom") {
                 pzlField.readOnly = false;
             } else {
@@ -508,6 +510,28 @@ D: (DFR DBR DBL DFL)
 L: (UFL+1 DFL-1 DBL+1 UBL-1)
 B: (UBR-1 UBL+1 DBL-1 DBR+1)`;
                     break;
+                case ("4x4x4"):
+                    pzlField.value = 
+`U: (Ublc Ubrc Ufrc Uflc) (UFR UFL UBL UBR) (Ufr Ulf Ubl Urb) (Ful Lub Bur Ruf)
+R: (Rufc Rubc Rdbc Rdfc) (UFR-1 UBR+1 DBR-1 DFR+1) (Ruf Rbu Rdb Rfd) (Urb Brd Drf Fru)
+F: (Fulc Furc Fdrc Fdlc) (UFR+1 DFR-1 DFL+1 UFL-1) (Ful Fru Fdr Fld) (Ufr Rfd Dfl Lfu)
+D: (Dflc Dfrc Dbrc Dblc) (DFR DBR DBL DFL) (Dfl Drf Dbr Dlb) (Fdr Rdb Bdl Ldf)
+L: (Lubc Lufc Ldfc Ldbc) (UFL+1 DFL-1 DBL+1 UBL-1) (Lub Lfu Ldf Lbd) (Ulf Fld Dlb Blu)
+B: (Burc Bulc Bdlc Bdrc) (UBR-1 UBL+1 DBL-1 DBR+1) (Bur Blu Bdl Brd) (Ubl Lbd Dbr Rbu)
+2U: (Furc Lufc Bulc Rubc) (Fulc Lubc Burc Rufc) (Fru Lfu Blu Rbu)
+2R: (Ubrc Bdrc Dfrc Furc) (Ufrc Burc Dbrc Fdrc) (Ufr Bur Dbr Fdr)
+2F: (Ufrc Rdfc Dflc Lufc) (Uflc Rufc Dfrc Ldfc) (Ulf Ruf Drf Ldf)
+2D: (Fdlc Rdfc Bdrc Ldbc) (Fdrc Rdbc Bdlc Ldfc) (Fld Rfd Brd Lbd)
+2L: (Uflc Fdlc Dblc Bulc) (Ublc Fulc Dflc Bdlc) (Ubl Ful Dfl Bdl)
+2B: (Ubrc Lubc Dblc Rdbc) (Ublc Ldbc Dbrc Rubc) (Urb Lub Dlb Rdb)
+u: (Ublc Ubrc Ufrc Uflc) (Furc Lufc Bulc Rubc) (Fulc Lubc Burc Rufc) (UFR UFL UBL UBR) (Ufr Ulf Ubl Urb) (Ful Lub Bur Ruf) (Fru Lfu Blu Rbu)
+r: (Rufc Rubc Rdbc Rdfc) (Ubrc Bdrc Dfrc Furc) (Ufrc Burc Dbrc Fdrc) (UFR-1 UBR+1 DBR-1 DFR+1) (Ruf Rbu Rdb Rfd) (Urb Brd Drf Fru) (Ufr Bur Dbr Fdr)
+f: (Fulc Furc Fdrc Fdlc) (Ufrc Rdfc Dflc Lufc) (Uflc Rufc Dfrc Ldfc) (UFR+1 DFR-1 DFL+1 UFL-1) (Ful Fru Fdr Fld) (Ufr Rfd Dfl Lfu) (Ulf Ruf Drf Ldf)
+d: (Dflc Dfrc Dbrc Dblc) (Fdlc Rdfc Bdrc Ldbc) (Fdrc Rdbc Bdlc Ldfc) (DFR DBR DBL DFL) (Dfl Drf Dbr Dlb) (Fdr Rdb Bdl Ldf)(Fld Rfd Brd Lbd)
+l: (Lubc Lufc Ldfc Ldbc) (Uflc Fdlc Dblc Bulc) (Ublc Fulc Dflc Bdlc) (UFL+1 DFL-1 DBL+1 UBL-1) (Lub Lfu Ldf Lbd) (Ulf Fld Dlb Blu) (Ubl Ful Dfl Bdl)
+b: (Burc Bulc Bdlc Bdrc) (Ubrc Lubc Dblc Rdbc) (Ublc Ldbc Dbrc Rubc) (UBR-1 UBL+1 DBL-1 DBR+1) (Bur Blu Bdl Brd) (Ubl Lbd Dbr Rbu) (Urb Lub Dlb Rdb)`;
+                    uoeField.value = "{Ublc Ubrc Ufrc Uflc} {Rufc Rubc Rdbc Rdfc} {Fulc Furc Fdrc Fdlc} {Dflc Dfrc Dbrc Dblc} {Lubc Lufc Ldfc Ldbc} {Burc Bulc Bdlc Bdrc}"
+                    break;
                 case ("Skewb"):
                     pzlField.value = 
 `L: (UFL-1 DFR-1 DBL-1) (DFL+1) (L F D)
@@ -544,6 +568,17 @@ Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
         function cubeImage(fc, setup="", yawOffset=0) {
             let imgType = document.getElementById("img-select").value;
             let cube;
+            if (imgType == "4x4x4") {
+                for (let replacer of [
+                ["2R'", "r' R"], ["2R2", "r2 R2"], ["2R", "r R'"], 
+                ["2L'", "l' L"], ["2L2", "l2 L2"], ["2L", "l L'"], 
+                ["2U'", "u' U"], ["2U2", "u2 U2"], ["2U", "u U'"], 
+                ["2D'", "d' D"], ["2D2", "d2 D2"], ["2D", "d D'"],
+                ["2F'", "f' F"], ["2F2", "f2 F2"], ["2F", "f F'"], 
+                ["2B'", "b' B"], ["2B2", "b2 B2"], ["2B", "b B'"]]) {
+                    setup = setup.replaceAll(replacer[0], replacer[1]);
+                }
+            }
             if (imgType == "3x3x3-top") {
                 cube = TTk.TwistyPuzzle(3).alg(setup);
                 cube.context().projection().focalFac(-0.905).near(0.83);
