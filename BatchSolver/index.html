@@ -537,10 +537,23 @@ b: (Burc Bulc Bdlc Bdrc) (Ubrc Lubc Dblc Rdbc) (Ublc Ldbc Dbrc Rubc) (UBR-1 UBL+
                     break;
                 case ("Skewb"):
                     pzlField.value = 
-`L: (UFL-1 DFR-1 DBL-1) (DFL+1) (L F D)
-R: (DFR-1 UBR-1 DBL-1) (DBR+1) (R B D)
-B: (UBL-1 DFL-1 DBR-1) (DBL+1) (L D B)
-U: (UBR-1 UFL-1 DBL-1) (UBL+1) (U L B)`;
+`l: (UFL-1 DFR-1 DBL-1) (DLF+1) (L F D)
+L: (URF-1 DLF-1 ULB-1) (UFL+1) (U F L)
+r: (DFR-1 UBR-1 DBL-1) (DRB+1) (R B D)
+R: (URF-1 ULB-1 DRB-1) (UBR+1) (R U B)
+b: (ULB-1 DLF-1 DRB-1) (DBL+1) (L D B)
+B: (UBR-1 UFL-1 DBL-1) (ULB+1) (U L B)
+F: (UFL-1 UBR-1 DFR-1) (URF+1) (F U R) 
+f: (URF-1 DRB-1 DLF-1) (DFR+1) (F R D)
+S: (URF-1) (UFL+1) (ULB+1) (UBR-1) (R U) (F B)
+H: (URF+1) (UFL-1) (ULB-1) (UBR+1) (R U) (F B)
+s: (UBR-1) (ULB+1) (DRB-1) (DBL+1) (U D) (R B)
+h: (UBR+1) (ULB-1) (DRB+1) (DBL-1) (U D) (R B)      
+x: (F U B D) (URF+1 UBR-1 DRB+1 DFR-1) (UFL-1 ULB+1 DBL-1 DLF+1)
+y: (F L B R) (URF UFL ULB UBR) (DFR DLF DBL DRB)
+z: (U R D L) (URF-1 DFR+1 DLF-1 UFL+1) (UBR+1 DRB-1 DBL+1 ULB-1)
+vUperm: (U B D)
+hUperm: (U R D)`;
                     break;
                 case ("Pyraminx"):
                     pzlField.value = 
