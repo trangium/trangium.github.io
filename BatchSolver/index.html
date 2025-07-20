@@ -618,6 +618,26 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                     setup = setup.replaceAll(replacer[0], replacer[1]);
                 }
             }
+            if (imgType == "Skewb") {
+                for (let replacer of [
+                ["S2", "R' F R F' R' F R F'"], ["S3", "R' F R F' R' F R F' R' F R F'"], 
+                ["S'", "F R' F' R"], ["S2'", "F R' F' R F R' F' R"], ["S", "R' F R F'"], 
+                ["H'", "R' F R F'"], ["H2'", "R' F R F' R' F R F'"], ["H3", "R' F R F' R' F R F' R' F R F'"], 
+                ["H2", "F R' F' R F R' F' R"], ["H", "F R' F' R"], 
+                ["s2", "r' R r R' r' R r R'"], ["s3", "r' R r R' r' R r R' r' R r R'"],
+                ["s'", "R r' R' r"], ["s2'", "R r' R' r R r' R' r"], ["s", "r' R r R'"], 
+                ["h'", "r' R r R'"], ["h2'", "r' R r R' r' R r R'"], ["h3'", "r' R r R' r' R r R' r' R r R'"],
+                ["h2", "R r' R' r R r' R' r"], ["h", "R r' R' r"], 
+                ["vUperm'", "R' B l b' l' F l L'"], ["vUperm", "L f R' F' r B r' f'"],
+                ["hUperm'", "l L' b' L F L' f' r"], ["hUperm", "L' b' R B r' F' r b"],
+                ["l", "$"], ["L", "l"], ["$", "L"], 
+                ["r", "$"], ["R", "r"], ["$", "R"], 
+                ["b", "$"], ["B", "b"], ["$", "B"], 
+                ["F", "U"],
+                ["R'", "$"], ["R", "R'"], ["$", "R"]]) {
+                    setup = setup.replaceAll(replacer[0], replacer[1]);
+                }
+            }
             if (imgType == "3x3x3-top") {
                 cube = TTk.TwistyPuzzle(3).alg(setup);
                 cube.context().projection().focalFac(-0.905).near(0.83);
