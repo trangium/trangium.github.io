@@ -18,8 +18,9 @@ This field determines which puzzle is to be solved, therefore determining what t
 |----------------------|------------------------------|--------------------------------|
 | 3x3x3                | Yes                          |Supported moves: U, R, F, D, L, B (outer turns); u, r, f, d, l, b (wide turns); M, E, S (slice turns). The cube is only considered solved if it is in its starting orientation.
 | 2x2x2                | Yes                          |Supported moves: U, R, F, D, L, B. The cube is only considered solved if it is in its starting orientation.
-| NxNxN (N≥4)          | Custom                       |Not supported natively, but it is possible to create a custom puzzle definition for it.
-| Skewb                | Yes                          |Uses fixed corner notation. Supported moves: L, R, B, U
+| 4x4x4                | Yes                          |Supported moves: U, R, F, D, L, B (outer turns), u, r, f, d, l, b (wide turns), 2U, 2R, 2F, 2D, 2L, 2B (slice turns). The cube is only considered solved if it is in its starting orientation.
+| NxNxN (N≥5)          | Custom                       |Not supported natively, but it is possible to create a custom puzzle definition for it.
+| Skewb                | Yes                          |Uses rubiskewb notation. Supported moves: L, l, R, r, F, f, B, b (single moves), S, s, H, h (sledge/hedge), x, y, z (rotations), vUperm, hUperm (3-center cycles). 
 | Pyraminx             | Yes                          |Supported moves: U, R, L, B (2-layer turns); u, r, l, b (tips)
 | Megaminx             | Yes                          |Supported moves: U, R, L, F, Dfr, Br, Bl. This definition was created by Speedsolving forums user OreKehStrah.
 | Square-1             | No                           |Unsupported because the puzzle does not always have the same set of available moves, because it bandages.
@@ -129,7 +130,7 @@ Below is a table of how images work for each supported puzzle.
         </tr>
         <tr>
             <td>4x4x4</td>
-            <td>Outer layer moves: U D L R F B <br />Wide moves: u d l r f b <br /> Inner slice moves are currently not supported.</td>
+            <td>Consistent with built-in puzzle definition.</td>
         </tr>
         <tr>
             <td>5x5x5</td>
@@ -137,7 +138,7 @@ Below is a table of how images work for each supported puzzle.
         </tr>
         <tr>
             <td>Skewb</td>
-            <td>Inconsistent with built-in puzzle definition. <br/> <br/> Supports these moves, with the corner the move rotates about in parentheses: <br/> U (UFR), R (DBR), L (DFL), B (DBL), f (DFR), r (UBR), l (UFL), b (UBL).</td>
+            <td>Consistent with built-in puzzle definition.</td>
         </tr>
         <tr>
           <td> Pyraminx </td>
