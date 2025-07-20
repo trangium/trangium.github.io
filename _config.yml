@@ -1,0 +1,2 @@
+exclude:
+  - Wasm/node_modules/
