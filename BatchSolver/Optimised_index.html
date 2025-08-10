@@ -482,7 +482,7 @@
                 pzlField.readOnly = true;
                 if (pzl.value != "FTO") {
                     document.getElementById("img-select").value = pzl.value;
-                    imageSelected(pzl);
+                    // imageSelected(pzl);
                 }
             }
             switch (pzl.value) {
@@ -871,7 +871,7 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
         function initNextState() {
             solveID++;
             numSolutions = 0;
-            createSolutionTable();
+           // createSolutionTable();
         }
 
         function getFirstLine(fieldStr) {
@@ -954,7 +954,7 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
             return Math.round(count*1e3)/1e3;
         }
 
-        function updateStats() {
+        function updateStats(topSolution) {
             //let topSolution = getFirstLine(document.getElementById("solutions"+solveID).innerText);
             if (topSolution == "") {
                 failed.push(caseNum);
@@ -1013,10 +1013,12 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                     if (msg !== null) {alert(msg)} else {updateStats()}
                 } else if (event.data.type === "depthUpdate") {
                     depth++;
-                    document.getElementById("progUpdate"+solveID).innerHTML = "<small>Searching depth "+depth+"</small>";
+                   // document.getElementById("progUpdate"+solveID).innerHTML = "<small>Searching depth "+depth+"</small>";
                 } else if (event.data.type === "solution"  && numSolutions === 0) {
                     let solution = event.data.value;
-                    let speed = 0;
+                    console.log(solution);
+                    updateStats(solution);
+                   /* let speed = 0;
                     if (sortCriteria == "MCC") {
                         speed = getMCC(solution);
                     } else if (sortCriteria == "STM") {
@@ -1038,7 +1040,7 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                         solution += " [" + getMoveCount(solution, getESQ) + " ESQ]";
                     } else if (secondaryMetric == "MSR") {
                         solution += " [" + getMSR(solution) + " MSR]";
-                    }
+                    } */
                     //speedBuffer.push(speed);
                     //solutionsBuffer.push(solution);
                     
@@ -1054,11 +1056,11 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                     }
                     caseNum = event.data.value.num;
                     if (document.getElementById("imageVis").checked) {
-                        let cube = cubeImage(colMask, event.data.value.setup);
-                        cube("#caseHeader"+solveID);
-                        makeImageCopyable(solveID)
+                       // let cube = cubeImage(colMask, event.data.value.setup);
+                       // cube("#caseHeader"+solveID);
+                       // makeImageCopyable(solveID)
                     } else {
-                        document.getElementById("caseHeader"+solveID).innerHTML = "#"+solveID;
+                      //  document.getElementById("caseHeader"+solveID).innerHTML = "#"+solveID;
                     }
                 } else if (event.data.type === "num-states") {
                     document.getElementById("info-num-cases").innerHTML = event.data.value;

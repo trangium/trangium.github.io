@@ -261,11 +261,23 @@ function getSubPuzzle(pieceList, fullPuzzle, ignore, subgroup, prune, adjust) {
     }
     if (!hasNonAdjust) {postMessage({value: '"' + subgroup + '" is not a valid subgroup because it is commutative.', type: "stop"})}
 
-    for (let move of adjust) {
+const allowedRotations = ["x", "x'", "x2", "y", "y'", "y2", "z", "z'", "z2"];
+
+for (let move of adjust) {
+    if (allowedRotations.includes(move)) continue; // allow rotations in any subgroup
+    if (!generators.includes(move)) {
+        postMessage({
+            value: '"' + subgroup + '" is not a valid subgroup because it does not contain the adjust move "' + move + '".',
+            type: "stop"
+        });
+    }
+}
+
+   /* for (let move of adjust) {
         if (!generators.includes(move)) {
             postMessage({value: '"' + subgroup + '" is not a valid subgroup because it does not contain the adjust move "' + move + '".', type: "stop"})
         }
-    }
+    } */
 
     generators.sort((x, y) => adjust.includes(y) - adjust.includes(x)) // moves all adjust moves to the front
     let subPuzzle = fullPuzzle.setSubgroup(generators);
