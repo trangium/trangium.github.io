@@ -727,7 +727,12 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
 
         function searchButtonHandler() {
             if (document.getElementById("calc-button").innerText == "Start Search") {
-                calc();
+                if(parseInt(document.getElementById("maxSolutions").value, 10) == 0) {
+                    console.log("0 solutions");
+                    optimiseBatchSolver();
+                } else {
+                    calc();
+                }
             } else {
                 stopSearch();
             }
@@ -896,7 +901,7 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
         function initNextState() {
             solveID++;
             numSolutions = 0;
-           if(!optimiseCheckbox.checked) {
+           if(document.getElementById("maxSolutions") != 0) {
             createSolutionTable();
            }
         }
@@ -981,10 +986,8 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
             return Math.round(count*1e3)/1e3;
         }
 
-        function updateStats(topSolution) {
-            if (!optimiseCheckbox.checked) {
-                let topSolution = getFirstLine(document.getElementById("solutions"+solveID).innerText);
-            }
+        function updateStats() {
+            let topSolution = getFirstLine(document.getElementById("solutions"+solveID).innerText);
             if (topSolution == "") {
                 failed.push(caseNum);
             }
@@ -996,7 +999,7 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
             document.getElementById("info-time").innerHTML = ((Date.now()-startTime)/numCases/1000).toFixed(2)+" sec/case";
 
             totalSTM += getMoveCount(topSolution, getSTM);
-            document.getElementById("info-stm").innerHTML = (totalSTM/numSucceeded).toFixed(5);
+            document.getElementById("info-stm").innerHTML = (totalSTM/numSucceeded).toFixed(2);
             totalMCC += getMCC(topSolution);
             document.getElementById("info-mcc").innerHTML = (totalMCC/numSucceeded).toFixed(2);
             totalSTM += getMoveCount(topSolution, getSTM);
@@ -1032,7 +1035,7 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
             secondaryMetric = document.getElementById("secondary-metric").value;
 
             initNextState();
-            //addBufferInterval = setInterval(addBufferToTable, 250);
+            if (!optimiseCheckbox.checked) {addBufferInterval = setInterval(addBufferToTable, 250);}
             work.postMessage(getWorkerData());
 
             work.onmessage = function(event) {
@@ -1042,7 +1045,7 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                     if (msg !== null) {alert(msg)} else {updateStats()}
                 } else if (event.data.type === "depthUpdate") {
                     depth++;
-                   // document.getElementById("progUpdate"+solveID).innerHTML = "<small>Searching depth "+depth+"</small>";
+                   if (!optimiseCheckbox.checked) {document.getElementById("progUpdate"+solveID).innerHTML = "<small>Searching depth "+depth+"</small>";}
                 } else if (event.data.type === "solution"  && numSolutions === 0) {
                     let solution = event.data.value;
                     console.log(solution);
@@ -1094,7 +1097,7 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                             makeImageCopyable(solveID)
                        }
                     } else {
-                      if(optimiseCheckbox.checked){document.getElementById("caseHeader"+solveID).innerHTML = "#"+solveID};
+                      if(!optimiseCheckbox.checked){document.getElementById("caseHeader"+solveID).innerHTML = "#"+solveID};
                     }
                 } else if (event.data.type === "num-states") {
                     document.getElementById("info-num-cases").innerHTML = event.data.value;
@@ -1203,6 +1206,64 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
         document.getElementById("info-fails").addEventListener("touchend", copyFails, false);
         
         function optimiseBatchSolver (){
+            console.log("optimising");
+            work = new Worker("worker.js");
+            isIdle = false;
+            startTime = Date.now();
+            failed = [];
+            totalSTM = 0;
+            colMask = document.getElementById("faceletColors").value;
+
+            document.getElementById("info-this-case").innerHTML = 0;
+            document.getElementById("info-num-cases").innerHTML = 0;
+            document.getElementById("info-time").innerHTML = "0.00 sec/case";
+            document.getElementById("info-mcc").innerHTML = "0.00";
+            document.getElementById("info-stm").innerHTML = "0.00";
+            document.getElementById("info-sqtm").innerHTML = "0.00";
+            document.getElementById("info-esq").innerHTML = "0.00";
+            document.getElementById("info-msr").innerHTML = "0.00";
+            document.getElementById("info-fails").innerHTML = "";
+            document.getElementById("calc-button").innerHTML = "<strong>&nbsp;End Search&nbsp;</strong>";
+            document.getElementById("clear-button").disabled = true;
+
+            initNextState();
+            
+            work.postMessage(getWorkerData());
+
+            work.onmessage = function(event) {
+                if (event.data.type === "stop") {
+                    stopSearch();
+                    let msg = event.data.value;
+                    if (msg !== null) {alert(msg)} else {updateStats()}
+                } else if (event.data.type === "depthUpdate") {
+                    depth++;
+                } else if (event.data.type === "solution"  && numSolutions === 0) {
+                    let solution = event.data.value;
+                    console.log(solution);
+                    if (solution == "") {
+                        failed.push(caseNum);
+                    }
+                    let numCases = parseInt(document.getElementById("info-this-case").innerHTML, 10) + 1;
+                    let numSucceeded = numCases - failed.length;
+                    totalSTM += getMoveCount(solution, getSTM);
+                    document.getElementById("info-stm").innerHTML = (totalSTM/numSucceeded).toFixed(5);
+                    numSolutions++;
+                } else if (event.data.type === "set-depth") {
+                    depth = event.data.value;
+                } else if (event.data.type === "next-state") {
+                    if (event.data.value.index > 1) {
+                        numSolutions = 0;
+                        initNextState();
+                    }
+                    caseNum = event.data.value.num;
+                } else if (event.data.type === "num-states") {
+                    document.getElementById("info-num-cases").innerHTML = event.data.value;
+                } else if (event.data.type === "moveWeights") {
+                    moveWeights = event.data.value;
+                } else if (event.data.type === "debug") {
+                    debugVars.push(event.data.value);
+                }
+            }
 
         }
 </script>

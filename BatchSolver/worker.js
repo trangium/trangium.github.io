@@ -261,19 +261,21 @@ function getSubPuzzle(pieceList, fullPuzzle, ignore, subgroup, prune, adjust) {
     }
     if (!hasNonAdjust) {postMessage({value: '"' + subgroup + '" is not a valid subgroup because it is commutative.', type: "stop"})}
 
-const allowedRotations = ["x", "x'", "x2", "y", "y'", "y2", "z", "z'", "z2"];
+const allowedRotations = ["x", "y", "z"];
 console.log(adjust);
-for (let move of adjust) {
+console.log(generators);
+/* for (let move of adjust) {
     console.log(adjust);
-    if (allowedRotations.includes(move)) continue; // allow rotations in any subgroup
-    if (!generators.includes(move)) {
-       /* postMessage({
+    if (allowedRotations.includes(move)) {adjust = move}; // allow rotations in any subgroup
+    console.log(adjust);
+   /* if (!generators.includes(move)) {
+         postMessage({
             value: '"' + subgroup + '" is not a valid subgroup because it does not contain the adjust move "' + move + '".',
             type: "stop"
-        }); */
+        }); 
         continue;
     } 
-}
+} */
 
    /* for (let move of adjust) {
         if (!generators.includes(move)) {
@@ -281,11 +283,12 @@ for (let move of adjust) {
         }
     } */
 
-        for (let move of adjust) {
-    if (!generators.includes(move)) {
-        generators.push(move);
-    }
-}
+   /* for (let move of adjust) {
+        if (!generators.includes(move)) {
+            generators.push(move);
+            continue;
+        }
+} */
     generators.sort((x, y) => adjust.includes(y) - adjust.includes(x)) // moves all adjust moves to the front
     let subPuzzle = fullPuzzle.setSubgroup(generators);
 
