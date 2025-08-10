@@ -281,6 +281,11 @@ for (let move of adjust) {
         }
     } */
 
+        for (let move of adjust) {
+    if (!generators.includes(move)) {
+        generators.push(move);
+    }
+}
     generators.sort((x, y) => adjust.includes(y) - adjust.includes(x)) // moves all adjust moves to the front
     let subPuzzle = fullPuzzle.setSubgroup(generators);
 
