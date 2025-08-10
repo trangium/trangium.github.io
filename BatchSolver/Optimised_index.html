@@ -252,6 +252,7 @@
                     <option value="MSR">MSR</option>
                 </select>
                 <br>
+                <input type="checkbox" id="optimise" onclick="optimiseBatchSolver"/><label for="optimise"> Optimise Batch Solver </label><br>
                 <input type="checkbox" id="statVis" onclick="visibility('statVis', 'statistics')" checked/><label for="statVis"> Show statistics</label><br>
                 <input type="checkbox" id="imgOptVis" onclick="visibility('imgOptVis', 'imageOptions')" checked/><label for="imgOptVis"> Show image options</label><br>
                 <input type="checkbox" id="optVis" onclick="visibility('optVis', 'advanced')" /><label for="optVis"> Show advanced MCC options</label><br>
@@ -437,6 +438,7 @@
         let isIdle = true;
         let totalMCC, totalSTM, totalSQTM, totalESQ, totalMSR;
         let sortCriteria;
+        let optimiseCheckbox = document.getElementById("optimise");
 
         function visibility(checkboxId, elementId) {
             if (document.getElementById(checkboxId).checked) {
@@ -454,11 +456,13 @@
             }
         }
 
-       /* function imageSelected(type) {
+        function imageSelected(type) {
+           if(!optimiseCheckbox.checked) {
             imgRot.hidden = type.value.includes("top");
             previewYaw.hidden = type.value.includes("top") || !previewVis.checked;
             generateImagePreview();
-        } */
+           }
+        } 
 
         function esqGenSelected(opt) {
             let esqGenField = document.getElementById("generationESQ");
@@ -482,7 +486,9 @@
                 pzlField.readOnly = true;
                 if (pzl.value != "FTO") {
                     document.getElementById("img-select").value = pzl.value;
-                    // imageSelected(pzl);
+                    if(!optimiseCheckbox.checked) {
+                        imageSelected(pzl)
+                    };
                 }
             }
             switch (pzl.value) {
@@ -607,7 +613,8 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
 
         puzzleSelected({value: "3x3x3"})
 
-       /* function cubeImage(fc, setup="", yawOffset=0) {
+        function cubeImage(fc, setup="", yawOffset=0) {
+            if(!optimiseCheckbox.checked) {
             let imgType = document.getElementById("img-select").value;
             let cube;
             if (imgType == "4x4x4") {
@@ -638,26 +645,32 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
             if (fc.trim() === "" && imgType == "Megaminx") {cube = cube.fc("wwwwwwwwwwwaaaaaaaaaaarrrrrrrrrrrbbbbbbbbbbbyyyyyyyyyyymmmmmmmmmmmgggggggggggpppppppppppGGGGGGGGGGGoooooooooooBBBBBBBBBBBYYYYYYYYYYY")}
             else if (fc.trim() !== "") {cube = cube.fc(fc)}
             return cube;
+            }
         }
 
         function generateImagePreview() {
+            if(!optimiseCheckbox.checked) {
             document.getElementById("imgPreview").innerHTML = "";
             let rawYaw = parseInt(document.getElementById("previewYaw").value, 10);
             const SNAP = 25;
             let dispYaw = (rawYaw > SNAP) ? (rawYaw-SNAP) : (rawYaw < -SNAP) ? (rawYaw+SNAP) : 0;
             let cube = cubeImage(document.getElementById("faceletColors").value, "", dispYaw);
             cube("#imgPreview");
+            }
         }
-
-        generateImagePreview();
-
+        if(!optimiseCheckbox.checked) {
+            generateImagePreview();
+        }
         function createSolutionTable() {
-            //document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left case-header"><span id=caseHeader'+solveID+'></span><br><span id="progUpdate'+solveID+'"></span></th>';
-            //document.getElementById("solutions-header").innerHTML += '<th class="output-left">&nbsp;'+sortCriteria+'&nbsp;<th>&nbsp;Solutions&nbsp;</th></th>';
-            //document.getElementById("output-data").innerHTML += '<td class="output-left" id="speed'+solveID+'"></td><td id="solutions'+solveID+'"></td>';
+            if(!optimiseCheckbox.checked) {
+            document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left case-header"><span id=caseHeader'+solveID+'></span><br><span id="progUpdate'+solveID+'"></span></th>';
+            document.getElementById("solutions-header").innerHTML += '<th class="output-left">&nbsp;'+sortCriteria+'&nbsp;<th>&nbsp;Solutions&nbsp;</th></th>';
+            document.getElementById("output-data").innerHTML += '<td class="output-left" id="speed'+solveID+'"></td><td id="solutions'+solveID+'"></td>';
+            }
         }
 
         function makeImageCopyable(num) {
+            if(!optimiseCheckbox.checked) {
             var svg = document.getElementById('caseHeader'+num).children[0]
             svg.setAttribute("stroke", "black")
             var canvas = document.getElementById('canvas');
@@ -676,7 +689,8 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                 document.getElementById('caseHeader'+num).innerHTML = `<img src=${imgURI} title="#${caseNum}" alt="#${caseNum}"/>`
             };
             img.src = url;
-        } */
+            }
+        } 
 
         function getWorkerData() {
             let subgroupData = [];
@@ -786,7 +800,8 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
             if (pFloat !== pFloat) {return Infinity} else {return pFloat}
         }
 
-       /*  function compareBufferElements(x, y) {
+        function compareBufferElements(x, y) {
+            if(!optimiseCheckbox.checked) {
             if (customParseFloat(x[0]) > customParseFloat(y[0])) {return 1}
             else if (customParseFloat(x[0]) < customParseFloat(y[0])) {return -1}
             let hasSecondaryMetric = (x[1][x[1].length-1] === "]");
@@ -795,29 +810,36 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
             if (removeParens(x[1]) > removeParens(y[1])) {return 1}
             else if (removeParens(x[1]) < removeParens(y[1])) {return -1}
             else {return 0}
+            }
         }
 
         function getCombinedBuffer() {
+            if(!optimiseCheckbox.checked) {
             let combinedBuffer = [];
             for (let i=0; i<solutionsBuffer.length; i++) {
                 combinedBuffer.push([speedBuffer[i], solutionsBuffer[i]]);
             }
             combinedBuffer.sort(compareBufferElements);
             return combinedBuffer;
+            }
         }
 
        function mergeBuffer() {
+          if(!optimiseCheckbox.checked) {
             let sortedBuffer = getCombinedBuffer();
             let updatedSpeedData = "";
             let updatedSolutionsData = "";
             let tableNeedle = 0;
             let bufferNeedle = 0;
-            //let tableSpeedList = document.getElementById("speed"+solveID).innerHTML.split("<br>").filter(x => (x != ""));
-            //let tableSolutionList = document.getElementById("solutions"+solveID).innerHTML.split("<br>").filter(x => (x != ""));
             let maxSolutions = parseInt(document.getElementById("maxSolutions").value, 10);
             let availSolutions = tableSpeedList.length+sortedBuffer.length;
             let solutionsAdded = 0;
             let prevSolution = "";
+
+            if (!optimiseCheckbox.checked) {
+                let tableSpeedList = document.getElementById("speed"+solveID).innerHTML.split("<br>").filter(x => (x != ""));
+                let tableSolutionList = document.getElementById("solutions"+solveID).innerHTML.split("<br>").filter(x => (x != ""));
+            }
 
             function addFromBuffer() {
                 let speed = sortedBuffer[bufferNeedle][0];
@@ -861,17 +883,22 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
             document.getElementById("solutions"+solveID).innerHTML = updatedSolutionsData;
             speedBuffer = [];
             solutionsBuffer = [];
-        } */
+          }
+        } 
 
-       /* function addBufferToTable() { // add buffer to table and update statistics
+        function addBufferToTable() { // add buffer to table and update statistics
+            if(!optimiseCheckbox.checked) {
             if (solutionsBuffer.length === 0) {return}
             mergeBuffer();
-        } */
+            }
+        }
 
         function initNextState() {
             solveID++;
             numSolutions = 0;
-           // createSolutionTable();
+           if(!optimiseCheckbox.checked) {
+            createSolutionTable();
+           }
         }
 
         function getFirstLine(fieldStr) {
@@ -955,7 +982,9 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
         }
 
         function updateStats(topSolution) {
-            //let topSolution = getFirstLine(document.getElementById("solutions"+solveID).innerText);
+            if (!optimiseCheckbox.checked) {
+                let topSolution = getFirstLine(document.getElementById("solutions"+solveID).innerText);
+            }
             if (topSolution == "") {
                 failed.push(caseNum);
             }
@@ -968,14 +997,14 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
 
             totalSTM += getMoveCount(topSolution, getSTM);
             document.getElementById("info-stm").innerHTML = (totalSTM/numSucceeded).toFixed(5);
-            /*totalMCC += getMCC(topSolution);
+            totalMCC += getMCC(topSolution);
             document.getElementById("info-mcc").innerHTML = (totalMCC/numSucceeded).toFixed(2);
             totalSTM += getMoveCount(topSolution, getSTM);
             document.getElementById("info-sqtm").innerHTML = (totalSQTM/numSucceeded).toFixed(2);
             totalESQ += getMoveCount(topSolution, getESQ);
             document.getElementById("info-esq").innerHTML = (totalESQ/numSucceeded).toFixed(2);
             totalMSR += getMoveCount(topSolution, getMSR);
-            document.getElementById("info-msr").innerHTML = (totalMSR/numSucceeded).toFixed(2); */
+            document.getElementById("info-msr").innerHTML = (totalMSR/numSucceeded).toFixed(2);
         }
 
         function calc() {
@@ -1018,7 +1047,7 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                     let solution = event.data.value;
                     console.log(solution);
                     updateStats(solution);
-                   /* let speed = 0;
+                    let speed = 0;
                     if (sortCriteria == "MCC") {
                         speed = getMCC(solution);
                     } else if (sortCriteria == "STM") {
@@ -1040,27 +1069,32 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                         solution += " [" + getMoveCount(solution, getESQ) + " ESQ]";
                     } else if (secondaryMetric == "MSR") {
                         solution += " [" + getMSR(solution) + " MSR]";
-                    } */
-                    //speedBuffer.push(speed);
-                    //solutionsBuffer.push(solution);
-                    
+                    }
+                    if (!optimiseCheckbox.checked) {
+                        speedBuffer.push(speed);
+                        solutionsBuffer.push(solution);
+                    }
                     numSolutions++;
                 } else if (event.data.type === "set-depth") {
                     depth = event.data.value;
                 } else if (event.data.type === "next-state") {
                     if (event.data.value.index > 1) {
-                        //addBufferToTable();
-                        //updateStats();
+                    if (!optimiseCheckbox.checked) {  
+                        addBufferToTable();
+                        updateStats();
+                    }
                         numSolutions = 0;
                         initNextState();
                     }
                     caseNum = event.data.value.num;
                     if (document.getElementById("imageVis").checked) {
-                       // let cube = cubeImage(colMask, event.data.value.setup);
-                       // cube("#caseHeader"+solveID);
-                       // makeImageCopyable(solveID)
+                       if (!optimiseCheckbox.checked) {
+                            let cube = cubeImage(colMask, event.data.value.setup);
+                            cube("#caseHeader"+solveID);
+                            makeImageCopyable(solveID)
+                       }
                     } else {
-                      //  document.getElementById("caseHeader"+solveID).innerHTML = "#"+solveID;
+                      if(optimiseCheckbox.checked){document.getElementById("caseHeader"+solveID).innerHTML = "#"+solveID};
                     }
                 } else if (event.data.type === "num-states") {
                     document.getElementById("info-num-cases").innerHTML = event.data.value;
@@ -1073,13 +1107,15 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
         }
 
         function stopSearch() {
-            //addBufferToTable();
+            if (!optimiseCheckbox.checked) {addBufferToTable()};
             clearInterval(addBufferInterval);
             work.terminate();
             isIdle = true;
-           /* document.getElementById("calc-button").innerHTML = "<strong>Start Search</strong>";
-            document.getElementById("clear-button").disabled = false;
-            document.getElementById("progUpdate"+solveID).innerHTML = "<small>Search finished</small>"; */
+            if (!optimiseCheckbox.checked) {
+                document.getElementById("calc-button").innerHTML = "<strong>Start Search</strong>";
+                document.getElementById("clear-button").disabled = false;
+                document.getElementById("progUpdate"+solveID).innerHTML = "<small>Search finished</small>";
+            }
             depth = 0;
         }
 
@@ -1166,6 +1202,9 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
         document.getElementById("info-fails").addEventListener("mouseout", outFails, false);
         document.getElementById("info-fails").addEventListener("touchend", copyFails, false);
         
+        function optimiseBatchSolver (){
+
+        }
 </script>
 </body>
 </html>
