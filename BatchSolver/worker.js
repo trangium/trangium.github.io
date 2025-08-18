@@ -385,16 +385,12 @@ function calcState(state, subPuzzles, showPostAdj, optimiseBoolean) {
             else {postMessage({value: '"' + subData.search + '" is not a valid search depth.', type: "stop"})}
         }
         for (let solution of subData.puzzle.solve(state, searchDepth, showPostAdj)) {
-            
-    console.log("in if")
-    console.log(optimiseBoolean)
             if(optimiseBoolean) { //optimised version
                 if(numSolutions < 1){
                     numSolutions++;
                     postMessage({value: solution, type: "solution"});
                 } else {return;}
             } else { //normal version
-                console.log(solution);
                 postMessage({value: solution, type: "solution"});
             }
         }

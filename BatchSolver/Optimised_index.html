@@ -693,7 +693,6 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                 pieces: sortPieces[i].value});
             }
             let optimiseBoolean = (parseInt(document.getElementById("maxSolutions").value, 10) == 0) ? true : false;
-            console.log(optimiseBoolean);
             return {puzzle: document.getElementById('puzzle').value, 
                     ignore: document.getElementById('ignore').value,
                     solve: document.getElementById('solve').value,
@@ -710,7 +709,6 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
         function searchButtonHandler() {
             if (document.getElementById("calc-button").innerText == "Start Search") {
                 if(parseInt(document.getElementById("maxSolutions").value, 10) == 0) {
-                    console.log("0 solutions");
                     optimiseBatchSolver();
                 } else {
                     calc();
@@ -1006,12 +1004,11 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                 if (event.data.type === "stop") {
                     stopSearch();
                     let msg = event.data.value;
-                    if (msg !== null) {alert(msg)} else {updateStats()
-                        }
+                    if (msg !== null) {alert(msg)} else {updateStats()}
                 } else if (event.data.type === "depthUpdate") {
                     depth++;
                     document.getElementById("progUpdate"+solveID).innerHTML = "<small>Searching depth "+depth+"</small>";
-                } else if (event.data.type === "solution"  && numSolutions === 0) {
+                } else if (event.data.type === "solution") {
                     let solution = event.data.value;
                     let speed = 0;
                     if (sortCriteria == "MCC") {
@@ -1041,16 +1038,15 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                     if (event.data.value.index > 1) {
                         addBufferToTable();
                         updateStats();
-                        numSolutions = 0;
                         initNextState();
                     }
                     caseNum = event.data.value.num;
                     if (document.getElementById("imageVis").checked) {
-                            let cube = cubeImage(colMask, event.data.value.setup);
-                            cube("#caseHeader"+solveID);
-                            makeImageCopyable(solveID)
+                        let cube = cubeImage(colMask, event.data.value.setup);
+                        cube("#caseHeader"+solveID);
+                        makeImageCopyable(solveID)
                     } else {
-                      document.getElementById("caseHeader"+solveID).innerHTML = "#"+solveID;
+                        document.getElementById("caseHeader"+solveID).innerHTML = "#"+solveID;
                     }
                 } else if (event.data.type === "num-states") {
                     document.getElementById("info-num-cases").innerHTML = event.data.value;
@@ -1157,7 +1153,6 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
         document.getElementById("info-fails").addEventListener("touchend", copyFails, false);
         
 function optimiseBatchSolver (){
-            console.log("optimising");
             work = new Worker("worker.js");
             isIdle = false;
             startTime = Date.now();
@@ -1190,17 +1185,13 @@ function optimiseBatchSolver (){
                     depth++;
                 } else if (event.data.type === "solution") {
                     let solution = event.data.value;
-                    console.log(solution);
                     if (solution == "") {
                         failed.push(caseNum);
                     }
                     let numCases = parseInt(document.getElementById("info-num-cases").innerHTML, 10);
                     let numSucceeded = numCases - failed.length;
                     totalSTM += getMoveCount(solution, getSTM);
-                    console.log(totalSTM);
-                    console.log(failed);
                     document.getElementById("info-stm").innerHTML = (totalSTM/numSucceeded).toFixed(5);
-                    console.log(numSolutions)
                     document.getElementById("info-this-case").innerHTML = numSucceeded;
                     numSolutions++;
                 } else if (event.data.type === "set-depth") {
