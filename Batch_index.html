@@ -1,0 +1,1148 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <meta charset="utf-8" />
+        <title>Batch Solver [Beta β]</title>
+        <style>
+            textarea {
+                font-size: 1rem;
+            }
+
+            #puzzle {
+                margin-top: 0.125rem;
+            }
+
+            .adv-layout {
+                text-align: left;
+            }   
+
+            .button {
+                border: none;
+                color: white;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                transition-duration: 0.4s;
+                cursor: pointer;
+                background-color: white;
+                color: black;
+                border: 0.125rem solid #000;
+            }
+
+            .top-button {
+                padding: 1rem 1.75rem;
+                margin: 0.25rem 0.125rem;
+            }
+
+            .add-subgroup, .remove-subgroup, .add-sorting, .remove-sorting {
+                padding: 0.063rem 0.312rem;
+                margin: 0rem 0.125rem;
+            }
+    
+            .button:hover {
+                background-color: #000;
+                color: white;
+            }
+
+            button:disabled {
+                opacity: 0.3;
+                cursor: none;
+                pointer-events: none;
+            }
+
+            input[type=checkbox] {
+                transform: scale(1.3);
+            }
+
+            #input-area tr {
+                height: 1.875rem;
+            }
+
+            #input-area td, #input-area th {
+                text-align: left;
+                vertical-align: top;
+                padding: 0;
+            }
+
+            #imageOptions {
+                line-height: 1.333;
+            }
+
+            #table-area table {
+                border-color: black;
+                border-width: 0.063rem 0.063rem 0.125rem 0.063rem;
+                border-style: solid;
+            }
+
+            #table-area td {
+                border-color: black;
+                border-width: 0.063rem 0.063rem 0 0;
+                border-style: solid;
+                padding: 0.188rem;
+                height: 1em;
+                text-align: left;
+                vertical-align: top;
+                white-space: nowrap;
+            }
+
+            #table-area th {
+                border-color: black;
+                border-width: 0.063rem 0.063rem 0 0;
+                border-style: solid;
+                padding: 0.188rem;
+                text-align: center;
+            }
+
+            #table-area .output-left {
+                border-color: black;
+                border-width: 0.063rem 0.063rem 0 0.063rem;
+                border-style: solid;
+            }
+
+            #table-area .case-header {
+                padding: 0.75rem;
+            }
+
+            .inputNum {
+                vertical-align: middle;
+                resize: none;
+                width: 4.5rem;
+            }
+
+            #info-fails {
+                color: red;
+                cursor: pointer;
+            }
+
+            .tooltip {
+                position: relative;
+                display: inline-block;
+            }
+
+            .tooltip .tooltiptext {
+                visibility: hidden;
+                width: 9rem;
+                background-color: #555;
+                color: #fff;
+                text-align: center;
+                border-radius: 0.375rem;
+                padding: 0.313rem;
+                position: absolute;
+                z-index: 1;
+                bottom: 150%;
+                left: 50%;
+                margin-left: -5rem;
+                opacity: 0;
+                transition: opacity 0.3s;
+            }
+
+            .tooltip .tooltiptext::after {
+                content: "";
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                margin-left: -0.313rem;
+                border-width: 0.313rem;
+                border-style: solid;
+                border-color: #555 transparent transparent transparent;
+            }
+
+            .tooltip:hover .tooltiptext {
+                visibility: visible;
+                opacity: 1;
+            }
+
+        </style>
+    </head>
+    
+    <body>
+        <div style="font-family:courier new;font-size:18px">
+            <strong>
+                <div id="input-area">
+                    Puzzle
+                    <select id="puzzle-select" onchange="puzzleSelected(this)">
+                        <option value="3x3x3">3x3x3</option>
+                        <option value="2x2x2">2x2x2</option>
+                        <option value="4x4x4">4x4x4</option>
+                        <option value="Skewb">Skewb</option>
+                        <option value="Pyraminx">Pyraminx</option>
+                        <option value="Megaminx">Megaminx</option>
+                        <option value="FTO">FTO</option>
+                        <option value="Custom">Custom</option>
+                    </select>
+                    <br>
+                    <textarea id="puzzle" rows="15" cols="88" spellcheck="false"></textarea><br><br>
+                    Unique Orientations & Equivalences<br>
+                    <textarea id="ignore" rows="3" cols="72" spellcheck="false"></textarea><br><br>
+
+                    <table id="subgroup-table">
+                        <tr id="subgroup-row-1">
+                            <th style="vertical-align: bottom">Prune</th>
+                            <th style="vertical-align: bottom">Search</th>
+                            <th style="vertical-align: bottom">Subgroup</th>
+                            <th>
+                                <button style="font-family:courier new; font-size:17px" class="button add-subgroup" onclick="subgroupButtonHandler(this)"><strong>+</strong></button>
+                            </th>
+                        </tr>
+                        <tr id="subgroup-row-2">
+                            <td><textarea class="prune" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                            <td><textarea class="search" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                            <td><textarea class="subgroup" rows="1" cols="42" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                            <td>
+                                <button style="font-family:courier new; font-size:17px" class="button remove-subgroup" disabled onclick="subgroupButtonHandler(this)"><strong>-</strong></button>
+                            </td>
+                        </tr>
+                    </table><br>
+                    Scramble<br>
+                    <textarea id="solve" rows="6" cols="72" spellcheck="false"></textarea><br>
+                    <table id="batch-adjustments">
+                        <tr id="pre-adjust-table">
+                            <th style="vertical-align: bottom">Pre-Adjust</th>
+                            <th style="vertical-align: bottom">Post-Adjust</th>
+                        </tr>
+                        <tr id="post-adjust-table">
+                            <td><textarea id="pre-adjustments" rows="1" cols="14" spellcheck="false">U</textarea>&nbsp;&nbsp;</td>
+                            <td><textarea id="post-adjustments" rows="1" cols="14" spellcheck="false">U</textarea>&nbsp;&nbsp;</td>
+                        </tr>
+                    </table>
+
+                    <table id="sorting-table">
+                        <tr id="sorting-row-1">
+                            <th style="vertical-align: bottom">Case Sorting</th>
+                        </tr>
+                        <tr id="sorting-row-2">
+                            <td>
+                                <select class="sorting-type" style="font-size:15px; padding:2px">
+                                    <option value="priority">Set priority</option>
+                                    <option value="ori-of">Orientation of</option>
+                                    <option value="ori-at">Orientation at</option>
+                                    <option value="perm-of">Permutation of</option>
+                                    <option value="perm-at">Permutation at</option>
+                                </select>
+                            </td>
+                            <td><textarea class="sorting-pieces" rows="1" cols="44" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                            <td><button style="font-family:courier new; font-size:17px" class="button up-sorting" onclick="sortButtonHandler(this)"><strong>&#x25B2;</strong></button></td>
+                            <td><button style="font-family:courier new; font-size:17px" class="button down-sorting" onclick="sortButtonHandler(this)"><strong>&#x25BC;</strong></button>&nbsp;&nbsp;</td>
+                            <td><button style="font-family:courier new; font-size:17px" class="button add-sorting" onclick="sortButtonHandler(this)"><strong>+</strong></button></td>
+                            <td><button disabled style="font-family:courier new; font-size:17px" class="button remove-sorting" onclick="sortButtonHandler(this)"><strong>-</strong></button>&nbsp;</td>
+                        </tr>
+                    </table><br>
+                    
+                </div>
+            Options
+            </strong>
+            <div id="options">
+                <label for="sortBy"> Sort algs by: </label>
+                <select id="sortBy">
+                    <option value="MCC">MCC</option>
+                    <option value="STM">STM</option>
+                    <option value="SQTM">SQTM</option>
+                    <option value="ESQ">ESQ</option>
+                </select>
+                <br>
+                <label for="secondary-metric"> Secondary metric: </label>
+                <select id="secondary-metric">
+                    <option value="None">None</option>
+                    <option value="MCC">MCC</option>
+                    <option value="STM">STM</option>
+                    <option value="SQTM">SQTM</option>
+                    <option value="ESQ">ESQ</option>
+                </select>
+                <br>
+                <input type="checkbox" id="statVis" onclick="visibility('statVis', 'statistics')" checked/><label for="statVis"> Show statistics</label><br>
+                <input type="checkbox" id="imgOptVis" onclick="visibility('imgOptVis', 'imageOptions')" checked/><label for="imgOptVis"> Show image options</label><br>
+                <input type="checkbox" id="optVis" onclick="visibility('optVis', 'advanced')" /><label for="optVis"> Show advanced MCC options</label><br>
+                <input type="checkbox" id="esqOptVis" onclick="visibility('esqOptVis', 'esqOptions')" /><label for="esqOptVis"> Show ESQ options</label><br>
+                <input type="checkbox" id="showPostAdj" /><label for="showPostAdj"> Show ending adjustments</label><br>
+                Show top <input type="number" class="inputNum" id="maxSolutions" value="20"></input> solutions for each case<br>
+            </div>
+
+            <div id="imageOptions">
+                <br>
+                <strong>Image Options</strong><br>
+                <input type="checkbox" id="imageVis" checked/><label for="imageVis"> Show images</label><br>
+                Image type: <select id="img-select" onchange="imageSelected(this)">
+                    <option value="3x3x3-top">3x3x3 top</option>
+                    <option value="3x3x3">3x3x3</option>
+                    <option value="2x2x2-top">2x2x2 top</option>
+                    <option value="2x2x2">2x2x2</option>
+                    <option value="4x4x4">4x4x4</option>
+                    <option value="5x5x5">5x5x5</option>
+                    <option value="Skewb">Skewb</option>
+                    <option value="Pyraminx">Pyraminx</option>
+                    <option value="Megaminx">Megaminx</option>
+                </select><br>
+                Image size: <input type="number" class="inputNum" id="imgSize" value="150" oninput="generateImagePreview()"></input><br>
+                <div id="imgRot"> 
+                    X rotation: <input type="number" class="inputNum" id="imgPitch" value="30" oninput="generateImagePreview()"></input> 
+                    Y rotation: <input type="number" class="inputNum" id="imgYaw" value="40" oninput="generateImagePreview()"></input><br> 
+                </div>
+                Mask: <input size="54" id="faceletColors" oninput="generateImagePreview()" spellcheck="false"></input><br>
+                <input type="checkbox" id="previewVis" onclick="previewToggled(this)"/><label for="previewVis"> Show preview</label> <br>
+                <div id="imgPreview" hidden></div>
+                <input hidden type="range" id="previewYaw" oninput="generateImagePreview()" style="width: 225px;" value="0" min="-265" max="265" step="1">
+            </div>
+
+            <div id="advanced" hidden>
+                <br>
+                <table class="adv-layout">
+                    <tr>
+                        <th>Wrist Turn Multiplier:</th>
+                        <th>
+                            <input type="range" value="0.8" max="1" step="0.05" oninput="p1.value = this.value">
+                            <output id="p1">0.8</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Push Turn Multiplier:</th>
+                        <th>
+                            <input type="range" value="1.3" min="1" max="3" step="0.05" oninput="p2.value = this.value">
+                            <output id="p2">1.3</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Ring Turn Multiplier:</th>
+                        <th>
+                            <input type="range" value="1.4" min="1" max="3" step="0.05" oninput="p3.value = this.value">
+                            <output id="p3">1.4</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Destabilize Penalty:</th>
+                        <th>
+                            <input type="range" value="0.5" max="2" step="0.05" oninput="p4.value = this.value">
+                            <output id="p4">0.5</output><br>
+                        </th>
+                    </tr> 
+                    <tr>
+                        <th>Soft Regrip Penalty:</th>
+                        <th>
+                            <input type="range" value="1" max="4" step="0.05" oninput="p5.value = this.value">
+                            <output id="p5">1</output><br>
+                        </th>
+                    </tr> 
+                    <tr>
+                        <th>Half Turn Multiplier:</th>
+                        <th>
+                            <input type="range" value="1.65" min="1" max="2" step="0.05" oninput="p6.value = this.value">
+                            <output id="p6">1.65</output><br>
+                        </th>
+                    </tr> 
+                    <tr>
+                        <th>S/E Slice Multiplier:</th>
+                        <th>
+                            <input type="range" value="1.25" min="1" max="2" step="0.05" oninput="p7.value = this.value">
+                            <output id="p7">1.25</output><br>
+                        </th>
+                    </tr> 
+                    <tr>
+                        <th>Overwork Penalty:</th>
+                        <th>
+                            <input type="range" value="2.25" max="5" step="0.05" oninput="p8.value = this.value">
+                            <output id="p8">2.25</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Move Block Penalty:</th>
+                        <th>
+                            <input type="range" value="0.8" min="0" max="3" step="0.05" oninput="p9.value = this.value">
+                            <output id="p9">0.8</output><br>
+                        </th>
+                    </tr> 
+                    <tr>
+                        <th>y/z Rotation:</th>
+                        <th>
+                            <input type="range" value="3.5" min="1" max="7" step="0.1" oninput="p10.value = this.value">
+                            <output id="p10">3.5</output><br>
+                        </th>
+                    </tr>                     
+                </table>
+            </div><br>
+
+            <div id="esqOptions" hidden>
+                <strong>Rank ESQ</strong><br>
+                <textarea id="rankESQ" rows="9" cols="64">R_ L_ r_ l_: 1
+R2 L2 r2 l2: 2
+__: 2
+_2: 3</textarea>
+                <br><br>
+                <strong>Generation ESQ</strong>                    
+                <select id="esq-gen-select" onchange="esqGenSelected(this)">
+                    <option value="default">Default</option>
+                    <option value="match">Match</option>
+                    <option value="custom" selected>Custom</option>
+                </select><br>
+                <div id="genESQarea">
+                    <textarea id="generationESQ" rows="9" cols="64"></textarea><br>
+                </div>
+            </div><br>
+
+            <div id="statistics">
+                <strong>Statistics</strong><br>
+                Case: <span id="info-this-case">0</span>/<span id="info-num-cases">0</span> 
+                    <span class="tooltip">
+                        <span id="info-fails"></span>
+                        <span class="tooltiptext" id="myTooltip">Copy to clipboard</span>
+                    </span><br>
+                Rate: <span id="info-time">0.00 sec/case</span><br>
+                MCC: <span id="info-mcc"> 0.00 </span><br>
+                STM: <span id="info-stm"> 0.00 </span><br>
+                SQTM: <span id="info-sqtm"> 0.00 </span><br>
+                ESQ: <span id="info-esq"> 0.00 </span><br>
+
+            </div><br>
+
+            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="searchButtonHandler()" id="calc-button"><strong>Start Search</strong></button>
+            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="exportTable()" id="select-button"><strong>Export Output</strong></button>
+            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="clearOutput()" id="clear-button"><strong>Clear Output</strong></button><br>
+
+            <div id="table-area" hidden><br>
+                <strong>Output</strong>
+                <table cellspacing="0" id="output-table">
+                    <tr id="computation-header"></tr>
+                    <tr id="solutions-header"></tr>
+                    <tr id="output-data"></tr>
+                </table>
+            </div>
+        </div>
+        <canvas hidden id="canvas" width="150" height="150"></canvas>
+        <br><br><br><br><br><br><br><br><br><br><br>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" integrity="sha512-Qlv6VSKh1gDKGoJbnyA5RMXYcvnpIqhO++MhIM2fStMcGT9i2T//tSwYFlcyoRRDcDZ+TYHpH8azBBCyhpSeqw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js" integrity="sha512-UnrKxsCMN9hFk7M56t4I4ckB4N/2HHi0w/7+B/1JsXIX3DmyBcsGpT3/BsuZMZf+6mAr0vP81syWtfynHJ69JA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>    
+    <script src="../algSpeed.js"></script>
+    <script src="../twistysim.js"></script>
+    <script>
+        let work;
+        let addBufferInterval;
+        let solveID = 0;
+        let caseNum = 1;
+        let depth = 0;
+        let numSolutions;
+        let subgroupRowID = 3;
+        let subgroupRows = 1;
+        let sortingRowID = 3;
+        let sortingRows = 1;
+        let speedBuffer = [];
+        let solutionsBuffer = [];
+        let debugVars = [];
+        let colMask;
+        let moveWeights = new Map();
+
+        let startTime = Date.now();
+        let failed = [];
+        let isIdle = true;
+        let totalMCC, totalSTM, totalSQTM, totalESQ;
+        let sortCriteria;
+
+        function visibility(checkboxId, elementId) {
+            if (document.getElementById(checkboxId).checked) {
+                document.getElementById(elementId).hidden = false;
+            } else {
+                document.getElementById(elementId).hidden = true;
+            }            
+        }
+
+        function previewToggled(c) {
+            visibility('previewVis', 'imgPreview')
+            visibility('previewVis', 'previewYaw')
+            if (c.checked) {
+                generateImagePreview();
+            }
+        }
+
+        function imageSelected(type) {
+            imgRot.hidden = type.value.includes("top");
+            previewYaw.hidden = type.value.includes("top") || !previewVis.checked;
+            generateImagePreview();
+        }
+
+        function esqGenSelected(opt) {
+            let esqGenField = document.getElementById("generationESQ");
+            let esqGenArea = document.getElementById("genESQarea")
+            if (opt.value === "default") {
+                esqGenField.value = ``;
+                esqGenArea.hidden = true;
+            } else if (opt.value === "match") {
+                esqGenArea.hidden = true;
+            } else {
+                esqGenArea.hidden = false;
+            }
+        }
+
+        function puzzleSelected(pzl) {
+            let pzlField = document.getElementById('puzzle');
+            let uoeField = document.getElementById('ignore');
+            if (pzl.value === "Custom") {
+                pzlField.readOnly = false;
+            } else {
+                pzlField.readOnly = true;
+                if (pzl.value != "FTO") {
+                    document.getElementById("img-select").value = pzl.value;
+                    imageSelected(pzl);
+                }
+            }
+            switch (pzl.value) {
+                case ("3x3x3"):
+                    pzlField.value = 
+`U: (UF UL UB UR) (UFR UFL UBL UBR)
+R: (UR BR DR FR) (UFR-1 UBR+1 DBR-1 DFR+1)
+F: (UF+1 FR+1 DF+1 FL+1) (UFR+1 DFR-1 DFL+1 UFL-1)
+D: (DF DR DB DL) (DFR DBR DBL DFL)
+L: (UL FL DL BL) (UFL+1 DFL-1 DBL+1 UBL-1)
+B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)
+u: (UF UL UB UR) (UFR UFL UBL UBR) (FR+1 FL+1 BL+1 BR+1) (RL FB+1 RL+1)
+r: (UR BR DR FR) (UFR-1 UBR+1 DBR-1 DFR+1) (UF+1 UB+1 DB+1 DF+1) (FB UD+1 FB+1)
+f: (UF+1 FR+1 DF+1 FL+1) (UFR+1 DFR-1 DFL+1 UFL-1) (UR+1 DR+1 DL+1 UL+1) (UD RL+1 UD+1)
+d: (DF DR DB DL) (DFR DBR DBL DFL) (FR+1 BR+1 BL+1 FL+1) (FB RL+1 FB+1)
+l: (UL FL DL BL) (UFL+1 DFL-1 DBL+1 UBL-1) (UF+1 DF+1 DB+1 UB+1) (UD FB+1 UD+1)
+b: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1) (UR+1 UL+1 DL+1 DR+1) (RL UD+1 RL+1)
+M: (UF+1 DF+1 DB+1 UB+1) (UD FB+1 UD+1)
+S: (UR+1 DR+1 DL+1 UL+1) (UD RL+1 UD+1)
+E: (FR+1 BR+1 BL+1 FL+1) (FB RL+1 FB+1)
+x: (UR BR DR FR) (UFR-1 UBR+1 DBR-1 DFR+1) (UL BL DL FL) (UFL+1 UBL-1 DBL+1 DFL-1) (UF+1 UB+1 DB+1 DF+1) (FB UD+1 FB+1)
+y: (UF UL UB UR) (UFR UFL UBL UBR) (DF DL DB DR) (DFR DFL DBL DBR) (FR+1 FL+1 BL+1 BR+1) (RL FB+1 RL+1)
+z: (UF+1 FR+1 DF+1 FL+1) (UFR+1 DFR-1 DFL+1 UFL-1) (UB+1 BR+1 DB+1 BL+1) (UBR-1 DBR+1 DBL-1 UBL+1) (UR+1 DR+1 DL+1 UL+1) (UD RL+1 UD+1)`;
+                    break;
+                case ("2x2x2"):
+                    pzlField.value = 
+`U: (UFR UFL UBL UBR)
+R: (UFR-1 UBR+1 DBR-1 DFR+1)
+F: (UFR+1 DFR-1 DFL+1 UFL-1)
+D: (DFR DBR DBL DFL)
+L: (UFL+1 DFL-1 DBL+1 UBL-1)
+B: (UBR-1 UBL+1 DBL-1 DBR+1)`;
+                    break;
+                case ("4x4x4"):
+                    pzlField.value = 
+`U: (Ublc Ubrc Ufrc Uflc) (UFR UFL UBL UBR) (Ufr Ulf Ubl Urb) (Ful Lub Bur Ruf)
+R: (Rufc Rubc Rdbc Rdfc) (UFR-1 UBR+1 DBR-1 DFR+1) (Ruf Rbu Rdb Rfd) (Urb Brd Drf Fru)
+F: (Fulc Furc Fdrc Fdlc) (UFR+1 DFR-1 DFL+1 UFL-1) (Ful Fru Fdr Fld) (Ufr Rfd Dfl Lfu)
+D: (Dflc Dfrc Dbrc Dblc) (DFR DBR DBL DFL) (Dfl Drf Dbr Dlb) (Fdr Rdb Bdl Ldf)
+L: (Lubc Lufc Ldfc Ldbc) (UFL+1 DFL-1 DBL+1 UBL-1) (Lub Lfu Ldf Lbd) (Ulf Fld Dlb Blu)
+B: (Burc Bulc Bdlc Bdrc) (UBR-1 UBL+1 DBL-1 DBR+1) (Bur Blu Bdl Brd) (Ubl Lbd Dbr Rbu)
+2U: (Furc Lufc Bulc Rubc) (Fulc Lubc Burc Rufc) (Fru Lfu Blu Rbu)
+2R: (Ubrc Bdrc Dfrc Furc) (Ufrc Burc Dbrc Fdrc) (Ufr Bur Dbr Fdr)
+2F: (Ufrc Rdfc Dflc Lufc) (Uflc Rufc Dfrc Ldfc) (Ulf Ruf Drf Ldf)
+2D: (Fdlc Rdfc Bdrc Ldbc) (Fdrc Rdbc Bdlc Ldfc) (Fld Rfd Brd Lbd)
+2L: (Uflc Fdlc Dblc Bulc) (Ublc Fulc Dflc Bdlc) (Ubl Ful Dfl Bdl)
+2B: (Ubrc Lubc Dblc Rdbc) (Ublc Ldbc Dbrc Rubc) (Urb Lub Dlb Rdb)
+u: (Ublc Ubrc Ufrc Uflc) (Furc Lufc Bulc Rubc) (Fulc Lubc Burc Rufc) (UFR UFL UBL UBR) (Ufr Ulf Ubl Urb) (Ful Lub Bur Ruf) (Fru Lfu Blu Rbu)
+r: (Rufc Rubc Rdbc Rdfc) (Ubrc Bdrc Dfrc Furc) (Ufrc Burc Dbrc Fdrc) (UFR-1 UBR+1 DBR-1 DFR+1) (Ruf Rbu Rdb Rfd) (Urb Brd Drf Fru) (Ufr Bur Dbr Fdr)
+f: (Fulc Furc Fdrc Fdlc) (Ufrc Rdfc Dflc Lufc) (Uflc Rufc Dfrc Ldfc) (UFR+1 DFR-1 DFL+1 UFL-1) (Ful Fru Fdr Fld) (Ufr Rfd Dfl Lfu) (Ulf Ruf Drf Ldf)
+d: (Dflc Dfrc Dbrc Dblc) (Fdlc Rdfc Bdrc Ldbc) (Fdrc Rdbc Bdlc Ldfc) (DFR DBR DBL DFL) (Dfl Drf Dbr Dlb) (Fdr Rdb Bdl Ldf)(Fld Rfd Brd Lbd)
+l: (Lubc Lufc Ldfc Ldbc) (Uflc Fdlc Dblc Bulc) (Ublc Fulc Dflc Bdlc) (UFL+1 DFL-1 DBL+1 UBL-1) (Lub Lfu Ldf Lbd) (Ulf Fld Dlb Blu) (Ubl Ful Dfl Bdl)
+b: (Burc Bulc Bdlc Bdrc) (Ubrc Lubc Dblc Rdbc) (Ublc Ldbc Dbrc Rubc) (UBR-1 UBL+1 DBL-1 DBR+1) (Bur Blu Bdl Brd) (Ubl Lbd Dbr Rbu) (Urb Lub Dlb Rdb)`;
+                    uoeField.value = "{Ublc Ubrc Ufrc Uflc} {Rufc Rubc Rdbc Rdfc} {Fulc Furc Fdrc Fdlc} {Dflc Dfrc Dbrc Dblc} {Lubc Lufc Ldfc Ldbc} {Burc Bulc Bdlc Bdrc}"
+                    break;
+                case ("Skewb"):
+                    pzlField.value = 
+`l: (UFL-1 DFR-1 DBL-1) (DLF+1) (L F D)
+L: (URF-1 DLF-1 ULB-1) (UFL+1) (U F L)
+r: (DFR-1 UBR-1 DBL-1) (DRB+1) (R B D)
+R: (URF-1 ULB-1 DRB-1) (UBR+1) (R U B)
+b: (ULB-1 DLF-1 DRB-1) (DBL+1) (L D B)
+B: (UBR-1 UFL-1 DBL-1) (ULB+1) (U L B)
+F: (UFL-1 UBR-1 DFR-1) (URF+1) (F U R) 
+f: (URF-1 DRB-1 DLF-1) (DFR+1) (F R D)
+S: (URF-1) (UFL+1) (ULB+1) (UBR-1) (R U) (F B)
+H: (URF+1) (UFL-1) (ULB-1) (UBR+1) (R U) (F B)
+s: (UBR-1) (ULB+1) (DRB-1) (DBL+1) (U D) (R B)
+h: (UBR+1) (ULB-1) (DRB+1) (DBL-1) (U D) (R B)      
+x: (F U B D) (URF+1 UBR-1 DRB+1 DFR-1) (UFL-1 ULB+1 DBL-1 DLF+1)
+y: (F L B R) (URF UFL ULB UBR) (DFR DLF DBL DRB)
+z: (U R D L) (URF-1 DFR+1 DLF-1 UFL+1) (UBR+1 DRB-1 DBL+1 ULB-1)
+vUperm: (U B D)
+hUperm: (U R D)`;
+                    break;
+                case ("Pyraminx"):
+                    pzlField.value = 
+`U: (UB UR UL) (UUU+1) (TUU+1)
+R: (UR DR DF) (RRR+1) (TRR+1)
+L: (UL+1 DF+1 DL) (LLL+1) (TLL+1)
+B: (UB+1 DL DR+1) (BBB+1) (TBB+1)
+u: (TUU+1)
+r: (TRR+1)
+l: (TLL+1)
+b: (TBB+1)`;
+                    break;
+                case ("Megaminx"):
+                    pzlField.value = 
+`U: (UF UL UBl UBr UR) (UFR UFL ULB UDB URB)
+R: (UR RB RDr RDl RF) (UFR-1 URB+1 RDB-1 RDD RDF+1)
+L: (UL LF LDr LDl LB) (ULB-1 UFL+1 LDF-1 LDD LDB+1)
+F: (UF+1 RF+1 FDr+1 FDl LF+1) (UFL-1 UFR+1 RDF-1 FDD LDF+1)
+Dfr: (RDl+1 DFrr+1 DFrb+1 DFrl FDr+1) (RDF-1 RDD+1 DFRr-1 DFRl FDD+1)
+Br: ( UBr+1 DB+1 BRd+1 BRf RB+1) (URB-1 UDB+1 BRB-1 BRD RDB+1)
+Bl: ( UBl+1 DB+1 BLd+1 BLf LB+1) (ULB-1 UDB+1 BLB-1 BLD LDB+1)`;
+                    break;
+                case ("FTO"):
+                    pzlField.value = 
+`U: (UF UN UM) (Ur Ul Ub) (lUr bUl rUb) (uRf uLn uBm) (fLu nBu mRu)
+D: (FM FN+1 MN+1) (Fd Nd Md) (mDf fDn nDm) (dFr dNl dMb) (lFd bNd rMd)
+F: (UF FM FN) (Fl Fr Fd) (rFl dFr lFd) (uRf mDf nLf) (fLu fRm fDn)
+B: (UM+1 UN MN+1) (Ub Mb Nb) (mBn uBm nBu) (rUb lNb dMb) (bUl bNd bMr)
+L: (UF+1 FN UN+1) (Ul Fl Nl) (nLf uLn fLu) (lUr lFd lNb) (rFl dNl bUl)
+R: (UF+1 UM FM+1) (Ur Mr Fr) (fRm uRf mRu) (lUr bMr dFr) (rFl rUb rMd)
+BL: (UN FN+1 MN+1) (Nl Nd Nb) (lNb bNd dNl) (uLn fDn mBn) (nLf nDm nBu)
+BR: (UM MN+1 FM+1) (Mr Mb Md) (bMr dMb rMd) (mRu mBn mDf) (fRm uBm nDm)
+u: (UF UN UM) (Ur Ul Ub) (Fr Nl Mb) (Fl Nb Mr) (lUr bUl rUb) (uRf uLn uBm) (fLu nBu mRu) (rFl lNb bMr) (fRm nLf mBn)
+d: (FM FN+1 MN+1) (Fd Nd Md) (mDf fDn nDm) (dFr dNl dMb) (lFd bNd rMd) (Fl Mr Nb) (Fr Mb Nl) (rFl bMr lNb) (fRm mBn nLf)
+f: (UF FM FN) (Fl Fr Fd) (rFl dFr lFd) (uRf mDf nLf) (fLu fRm fDn) (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)
+b: (UM+1 UN MN+1) (Ub Mb Nb) (mBn uBm nBu) (rUb lNb dMb) (bUl bNd bMr) (Ul Nd Mr) (Ur Nl Md) (lUr dNl rMd) (mRu uLn nDm)
+l: (UF+1 FN UN+1) (Ul Fl Nl) (nLf uLn fLu) (lUr lFd lNb) (rFl dNl bUl) (UR Fd Nb) (Ub Fr Nd) (rUb dFr bNd) (uRf fDn nBu)
+r: (UF+1 UM FM+1) (Ur Mr Fr) (Ul Mb Fd) (Ub Md Fl) (fRm uRf mRu) (lUr bMr dFr) (rFl rUb rMd) (fLu uBm mDf) (bUl dMb lFd)
+bl: (UN FN+1 MN+1) (Nl Nd Nb) (lNb bNd dNl) (uLn fDn mBn) (nLf nDm nBu) (Ul Fd Mb) (Ub Fl Md) (bUl lFd dMb) (fLu mDf uBm)
+br: (UM MN+1 FM+1) (Mr Mb Md) (bMr dMb rMd) (mRu mBn mDf) (fRm uBm nDm) (Ur Nb Fd) (Ub Nd Fr) (rUb bNd dFr) (uRf nBu fDn)
+M: (Ul Fd Mb) (Ub Fl Md) (bUl lFd dMb) (fLu mDf uBm)
+N: (Ur Fd Nb) (Ub Fr Nd) (rUb dFr bNd) (uRf fDn nBu)
+E: (Fl Mr Nb) (Fr Mb Nl) (rFl bMr lNb) (fRm mBn nLf)
+S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
+                    break;
+            }
+        }
+
+        puzzleSelected({value: "3x3x3"})
+
+        function cubeImage(fc, setup="", yawOffset=0) {
+            let imgType = document.getElementById("img-select").value;
+            let cube;
+            if (imgType == "4x4x4") {
+                for (let replacer of [
+                ["2R'", "r' R"], ["2R2", "r2 R2"], ["2R", "r R'"], 
+                ["2L'", "l' L"], ["2L2", "l2 L2"], ["2L", "l L'"], 
+                ["2U'", "u' U"], ["2U2", "u2 U2"], ["2U", "u U'"], 
+                ["2D'", "d' D"], ["2D2", "d2 D2"], ["2D", "d D'"],
+                ["2F'", "f' F"], ["2F2", "f2 F2"], ["2F", "f F'"], 
+                ["2B'", "b' B"], ["2B2", "b2 B2"], ["2B", "b B'"]]) {
+                    setup = setup.replaceAll(replacer[0], replacer[1]);
+                }
+            }
+            if (imgType == "3x3x3-top") {
+                cube = TTk.TwistyPuzzle(3).alg(setup);
+                cube.context().projection().focalFac(-0.905).near(0.83);
+                cube.context().transform().pitch(Math.PI/2).yaw(0);
+            } else if (imgType == "2x2x2-top") {
+                cube = TTk.TwistyPuzzle(2).alg(setup);
+                cube.context().projection().focalFac(-0.96).near(0.882);
+                cube.context().transform().pitch(Math.PI/2).yaw(0);
+            } else {
+                let cMap = {"3x3x3":3, "2x2x2":2, "4x4x4":4, "5x5x5":5, "Skewb":"skewb", "Pyraminx":"pyraminx", "Megaminx":"megaminx"};
+                cube = TTk.TwistyPuzzle(cMap[imgType]).alg(setup);
+                cube.context().transform().pitch(parseFloat(document.getElementById("imgPitch").value,10)/180*Math.PI).yaw((yawOffset+parseFloat(document.getElementById("imgYaw").value,10))/180*Math.PI);
+            }
+            cube = cube.size({width:parseFloat(document.getElementById("imgSize").value,10), height:parseFloat(document.getElementById("imgSize").value,10)})
+            if (fc.trim() === "" && imgType == "Megaminx") {cube = cube.fc("wwwwwwwwwwwaaaaaaaaaaarrrrrrrrrrrbbbbbbbbbbbyyyyyyyyyyymmmmmmmmmmmgggggggggggpppppppppppGGGGGGGGGGGoooooooooooBBBBBBBBBBBYYYYYYYYYYY")}
+            else if (fc.trim() !== "") {cube = cube.fc(fc)}
+            return cube;
+        }
+
+        function generateImagePreview() {
+            document.getElementById("imgPreview").innerHTML = "";
+            let rawYaw = parseInt(document.getElementById("previewYaw").value, 10);
+            const SNAP = 25;
+            let dispYaw = (rawYaw > SNAP) ? (rawYaw-SNAP) : (rawYaw < -SNAP) ? (rawYaw+SNAP) : 0;
+            let cube = cubeImage(document.getElementById("faceletColors").value, "", dispYaw);
+            cube("#imgPreview");
+        }
+
+        generateImagePreview();
+
+        function createSolutionTable() {
+            document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left case-header"><span id=caseHeader'+solveID+'></span><br><span id="progUpdate'+solveID+'"></span></th>';
+            document.getElementById("solutions-header").innerHTML += '<th class="output-left">&nbsp;'+sortCriteria+'&nbsp;<th>&nbsp;Solutions&nbsp;</th></th>';
+            document.getElementById("output-data").innerHTML += '<td class="output-left" id="speed'+solveID+'"></td><td id="solutions'+solveID+'"></td>';
+        }
+
+        function makeImageCopyable(num) {
+            var svg = document.getElementById('caseHeader'+num).children[0]
+            svg.setAttribute("stroke", "black")
+            var canvas = document.getElementById('canvas');
+            var ctx = canvas.getContext('2d');
+            canvas.width = canvas.height = parseFloat(document.getElementById("imgSize").value,10);
+            var data = (new XMLSerializer()).serializeToString(svg);
+            var DOMURL = window.URL || window.webkitURL || window;
+            var img = new Image();
+            var svgBlob = new Blob([data], {type: 'image/svg+xml;charset=utf-8'});
+            var url = DOMURL.createObjectURL(svgBlob);
+            
+            img.onload = function () {
+                ctx.drawImage(img, 0, 0);
+                DOMURL.revokeObjectURL(url);
+                var imgURI = canvas.toDataURL('image/png');
+                document.getElementById('caseHeader'+num).innerHTML = `<img src=${imgURI} title="#${caseNum}" alt="#${caseNum}"/>`
+            };
+            img.src = url;
+        }
+
+        function getWorkerData() {
+            let subgroupData = [];
+            let pruneDepths = document.querySelectorAll(".prune");
+            let searchDepths = document.querySelectorAll(".search");
+            let subgroups = document.querySelectorAll(".subgroup");
+            for (let i=0; i<pruneDepths.length; i++) {
+                subgroupData.push(
+                {subgroup: subgroups[i].value,
+                prune: pruneDepths[i].value,
+                search: searchDepths[i].value});
+            }
+
+            let sortData = [];
+            let sortTypes = document.querySelectorAll(".sorting-type");
+            let sortPieces = document.querySelectorAll(".sorting-pieces")
+            for (let i=0; i<sortTypes.length; i++) {
+                sortData.push(
+                {type: sortTypes[i].value, 
+                pieces: sortPieces[i].value});
+            }
+
+            return {puzzle: document.getElementById('puzzle').value, 
+                    ignore: document.getElementById('ignore').value,
+                    solve: document.getElementById('solve').value,
+                    preAdjust: document.getElementById('pre-adjustments').value,
+                    postAdjust: document.getElementById('post-adjustments').value,
+                    subgroups: subgroupData,
+                    sorting: sortData,
+                    esq: document.getElementById("esq-gen-select").value === "match" ? document.getElementById('rankESQ').value : document.getElementById('generationESQ').value,
+                    rankesq: document.getElementById('rankESQ').value,
+                    showPost: showPostAdj.checked};
+        }
+
+        function searchButtonHandler() {
+            if (document.getElementById("calc-button").innerText == "Start Search") {
+                calc();
+            } else {
+                stopSearch();
+            }
+        }
+
+        function subgroupButtonHandler(e) {
+            if (e.className == "button add-subgroup") {
+                let tbody = document.getElementById("subgroup-table").children[0];
+                let clone = document.getElementById("subgroup-row-1").cloneNode(true);
+                clone.innerHTML = `
+                    <td><textarea class="prune" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                    <td><textarea class="search" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                    <td><textarea class="subgroup" rows="1" cols="42" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                    <td>
+                        <button style="font-family:courier new;font-size:17px" class="button remove-subgroup" onclick="subgroupButtonHandler(this)"><strong>-</strong></button>
+                    </td>`;
+                clone.id = "subgroup-row-"+subgroupRowID;
+                tbody.appendChild(clone);
+                document.querySelector(".remove-subgroup").disabled = false;
+                subgroupRowID++;
+                subgroupRows++;
+            } else {
+                e.parentNode.parentNode.remove();
+                subgroupRows--;
+                if (subgroupRows == 1) {
+                    document.querySelector(".remove-subgroup").disabled = true;
+                }
+            }
+        }
+
+        function sortButtonHandler(e) {
+            let trow = e.parentNode.parentNode;
+            let table = trow.parentNode;
+            console.log(trow);
+            if (e.className == "button add-sorting") {
+                document.querySelector(".remove-sorting").disabled = false;
+                let clone = trow.cloneNode(true);
+                clone.id = "sorting-row-"+sortingRowID;
+
+                let trowDrop = trow.children[0].children[0].options;
+                let cloneDrop = clone.children[0].children[0].options;
+                for (let i=0; i<cloneDrop.length; i++) {
+                    cloneDrop[i].selected = trowDrop[i].selected;
+                }
+
+                table.insertBefore(clone, trow);
+                sortingRowID++;
+                sortingRows++;
+            } else if (e.className == "button remove-sorting") {
+                e.parentNode.parentNode.remove();
+                sortingRows--;
+                if (sortingRows == 1) {
+                    document.querySelector(".remove-sorting").disabled = true;
+                }
+            } else if (e.className == "button up-sorting") {
+                rowIndex = Array.from(table.children).indexOf(trow);
+                if (rowIndex > 1) {
+                    table.insertBefore(table.children[rowIndex], table.children[rowIndex-1]);
+                }
+            } else if (e.className == "button down-sorting") {
+                rowIndex = Array.from(table.children).indexOf(trow);
+                if (rowIndex < Array.from(table.children).length-1) {
+                    table.insertBefore(table.children[rowIndex+1], table.children[rowIndex]);
+                }
+            }
+        }
+
+        function customParseFloat(x) {
+            let pFloat = parseFloat(x);
+            if (pFloat !== pFloat) {return Infinity} else {return pFloat}
+        }
+
+        function compareBufferElements(x, y) {
+            if (customParseFloat(x[0]) > customParseFloat(y[0])) {return 1}
+            else if (customParseFloat(x[0]) < customParseFloat(y[0])) {return -1}
+            let hasSecondaryMetric = (x[1][x[1].length-1] === "]");
+            if (hasSecondaryMetric && (parseFloat(x[1].slice(x[1].lastIndexOf("[")+1),10) > parseFloat(y[1].slice(y[1].lastIndexOf("[")+1),10))) {return 1}
+            else if (hasSecondaryMetric && (parseFloat(x[1].slice(x[1].lastIndexOf("[")+1),10) < parseFloat(y[1].slice(y[1].lastIndexOf("[")+1),10))) {return -1}
+            if (removeParens(x[1]) > removeParens(y[1])) {return 1}
+            else if (removeParens(x[1]) < removeParens(y[1])) {return -1}
+            else {return 0}
+        }
+
+        function getCombinedBuffer() {
+            let combinedBuffer = [];
+            for (let i=0; i<solutionsBuffer.length; i++) {
+                combinedBuffer.push([speedBuffer[i], solutionsBuffer[i]]);
+            }
+            combinedBuffer.sort(compareBufferElements);
+            return combinedBuffer;
+        }
+
+        function mergeBuffer() {
+            let sortedBuffer = getCombinedBuffer();
+            let updatedSpeedData = "";
+            let updatedSolutionsData = "";
+            let tableNeedle = 0;
+            let bufferNeedle = 0;
+            let tableSpeedList = document.getElementById("speed"+solveID).innerHTML.split("<br>").filter(x => (x != ""));
+            let tableSolutionList = document.getElementById("solutions"+solveID).innerHTML.split("<br>").filter(x => (x != ""));
+            let maxSolutions = parseInt(document.getElementById("maxSolutions").value, 10);
+            let availSolutions = tableSpeedList.length+sortedBuffer.length;
+            let solutionsAdded = 0;
+            let prevSolution = "";
+
+            function addFromBuffer() {
+                let speed = sortedBuffer[bufferNeedle][0];
+                let solution = sortedBuffer[bufferNeedle][1];
+                if (prevSolution != removeParens(solution)) {
+                    updatedSpeedData += speed + "<br>";
+                    updatedSolutionsData += solution + "<br>";
+                    prevSolution = removeParens(solution);
+                    solutionsAdded++;
+                } else {
+                    availSolutions--;
+                }
+                bufferNeedle++;
+            }
+
+            function addFromTable() {
+                let speed = tableSpeedList[tableNeedle];
+                let solution = tableSolutionList[tableNeedle];
+                if (prevSolution != removeParens(solution)) {
+                    updatedSpeedData += speed + "<br>";
+                    updatedSolutionsData += solution + "<br>";
+                    prevSolution = removeParens(solution);
+                    solutionsAdded++;
+                } else {
+                    availSolutions--;
+                }
+                tableNeedle++;
+            }
+
+            while (Math.min(maxSolutions, availSolutions) - solutionsAdded > 0) {
+                if (tableNeedle === tableSpeedList.length) {
+                    addFromBuffer();
+                } else if (bufferNeedle === sortedBuffer.length) {
+                    addFromTable();
+                } else {
+                    if (compareBufferElements(sortedBuffer[bufferNeedle], [tableSpeedList[tableNeedle], tableSolutionList[tableNeedle]]) == -1) {addFromBuffer()} else {addFromTable()}
+                }
+            }
+
+            document.getElementById("speed"+solveID).innerHTML = updatedSpeedData;
+            document.getElementById("solutions"+solveID).innerHTML = updatedSolutionsData;
+            speedBuffer = [];
+            solutionsBuffer = [];
+        }
+
+        function addBufferToTable() { // add buffer to table and update statistics
+            if (solutionsBuffer.length === 0) {return}
+            mergeBuffer();
+        }
+
+        function initNextState() {
+            solveID++;
+            numSolutions = 0;
+            createSolutionTable();
+        }
+
+        function getFirstLine(fieldStr) {
+            let firstNew = fieldStr.indexOf("\n");
+            return fieldStr.slice(0,firstNew);
+        }
+
+        function removeParens(alg) {
+            let accum = "";
+            let insideParen = false;
+            for (let char of alg) {
+                if (char === ")" || char === "]") {
+                    insideParen = false;
+                } else if (char === "(" || char === "[") {
+                    insideParen = true;
+                } else if (insideParen == false) {
+                    accum += char;
+                }
+            } 
+            return accum.trim();
+        }
+
+        function getMCC(alg) {
+            return parseFloat(algSpeed(removeParens(alg), false, false, parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML)), 10);
+        }
+
+        function getSTM(move) {
+            return 1;
+        }
+
+        function lastAlpha(move) {
+            let needle = move.length-1;
+            while (needle >= 0) {
+                if (/[a-zA-Z]/.test(move[needle])) {
+                    return needle;
+                }
+                needle--;
+            }
+            return -1;
+        }
+
+        function getSQTM(move) {
+            let moveAmount = move.slice(lastAlpha(move)+1).replace("'","");
+            if (moveAmount == "") {return 1} else {return parseInt(moveAmount, 10)}
+        }
+
+        function getESQ(move) {
+            let moveType = move.slice(0, lastAlpha(move)+1)+"_";
+            let moveAmount = "_"+move.slice(lastAlpha(move)+1);
+            if (moveWeights.has(move)) {return moveWeights.get(move)}
+            else if (moveWeights.has(moveType)) {return moveWeights.get(moveType)}
+            else if (moveWeights.has(moveAmount)) {return moveWeights.get(moveAmount)}
+            else if (moveWeights.has("__")) {return moveWeights.get("__")}
+            return 1;
+        }
+
+        function getMoveCount(alg, metric) {
+            let splitAlg = alg.split(" ");
+            let count = 0;
+            let insideParen = false;
+            for (let move of splitAlg) {
+                if (move == "") {
+                    continue;
+                } else if (move.includes(")") || move.includes("]")) { // modified
+                    insideParen = false;
+                } else if (move.includes("(") || move.includes("[")) { // modified
+                    insideParen = true;
+                } else if (insideParen == false) {
+                    count += metric(move);
+                }
+            }
+            return Math.round(count*1e3)/1e3;
+        }
+
+        function updateStats() {
+            let topSolution = getFirstLine(document.getElementById("solutions"+solveID).innerText);
+            if (topSolution == "") {
+                failed.push(caseNum);
+            }
+            let numCases = parseInt(document.getElementById("info-this-case").innerHTML, 10) + 1;
+            let numSucceeded = numCases - failed.length;
+
+            document.getElementById("info-this-case").innerHTML = numCases;
+            document.getElementById("info-fails").innerHTML = (failed.length == 0) ? "" : " ("+failed.length+" failed)";
+            document.getElementById("info-time").innerHTML = ((Date.now()-startTime)/numCases/1000).toFixed(2)+" sec/case";
+            totalMCC += getMCC(topSolution);
+            document.getElementById("info-mcc").innerHTML = (totalMCC/numSucceeded).toFixed(2);
+            totalSTM += getMoveCount(topSolution, getSTM);
+            document.getElementById("info-stm").innerHTML = (totalSTM/numSucceeded).toFixed(2);
+            totalSQTM += getMoveCount(topSolution, getSQTM);
+            document.getElementById("info-sqtm").innerHTML = (totalSQTM/numSucceeded).toFixed(2);
+            totalESQ += getMoveCount(topSolution, getESQ);
+            document.getElementById("info-esq").innerHTML = (totalESQ/numSucceeded).toFixed(2);
+        }
+
+        function calc() {
+            work = new Worker("worker.js");
+            isIdle = false;
+            startTime = Date.now();
+            failed = [];
+            totalMCC = totalSTM = totalSQTM = totalESQ = 0;
+            colMask = document.getElementById("faceletColors").value;
+
+            document.getElementById("info-this-case").innerHTML = 0;
+            document.getElementById("info-num-cases").innerHTML = 0;
+            document.getElementById("info-time").innerHTML = "0.00 sec/case";
+            document.getElementById("info-mcc").innerHTML = "0.00";
+            document.getElementById("info-stm").innerHTML = "0.00";
+            document.getElementById("info-sqtm").innerHTML = "0.00";
+            document.getElementById("info-esq").innerHTML = "0.00";
+            document.getElementById("info-fails").innerHTML = "";
+
+            document.getElementById("calc-button").innerHTML = "<strong>&nbsp;End Search&nbsp;</strong>";
+            document.getElementById("table-area").hidden = false;
+            document.getElementById("clear-button").disabled = true;
+            sortCriteria = document.getElementById("sortBy").value;
+            secondaryMetric = document.getElementById("secondary-metric").value;
+
+            initNextState();
+            addBufferInterval = setInterval(addBufferToTable, 250);
+            work.postMessage(getWorkerData());
+
+            work.onmessage = function(event) {
+                if (event.data.type === "stop") {
+                    stopSearch();
+                    let msg = event.data.value;
+                    if (msg !== null) {alert(msg)} else {updateStats()}
+                } else if (event.data.type === "depthUpdate") {
+                    depth++;
+                    document.getElementById("progUpdate"+solveID).innerHTML = "<small>Searching depth "+depth+"</small>";
+                } else if (event.data.type === "solution") {
+                    let solution = event.data.value;
+                    let speed = 0;
+                    if (sortCriteria == "MCC") {
+                        speed = getMCC(solution);
+                    } else if (sortCriteria == "STM") {
+                        speed = getMoveCount(solution, getSTM);
+                    } else if (sortCriteria == "SQTM") {
+                        speed = getMoveCount(solution, getSQTM);
+                    } else if (sortCriteria == "ESQ") {
+                        speed = getMoveCount(solution, getESQ);
+                    }
+                    if (secondaryMetric == "MCC") {
+                        solution += " [" + getMCC(solution) + " MCC]";
+                    } else if (secondaryMetric == "STM") {
+                        solution += " [" + getMoveCount(solution, getSTM) + " STM]";
+                    } else if (secondaryMetric == "SQTM") {
+                        solution += " [" + getMoveCount(solution, getSQTM) + " SQTM]";
+                    } else if (secondaryMetric == "ESQ") {
+                        solution += " [" + getMoveCount(solution, getESQ) + " ESQ]";
+                    }
+                    speedBuffer.push(speed);
+                    solutionsBuffer.push(solution);
+                    numSolutions++;
+                } else if (event.data.type === "set-depth") {
+                    depth = event.data.value;
+                } else if (event.data.type === "next-state") {
+                    if (event.data.value.index > 1) {
+                        addBufferToTable();
+                        updateStats();
+                        initNextState();
+                    }
+                    caseNum = event.data.value.num;
+                    if (document.getElementById("imageVis").checked) {
+                        let cube = cubeImage(colMask, event.data.value.setup);
+                        cube("#caseHeader"+solveID);
+                        makeImageCopyable(solveID)
+                    } else {
+                        document.getElementById("caseHeader"+solveID).innerHTML = "#"+solveID;
+                    }
+                } else if (event.data.type === "num-states") {
+                    document.getElementById("info-num-cases").innerHTML = event.data.value;
+                } else if (event.data.type === "moveWeights") {
+                    moveWeights = event.data.value;
+                } else if (event.data.type === "debug") {
+                    debugVars.push(event.data.value);
+                }
+            }
+        }
+
+        function stopSearch() {
+            addBufferToTable();
+            clearInterval(addBufferInterval);
+            work.terminate();
+            isIdle = true;
+            document.getElementById("calc-button").innerHTML = "<strong>Start Search</strong>";
+            document.getElementById("clear-button").disabled = false;
+            document.getElementById("progUpdate"+solveID).innerHTML = "<small>Search finished</small>";
+            depth = 0;
+        }
+
+        function selectElement(el) { // currently vestigial
+            range = document.createRange();
+            sel = window.getSelection();
+            sel.removeAllRanges();
+            try {
+                range.selectNodeContents(el);
+                sel.addRange(range);
+            } catch (e) {
+                range.selectNode(el);
+                sel.addRange(range);
+            }
+        }
+
+        function displayTextWidth(text, font) {
+            let canvas = displayTextWidth.canvas || (displayTextWidth.canvas = document.createElement("canvas"));
+            let context = canvas.getContext("2d");
+            context.font = font;
+            let metrics = context.measureText(text);
+            return metrics.width * 0.17 + 3;
+        }
+
+        function exportTable() {
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Batch Solver Algs');
+
+            worksheet.addRow([]);
+            worksheet.getRow(1).height = 18;
+
+            let column = 0;
+            for (let elem of document.getElementById("computation-header").children) {
+                worksheet.mergeCells(1, column+1, 1, column+2);
+                let img = elem.children[0].children[0];
+                let imgData = img.src;
+                worksheet.addImage(workbook.addImage({base64: imgData, extension: 'png'}), {
+                tl: { col: column, row: 0 },
+                ext: { width: img.naturalWidth, height: img.naturalHeight }
+                });
+                if (img.naturalHeight > worksheet.getRow(1).height) worksheet.getRow(1).height = img.naturalHeight;
+                column += 2
+            }
+
+            let headerRow = [];
+            for (let elem of document.getElementById("solutions-header").children) headerRow.push(elem.innerText);
+            worksheet.addRow(headerRow);
+
+            let row = 3;
+            let col = 1;
+            for (let elem of document.getElementById("output-data").children) {
+                for (let entry of elem.innerText.split("\n")) {
+                    worksheet.getCell(row, col).value = entry;
+                    row++;
+                    let textWidth = displayTextWidth(entry, "Calibri");
+                    if (worksheet.getColumn(col).width == undefined || worksheet.getColumn(col).width < textWidth) worksheet.getColumn(col).width = textWidth;
+                }
+                col++;
+                row = 3;
+            }
+
+            workbook.xlsx.writeBuffer().then((data) => {
+            const blob = new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8' });
+            saveAs(blob, 'algs.xlsx');
+            });
+        }
+
+        function clearOutput() {
+            document.getElementById("output-table").innerHTML = '<tr id="computation-header"></tr><tr id="solutions-header"></tr><tr id="output-data"></tr>';
+            document.getElementById("table-area").hidden = true;
+            solveID = 0;
+        }
+
+        function copyFails() {
+            navigator.clipboard.writeText("#" + failed.join(", "));
+            document.getElementById("myTooltip").innerHTML = "Copied";
+        }
+
+        function outFails() {
+            document.getElementById("myTooltip").innerHTML = "Copy to clipboard";
+        }
+
+        document.getElementById("info-fails").addEventListener("click", copyFails, false);
+        document.getElementById("info-fails").addEventListener("mouseout", outFails, false);
+        document.getElementById("info-fails").addEventListener("touchend", copyFails, false);
+        
+</script>
+</body>
+</html>
