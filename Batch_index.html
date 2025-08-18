@@ -202,8 +202,8 @@
                             <th style="vertical-align: bottom">Post-Adjust</th>
                         </tr>
                         <tr id="post-adjust-table">
-                            <td><textarea id="pre-adjustments" rows="1" cols="14" spellcheck="false">z</textarea>&nbsp;&nbsp;</td>
-                            <td><textarea id="post-adjustments" rows="1" cols="14" spellcheck="false">z</textarea>&nbsp;&nbsp;</td>
+                            <td><textarea id="pre-adjustments" rows="1" cols="14" spellcheck="false">U</textarea>&nbsp;&nbsp;</td>
+                            <td><textarea id="post-adjustments" rows="1" cols="14" spellcheck="false">U</textarea>&nbsp;&nbsp;</td>
                         </tr>
                     </table>
 
@@ -362,11 +362,10 @@
 
             <div id="esqOptions" hidden>
                 <strong>Rank ESQ</strong><br>
-                <textarea id="rankESQ" rows="9" cols="64">z_x_y_: 30
-                    r_: 0.6
-                    R_: 0.8
-                    b_B_: 1.2
-                </textarea>
+                <textarea id="rankESQ" rows="9" cols="64">R_ L_ r_ l_: 1
+R2 L2 r2 l2: 2
+__: 2
+_2: 3</textarea>
                 <br><br>
                 <strong>Generation ESQ</strong>                    
                 <select id="esq-gen-select" onchange="esqGenSelected(this)">
@@ -391,6 +390,7 @@
                 STM: <span id="info-stm"> 0.00 </span><br>
                 SQTM: <span id="info-sqtm"> 0.00 </span><br>
                 ESQ: <span id="info-esq"> 0.00 </span><br>
+
             </div><br>
 
             <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="searchButtonHandler()" id="calc-button"><strong>Start Search</strong></button>
@@ -418,7 +418,7 @@
         let solveID = 0;
         let caseNum = 1;
         let depth = 0;
-        let numSolutions = 0;
+        let numSolutions;
         let subgroupRowID = 3;
         let subgroupRows = 1;
         let sortingRowID = 3;
@@ -455,7 +455,7 @@
             imgRot.hidden = type.value.includes("top");
             previewYaw.hidden = type.value.includes("top") || !previewVis.checked;
             generateImagePreview();
-        } 
+        }
 
         function esqGenSelected(opt) {
             let esqGenField = document.getElementById("generationESQ");
@@ -479,7 +479,7 @@
                 pzlField.readOnly = true;
                 if (pzl.value != "FTO") {
                     document.getElementById("img-select").value = pzl.value;
-                        imageSelected(pzl)
+                    imageSelected(pzl);
                 }
             }
             switch (pzl.value) {
@@ -645,7 +645,9 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
             let cube = cubeImage(document.getElementById("faceletColors").value, "", dispYaw);
             cube("#imgPreview");
         }
-            generateImagePreview();
+
+        generateImagePreview();
+
         function createSolutionTable() {
             document.getElementById("computation-header").innerHTML += '<th colspan="2" class="output-left case-header"><span id=caseHeader'+solveID+'></span><br><span id="progUpdate'+solveID+'"></span></th>';
             document.getElementById("solutions-header").innerHTML += '<th class="output-left">&nbsp;'+sortCriteria+'&nbsp;<th>&nbsp;Solutions&nbsp;</th></th>';
@@ -671,7 +673,7 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                 document.getElementById('caseHeader'+num).innerHTML = `<img src=${imgURI} title="#${caseNum}" alt="#${caseNum}"/>`
             };
             img.src = url;
-        } 
+        }
 
         function getWorkerData() {
             let subgroupData = [];
@@ -684,6 +686,7 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                 prune: pruneDepths[i].value,
                 search: searchDepths[i].value});
             }
+
             let sortData = [];
             let sortTypes = document.querySelectorAll(".sorting-type");
             let sortPieces = document.querySelectorAll(".sorting-pieces")
@@ -692,8 +695,7 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                 {type: sortTypes[i].value, 
                 pieces: sortPieces[i].value});
             }
-            let optimiseBoolean = (parseInt(document.getElementById("maxSolutions").value, 10) == 0) ? true : false;
-            console.log(optimiseBoolean);
+
             return {puzzle: document.getElementById('puzzle').value, 
                     ignore: document.getElementById('ignore').value,
                     solve: document.getElementById('solve').value,
@@ -703,18 +705,12 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                     sorting: sortData,
                     esq: document.getElementById("esq-gen-select").value === "match" ? document.getElementById('rankESQ').value : document.getElementById('generationESQ').value,
                     rankesq: document.getElementById('rankESQ').value,
-                    showPost: showPostAdj.checked,
-                    optimise: optimiseBoolean};
+                    showPost: showPostAdj.checked};
         }
 
         function searchButtonHandler() {
             if (document.getElementById("calc-button").innerText == "Start Search") {
-                if(parseInt(document.getElementById("maxSolutions").value, 10) == 0) {
-                    console.log("0 solutions");
-                    optimiseBatchSolver();
-                } else {
-                    calc();
-                }
+                calc();
             } else {
                 stopSearch();
             }
@@ -807,7 +803,7 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
             return combinedBuffer;
         }
 
-       function mergeBuffer() {
+        function mergeBuffer() {
             let sortedBuffer = getCombinedBuffer();
             let updatedSpeedData = "";
             let updatedSolutionsData = "";
@@ -872,9 +868,7 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
         function initNextState() {
             solveID++;
             numSolutions = 0;
-           if(parseInt(document.getElementById("maxSolutions").value, 10) !== 0) {
             createSolutionTable();
-           }
         }
 
         function getFirstLine(fieldStr) {
@@ -898,11 +892,7 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
         }
 
         function getMCC(alg) {
-            let test = parseFloat(algSpeed(removeParens(alg), false, false, parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML)), 10);
-            
-            
             return parseFloat(algSpeed(removeParens(alg), false, false, parseFloat(document.getElementById("p1").innerHTML),parseFloat(document.getElementById("p2").innerHTML),parseFloat(document.getElementById("p3").innerHTML),parseFloat(document.getElementById("p4").innerHTML),parseFloat(document.getElementById("p5").innerHTML),parseFloat(document.getElementById("p6").innerHTML),parseFloat(document.getElementById("p7").innerHTML),parseFloat(document.getElementById("p8").innerHTML),parseFloat(document.getElementById("p9").innerHTML),parseFloat(document.getElementById("p10").innerHTML)), 10);
-            
         }
 
         function getSTM(move) {
@@ -964,12 +954,11 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
             document.getElementById("info-this-case").innerHTML = numCases;
             document.getElementById("info-fails").innerHTML = (failed.length == 0) ? "" : " ("+failed.length+" failed)";
             document.getElementById("info-time").innerHTML = ((Date.now()-startTime)/numCases/1000).toFixed(2)+" sec/case";
-
-            totalSTM += getMoveCount(topSolution, getSTM);
-            document.getElementById("info-stm").innerHTML = (totalSTM/numSucceeded).toFixed(2);
             totalMCC += getMCC(topSolution);
             document.getElementById("info-mcc").innerHTML = (totalMCC/numSucceeded).toFixed(2);
             totalSTM += getMoveCount(topSolution, getSTM);
+            document.getElementById("info-stm").innerHTML = (totalSTM/numSucceeded).toFixed(2);
+            totalSQTM += getMoveCount(topSolution, getSQTM);
             document.getElementById("info-sqtm").innerHTML = (totalSQTM/numSucceeded).toFixed(2);
             totalESQ += getMoveCount(topSolution, getESQ);
             document.getElementById("info-esq").innerHTML = (totalESQ/numSucceeded).toFixed(2);
@@ -1006,12 +995,11 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                 if (event.data.type === "stop") {
                     stopSearch();
                     let msg = event.data.value;
-                    if (msg !== null) {alert(msg)} else {updateStats()
-                        }
+                    if (msg !== null) {alert(msg)} else {updateStats()}
                 } else if (event.data.type === "depthUpdate") {
                     depth++;
                     document.getElementById("progUpdate"+solveID).innerHTML = "<small>Searching depth "+depth+"</small>";
-                } else if (event.data.type === "solution"  && numSolutions === 0) {
+                } else if (event.data.type === "solution") {
                     let solution = event.data.value;
                     let speed = 0;
                     if (sortCriteria == "MCC") {
@@ -1041,16 +1029,15 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
                     if (event.data.value.index > 1) {
                         addBufferToTable();
                         updateStats();
-                        numSolutions = 0;
                         initNextState();
                     }
                     caseNum = event.data.value.num;
                     if (document.getElementById("imageVis").checked) {
-                            let cube = cubeImage(colMask, event.data.value.setup);
-                            cube("#caseHeader"+solveID);
-                            makeImageCopyable(solveID)
+                        let cube = cubeImage(colMask, event.data.value.setup);
+                        cube("#caseHeader"+solveID);
+                        makeImageCopyable(solveID)
                     } else {
-                      document.getElementById("caseHeader"+solveID).innerHTML = "#"+solveID;
+                        document.getElementById("caseHeader"+solveID).innerHTML = "#"+solveID;
                     }
                 } else if (event.data.type === "num-states") {
                     document.getElementById("info-num-cases").innerHTML = event.data.value;
@@ -1063,13 +1050,13 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
         }
 
         function stopSearch() {
-            if (parseInt(document.getElementById("maxSolutions").value, 10) !== 0) {addBufferToTable()};
+            addBufferToTable();
             clearInterval(addBufferInterval);
             work.terminate();
             isIdle = true;
-                document.getElementById("calc-button").innerHTML = "<strong>Start Search</strong>";
-                document.getElementById("clear-button").disabled = false;
-                document.getElementById("progUpdate"+solveID).innerHTML = "<small>Search finished</small>";
+            document.getElementById("calc-button").innerHTML = "<strong>Start Search</strong>";
+            document.getElementById("clear-button").disabled = false;
+            document.getElementById("progUpdate"+solveID).innerHTML = "<small>Search finished</small>";
             depth = 0;
         }
 
@@ -1156,71 +1143,6 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
         document.getElementById("info-fails").addEventListener("mouseout", outFails, false);
         document.getElementById("info-fails").addEventListener("touchend", copyFails, false);
         
-function optimiseBatchSolver (){
-            console.log("optimising");
-            work = new Worker("worker.js");
-            isIdle = false;
-            startTime = Date.now();
-            failed = [];
-            totalSTM = 0;
-            colMask = document.getElementById("faceletColors").value;
-
-            document.getElementById("info-this-case").innerHTML = 0;
-            document.getElementById("info-num-cases").innerHTML = 0;
-            document.getElementById("info-time").innerHTML = "0.00 sec/case";
-            document.getElementById("info-mcc").innerHTML = "0.00";
-            document.getElementById("info-stm").innerHTML = "0.00";
-            document.getElementById("info-sqtm").innerHTML = "0.00";
-            document.getElementById("info-esq").innerHTML = "0.00";
-            document.getElementById("info-fails").innerHTML = "";
-            document.getElementById("calc-button").innerHTML = "<strong>&nbsp;End Search&nbsp;</strong>";
-            document.getElementById("clear-button").disabled = true;
-
-            initNextState();
-            
-            work.postMessage(getWorkerData());
-
-            work.onmessage = function(event) {
-                if (event.data.type === "stop") {
-                    stopSearch();
-                    let msg = event.data.value;
-                    if (msg !== null) {alert(msg)} else {//updateStats()
-                        }
-                } else if (event.data.type === "depthUpdate") {
-                    depth++;
-                } else if (event.data.type === "solution") {
-                    let solution = event.data.value;
-                    console.log(solution);
-                    if (solution == "") {
-                        failed.push(caseNum);
-                    }
-                    let numCases = parseInt(document.getElementById("info-num-cases").innerHTML, 10);
-                    let numSucceeded = numCases - failed.length;
-                    totalSTM += getMoveCount(solution, getSTM);
-                    console.log(totalSTM);
-                    console.log(failed);
-                    document.getElementById("info-stm").innerHTML = (totalSTM/numSucceeded).toFixed(5);
-                    console.log(numSolutions)
-                    document.getElementById("info-this-case").innerHTML = numSucceeded;
-                    numSolutions++;
-                } else if (event.data.type === "set-depth") {
-                    depth = event.data.value;
-                } else if (event.data.type === "next-state") {
-                    if (event.data.value.index > 1) {
-                        numSolutions = 0;
-                        initNextState();
-                    }
-                    caseNum = event.data.value.num;
-                } else if (event.data.type === "num-states") {
-                    document.getElementById("info-num-cases").innerHTML = event.data.value;
-                } else if (event.data.type === "moveWeights") {
-                    moveWeights = event.data.value;
-                } else if (event.data.type === "debug") {
-                    debugVars.push(event.data.value);
-                }
-            }
-
-        }
 </script>
 </body>
 </html>

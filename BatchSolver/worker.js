@@ -3,7 +3,7 @@ self.onmessage = function (msg) {
 };
 
 /**
- * @param {{ puzzle: String; ignore: String; solve: String; preAdjust: String; postAdjust: String; subgroups: { subgroup: String; prune: String; search: String; }[]; sorting: { type: String; pieces: String; }[]; esq: string; rankesq: string; showPost: boolean; }} input 
+ * @param {{ puzzle: String; ignore: String; solve: String; preAdjust: String; postAdjust: String; subgroups: { subgroup: String; prune: String; search: String; }[]; sorting: { type: String; pieces: String; }[]; esq: string; rankesq: string; showPost: boolean; optimise: boolean}} input 
  * Posts messages:
  * - "stop" - indicates deprecated notation or end of search
  * - "moveWeights" - returns parsed rank ESQ
@@ -23,8 +23,9 @@ function main(input) {
         let state = fullPuzzle.execute(fullPuzzle.solved, fullPuzzle.moveStrToList(stateStr));
         if (!(arraysEqual(fullPuzzle.solved, state))) {
             if (caseNum >= startNum || modifiers.has(caseNum)) {
+                numSolutions = 0;
                 postMessage({ value: { index: solutionIndex, setup: stateStr, num: caseNum }, type: "next-state" });
-                calcState(state, subPuzzles, input.showPost);
+                calcState(state, subPuzzles, input.showPost, input.optimise);
                 solutionIndex++;
             }
             caseNum++;
@@ -261,34 +262,12 @@ function getSubPuzzle(pieceList, fullPuzzle, ignore, subgroup, prune, adjust) {
     }
     if (!hasNonAdjust) {postMessage({value: '"' + subgroup + '" is not a valid subgroup because it is commutative.', type: "stop"})}
 
-const allowedRotations = ["x", "y", "z"];
-console.log(adjust);
-console.log(generators);
-/* for (let move of adjust) {
-    console.log(adjust);
-    if (allowedRotations.includes(move)) {adjust = move}; // allow rotations in any subgroup
-    console.log(adjust);
-   /* if (!generators.includes(move)) {
-         postMessage({
-            value: '"' + subgroup + '" is not a valid subgroup because it does not contain the adjust move "' + move + '".',
-            type: "stop"
-        }); 
-        continue;
-    } 
-} */
-
-   /* for (let move of adjust) {
+    for (let move of adjust) {
         if (!generators.includes(move)) {
             postMessage({value: '"' + subgroup + '" is not a valid subgroup because it does not contain the adjust move "' + move + '".', type: "stop"})
         }
-    } */
+    }
 
-   /* for (let move of adjust) {
-        if (!generators.includes(move)) {
-            generators.push(move);
-            continue;
-        }
-} */
     generators.sort((x, y) => adjust.includes(y) - adjust.includes(x)) // moves all adjust moves to the front
     let subPuzzle = fullPuzzle.setSubgroup(generators);
 
@@ -395,7 +374,8 @@ function parseBatch(input) {
     return finalData;
 }
 
-function calcState(state, subPuzzles, showPostAdj) {
+function calcState(state, subPuzzles, showPostAdj, optimiseBoolean) {
+    let numSolutions = 0; //added for optimisation
     for (let subData of subPuzzles) {
         let searchDepth = parseInt(subData.search, 10);
         if (searchDepth !== searchDepth) {// that means it's NaN
@@ -405,7 +385,18 @@ function calcState(state, subPuzzles, showPostAdj) {
             else {postMessage({value: '"' + subData.search + '" is not a valid search depth.', type: "stop"})}
         }
         for (let solution of subData.puzzle.solve(state, searchDepth, showPostAdj)) {
-            postMessage({value: solution, type: "solution"});
+            
+    console.log("in if")
+    console.log(optimiseBoolean)
+            if(optimiseBoolean) { //optimised version
+                if(numSolutions < 1){
+                    numSolutions++;
+                    postMessage({value: solution, type: "solution"});
+                } else {return;}
+            } else { //normal version
+                console.log(solution);
+                postMessage({value: solution, type: "solution"});
+            }
         }
         postMessage({value: 0, type: "set-depth"})
     }
