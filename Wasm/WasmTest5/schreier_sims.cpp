@@ -258,32 +258,66 @@ struct BSGS {
 
 struct ProductReplacer {
     std::vector<Perm> bag;
+    Perm acc;
+
     std::mt19937& rng;
     int n;
 
-    ProductReplacer(int n, const std::vector<Perm>& gens, std::mt19937& rng)
-        : rng(rng), n(n) {
+    std::uniform_int_distribution<int> bit{0, 1};
+
+    ProductReplacer(int n,
+                     const std::vector<Perm>& gens,
+                     std::mt19937& rng)
+        : rng(rng), n(n), acc(identity(n))
+    {
+        // Build initial bag
         for (const Perm& g : gens) {
             bag.push_back(g);
             bag.push_back(inv(g));
         }
-        while ((int)bag.size() < 10) bag.push_back(identity(n));
-        for (int k = 0; k < 50; ++k) step();   // warm-up
+
+        // Pad bag to decent size
+        while ((int)bag.size() < 32)
+            bag.push_back(identity(n));
+
+        // Long burn-in
+        for (int k = 0; k < 2000; ++k)
+            step();
     }
 
     Perm next() {
-        step();
-        std::uniform_int_distribution<int> d(0, (int)bag.size() - 1);
-        return bag[d(rng)];
+        // Multiple mutations between samples
+        for (int k = 0; k < 4; ++k)
+            step();
+
+        return acc;
     }
 
 private:
     void step() {
         std::uniform_int_distribution<int> d(0, (int)bag.size() - 1);
-        int i = d(rng), j;
-        do { j = d(rng); } while (j == i);
-        bag[i] = (rng() & 1) ? compose(bag[i], bag[j])
-                              : compose(bag[i], inv(bag[j]));
+
+        int i = d(rng);
+        int j;
+        do {
+            j = d(rng);
+        } while (j == i);
+
+        const Perm& g = bag[j];
+
+        Perm h = bit(rng) ? g : inv(g);
+
+        // Randomize left/right multiplication
+        if (bit(rng))
+            bag[i] = compose(bag[i], h);
+        else
+            bag[i] = compose(h, bag[i]);
+
+        // Update accumulator
+        if (bit(rng))
+            acc = compose(acc, bag[i]);
+        else
+            acc = compose(bag[i], acc);
     }
 };
 
