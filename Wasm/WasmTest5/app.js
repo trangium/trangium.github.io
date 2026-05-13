@@ -106,14 +106,22 @@ function setResult(html) {
 
 worker.addEventListener('message', ({ data }) => {
     if (data.type === 'result') {
-        const { id, tableSize } = data;
-        if (id === -1) {
-            setStatus(`Table built — ${tableSize} canonical ID(s). Starting algorithm is not in the table.`, '#fb923c');
-            setResult('<span style="color:#6b7280">Not found.</span>');
-        } else {
-            setStatus(`Table built — ${tableSize} canonical ID(s).`, '#4ade80');
-            setResult(`<span class="id-display">${id}</span>`);
+        const { base, images } = data;
+        if (!base.length) {
+            setStatus('Done — solving group is trivial (empty base).', '#4ade80');
+            setResult('<span style="color:#6b7280">No base points.</span>');
+            return;
         }
+        setStatus('Done.', '#4ade80');
+        const rows = base.map((b, i) => {
+            const moved = images[i] !== b;
+            return `<tr>
+                <td class="bp">${b}</td>
+                <td class="arr">→</td>
+                <td class="${moved ? 'moved' : 'fixed'}">${images[i]}</td>
+            </tr>`;
+        }).join('');
+        setResult(`<table class="result-table">${rows}</table>`);
     } else if (data.type === 'error') {
         setStatus('Error: ' + data.message, '#f87171');
         setResult('');
