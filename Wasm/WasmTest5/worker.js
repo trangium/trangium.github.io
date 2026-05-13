@@ -66,7 +66,7 @@ self.onmessage = function ({ data }) {
                 solver.addSolvingGenerator(v);
                 v.delete();
             }
-            solver.buildTargetGroup(40);
+            solver.buildTargetGroup(80);
         }
 
         for (const perm of solvingPerms) {
@@ -75,7 +75,7 @@ self.onmessage = function ({ data }) {
             solver.addSolvingGenerator(v);
             v.delete();
         }
-        solver.buildSolvingBSGS(40);
+        solver.buildSolvingBSGS(80);
 
         // Build solving move list and parallel name list
         const permStr = p => p.join(',');

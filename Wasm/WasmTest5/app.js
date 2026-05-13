@@ -132,7 +132,7 @@ worker.addEventListener('message', ({ data }) => {
     if (data.type === 'preview') {
         const { groupPreviews } = data;
         const parts = groupPreviews.map((g, i) =>
-            `\nT${i + 1}: ≤ ${g.predictedSize} states`
+            `\nT${i + 1}: ≤ ${g.solvingOrder} / ${g.targetOrder} = ${g.predictedSize} states`
         );
         setStatus('Building tables… ' + parts.join(' · '), '#fbbf24');
     } else if (data.type === 'result') {
@@ -158,7 +158,7 @@ worker.addEventListener('message', ({ data }) => {
 // ── Main compute ──────────────────────────────────────────────────────────────
 
 function compute() {
-    setStatus('Computing…', '#fbbf24');
+    setStatus('Computing group orders…', '#fbbf24');
     setResult('');
 
     let k, moves;
