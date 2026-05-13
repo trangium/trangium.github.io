@@ -408,28 +408,6 @@ class SchreierSimsRunner {
     int n_ = 0;
     std::vector<Perm> generators_;
     BSGS bsgs_{0};
-
-    // Solving moves (loaded separately for DFS)
-    std::vector<Perm> solving_moves_;
-
-    // Canonical ID table (populated by buildTable)
-    std::unordered_map<std::string, int> canon_id_table_;
-    std::vector<int> canon_id_base_;
-
-    // Transition table (populated by buildTransitionTable)
-    // transition_table_[id][mi] = canonical ID after applying solving_moves_[mi]
-    std::vector<std::vector<int>> transition_table_;
-
-    std::string canonKey(const Perm& perm, const std::vector<int>& base) const {
-        Perm c = bsgs_.canonicalize(perm);
-        std::string key;
-        for (int i = 0; i < (int)base.size(); i++) {
-            if (i) key += ',';
-            key += std::to_string(c[base[i]]);
-        }
-        return key;
-    }
-
 public:
     void reset(int n) { n_ = n; generators_.clear(); bsgs_ = BSGS(n); }
 
@@ -456,150 +434,27 @@ public:
         bsgs_ = randomized_schreier_sims(n_, generators_, confidence);
     }
 
-    std::vector<int> getBase() const { return bsgs_.base(); }
+    std::vector<int> getBase() const {
+        return bsgs_.base();
+    }
 
     std::vector<int> canonicalizePerm(const std::vector<int>& perm) const {
         Perm p(perm.begin(), perm.end());
         Perm c = bsgs_.canonicalize(p);
         return std::vector<int>(c.begin(), c.end());
     }
-
-    // ── Solving moves ─────────────────────────────────────────────────────────
-
-    void clearSolvingMoves() { solving_moves_.clear(); }
-
-    void addSolvingMove(const std::vector<int>& m) {
-        solving_moves_.emplace_back(m.begin(), m.end());
-    }
-
-    // DFS over the solving moves, canonicalizing each state with the target
-    // bsgs_.  The canonical key is the image of the solving BSGS base points
-    // under canonicalize(cube).  Returns the total number of table entries.
-    int buildTable(const std::vector<int>& base) {
-        canon_id_table_.clear();
-        canon_id_base_ = base;
-        const int nMoves = (int)solving_moves_.size();
-        if (nMoves == 0) return 0;
-
-        std::vector<Perm> invs;
-        invs.reserve(nMoves);
-        for (const Perm& m : solving_moves_) invs.push_back(inv(m));
-
-        Perm cube = identity(n_);
-        std::vector<int> stack = {0};
-        canon_id_table_[canonKey(cube, base)] = 0;
-
-        while (!stack.empty()) {
-            if (stack.back() == nMoves) {
-                stack.pop_back();
-                if (!stack.empty())
-                    cube = compose(cube, invs[stack.back() - 1]);
-                continue;
-            }
-
-            int mi = stack.back();
-            stack.back()++;
-
-            cube = compose(cube, solving_moves_[mi]);
-            std::string h = canonKey(cube, base);
-
-            if (!canon_id_table_.count(h)) {
-                canon_id_table_[h] = (int)canon_id_table_.size();
-                stack.push_back(0);
-            } else {
-                cube = compose(cube, invs[mi]);
-            }
-        }
-
-        return (int)canon_id_table_.size();
-    }
-
-    // Must be called after buildTable. Fills transition_table_[id][mi] with the
-    // canonical ID reached by applying solving_moves_[mi] to any state whose
-    // canonical ID is id. Uses the same DFS structure as buildTable.
-    void buildTransitionTable() {
-        const int nMoves = (int)solving_moves_.size();
-        const int tableSize = (int)canon_id_table_.size();
-        transition_table_.assign(tableSize, std::vector<int>(nMoves, -1));
-
-        if (nMoves == 0 || tableSize == 0) return;
-
-        std::vector<Perm> invs;
-        invs.reserve(nMoves);
-        for (const Perm& m : solving_moves_) invs.push_back(inv(m));
-
-        std::vector<bool> visited(tableSize, false);
-
-        auto fillTransitions = [&](const Perm& cube, int id) {
-            for (int tj = 0; tj < nMoves; tj++) {
-                Perm next = compose(cube, solving_moves_[tj]);
-                transition_table_[id][tj] = canon_id_table_.at(canonKey(next, canon_id_base_));
-            }
-        };
-
-        Perm cube = identity(n_);
-        int rootId = canon_id_table_.at(canonKey(cube, canon_id_base_));
-        visited[rootId] = true;
-        fillTransitions(cube, rootId);
-
-        std::vector<int> stack = {0};
-
-        while (!stack.empty()) {
-            if (stack.back() == nMoves) {
-                stack.pop_back();
-                if (!stack.empty())
-                    cube = compose(cube, invs[stack.back() - 1]);
-                continue;
-            }
-
-            int mi = stack.back();
-            stack.back()++;
-
-            cube = compose(cube, solving_moves_[mi]);
-            int id = canon_id_table_.at(canonKey(cube, canon_id_base_));
-
-            if (!visited[id]) {
-                visited[id] = true;
-                fillTransitions(cube, id);
-                stack.push_back(0);
-            } else {
-                cube = compose(cube, invs[mi]);
-            }
-        }
-    }
-
-    std::vector<int> getTransitionRow(int id) const {
-        if (id < 0 || id >= (int)transition_table_.size()) return {};
-        return transition_table_[id];
-    }
-
-    // Returns the canonical ID of perm, or -1 if not in the table.
-    int lookupCanonId(const std::vector<int>& perm) const {
-        Perm p(perm.begin(), perm.end());
-        auto it = canon_id_table_.find(canonKey(p, canon_id_base_));
-        return (it != canon_id_table_.end()) ? it->second : -1;
-    }
-
-    int getTableSize() const { return (int)canon_id_table_.size(); }
 };
 
 EMSCRIPTEN_BINDINGS(module) {
     emscripten::register_vector<int>("VectorInt");
     emscripten::class_<SchreierSimsRunner>("SchreierSimsRunner")
         .constructor<>()
-        .function("reset",             &SchreierSimsRunner::reset)
-        .function("addGenerator",      &SchreierSimsRunner::addGenerator)
-        .function("run",               &SchreierSimsRunner::run)
-        .function("build",             &SchreierSimsRunner::build)
-        .function("getBase",           &SchreierSimsRunner::getBase)
-        .function("canonicalizePerm",  &SchreierSimsRunner::canonicalizePerm)
-        .function("clearSolvingMoves", &SchreierSimsRunner::clearSolvingMoves)
-        .function("addSolvingMove",    &SchreierSimsRunner::addSolvingMove)
-        .function("buildTable",             &SchreierSimsRunner::buildTable)
-        .function("lookupCanonId",          &SchreierSimsRunner::lookupCanonId)
-        .function("getTableSize",           &SchreierSimsRunner::getTableSize)
-        .function("buildTransitionTable",   &SchreierSimsRunner::buildTransitionTable)
-        .function("getTransitionRow",       &SchreierSimsRunner::getTransitionRow);
+        .function("reset",            &SchreierSimsRunner::reset)
+        .function("addGenerator",     &SchreierSimsRunner::addGenerator)
+        .function("run",              &SchreierSimsRunner::run)
+        .function("build",            &SchreierSimsRunner::build)
+        .function("getBase",          &SchreierSimsRunner::getBase)
+        .function("canonicalizePerm", &SchreierSimsRunner::canonicalizePerm);
 }
 
 #else
