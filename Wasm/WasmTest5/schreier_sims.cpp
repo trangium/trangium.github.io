@@ -756,6 +756,98 @@ public:
     int getTableSize() const { return (int)canon_id_table_.size(); }
 };
 
+// ─── Move-sequence pruning ────────────────────────────────────────────────────
+
+// Tracks the trailing move streak in the current IDA* path.
+struct MoveStreak {
+    int mi    =  0;  // index of last move
+    int count =  0;  // consecutive times mi appears at the path tail
+};
+
+// Precomputes, for every (prev_move, next_move) pair, the maximum consecutive
+// count of prev_move that still permits next_move to follow.
+// INT_MAX = always allowed; 0 = never allowed.
+struct MovePruner {
+    std::vector<std::vector<int>> can_follow;
+    int nMoves = 0;
+
+    static int perm_order(const Perm& p, const int limit) {
+        int n = (int)p.size();
+        std::vector<bool> vis(n, false);
+        int ord = 1;
+        for (int i = 0; i < n; ++i) {
+            if (vis[i]) continue;
+            int cyc = 0, j = i;
+            while (!vis[j]) { vis[j] = true; j = p[j]; ++cyc; }
+            ord = std::lcm(ord, cyc);
+            if (ord > limit) return INT_MAX;
+        }
+        return ord;
+    }
+
+    void build(const std::vector<Perm>& moves) {
+        nMoves = (int)moves.size();
+        can_follow.assign(nMoves, std::vector<int>(nMoves, INT_MAX));
+
+        // Inverse index: inv_idx[i] = j where compose(moves[i], moves[j]) == id
+        std::vector<int> inv_idx(nMoves, -1);
+        for (int i = 0; i < nMoves; ++i) {
+            if (inv_idx[i] >= 0) continue;
+            for (int j = i; j < nMoves; ++j) {
+                if (is_identity(compose(moves[i], moves[j]))) {
+                    inv_idx[i] = j; inv_idx[j] = i; break;
+                }
+            }
+        }
+
+        // Perm → index lookup for 2-move collapse detection
+        auto perm_key = [](const Perm& p) {
+            std::string k; k.reserve(p.size() * 4);
+            for (int x : p) { k += std::to_string(x); k += ','; }
+            return k;
+        };
+        std::unordered_map<std::string, int> perm_index;
+        for (int i = 0; i < nMoves; ++i) perm_index[perm_key(moves[i])] = i;
+
+        for (int i = 0; i < nMoves; ++i) {
+            for (int j = 0; j < nMoves; ++j) {
+                Perm ij = compose(moves[i], moves[j]);
+
+                // Rule 1b: 2-move combo equals identity or another move in the set
+                if (is_identity(ij) || perm_index.count(perm_key(ij))) {
+                    can_follow[i][j] = 0; continue;
+                }
+
+                if (i != j) {
+                    // Rule 1a: commuting pair — enforce lower-index-first ordering
+                    if (ij == compose(moves[j], moves[i]) && j < i) {
+                        can_follow[i][j] = 0; continue;
+                    }
+                } else {
+                    // Rule 2: cap consecutive uses of low-order moves.
+                    // For move M with order n and inverse at inv_idx[i]:
+                    //   forward  (inv_i > i): max streak = floor(n/2)
+                    //   inverse  (inv_i < i): max streak = floor((n-1)/2)
+                    //   self-inv (inv_i == i): max streak = 1
+                    int ord = perm_order(moves[i], 16);
+                    if (ord < INT_MAX) {
+                        const int inv_i = inv_idx[i];
+                        int cap = (inv_i < 0 || inv_i == i) ? 0 // dead code, reached by (1b)
+                                : (inv_i > i)               ? ord / 2 - 1
+                                :                             (ord - 1) / 2 - 1;
+                        can_follow[i][i] = cap;
+                    }
+                }
+            }
+        }
+    }
+
+    // Returns true if next_mi should be pruned given the current path tail.
+    bool prune(int prev_mi, int prev_count, int next_mi) const {
+        return prev_count > can_follow[prev_mi][next_mi];
+    }
+};
+
 // ─── MultiTargetSolver ────────────────────────────────────────────────────────
 //
 // Manages t target groups (each with its own BSGS + tables) and one set of
@@ -791,10 +883,11 @@ class MultiTargetSolver {
     std::vector<int> solution_;
     emscripten::val js_callback_ = emscripten::val::undefined();
     bool found_any_solution_ = false;
+    MovePruner pruner_;
 
-    // Returns INT_MAX if a solution was found (and reported), or the minimum f
-    // that exceeded threshold, or INT_MAX if no branch exceeded it.
-    int idaDfs(std::vector<int>& state, int g, int threshold) {
+    // Returns INT_MAX if a solution was found (and reported via callback), or the
+    // minimum f that exceeded threshold, or INT_MAX if no branch exceeded it.
+    int idaDfs(std::vector<int>& state, int g, int threshold, MoveStreak tail) {
         int h = 0;
         for (int i = 0; i < (int)groups_.size(); i++)
             h = std::max(h, groups_[i].distance_table[state[i]]);
@@ -816,10 +909,12 @@ class MultiTargetSolver {
         int minExceeded = INT_MAX;
 
         for (int mi = 0; mi < nMoves; mi++) {
+            if (pruner_.prune(tail.mi, tail.count, mi)) continue;
             for (int i = 0; i < t; i++)
                 state[i] = groups_[i].transition_table[parent[i]][mi];
             solution_.push_back(mi);
-            int result = idaDfs(state, g + 1, threshold);
+            MoveStreak new_tail{mi, mi == tail.mi ? tail.count + 1 : 1};
+            int result = idaDfs(state, g + 1, threshold, new_tail);
             solution_.pop_back();
             if (result < minExceeded) minExceeded = result;
         }
@@ -882,6 +977,8 @@ public:
     void buildTables() {
         const int nMoves = (int)solving_moves_.size();
         if (nMoves == 0 || groups_.empty()) return;
+
+        pruner_.build(solving_moves_);
 
         const std::vector<int> base = solving_bsgs_.base();
 
@@ -1024,7 +1121,7 @@ public:
         int threshold = h;
         while (true) {
             found_any_solution_ = false;
-            int result = idaDfs(state, 0, threshold);
+            int result = idaDfs(state, 0, threshold, {});
             if (found_any_solution_) return {};
             if (result == INT_MAX) return {-1};
             threshold = result;

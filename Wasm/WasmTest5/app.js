@@ -130,13 +130,17 @@ worker.addEventListener('message', ({ data }) => {
     if (data.type === 'cache_hit') {
         const { tableSizes } = data;
         const tableInfo = tableSizes.map((s, i) => `T${i + 1}: ${s}`).join(', ');
-        setStatus(`Tables built (${tableInfo}).`, '#fbbf24');
+        setStatus(`Tables built (${tableInfo}). Solving...`, '#fbbf24');
     } else if (data.type === 'preview') {
         const { groupPreviews } = data;
         const parts = groupPreviews.map((g, i) =>
             `\nT${i + 1}: ≤ ${g.predictedSize} states (${g.solvingOrder} / ${g.targetOrder})`
         );
         setStatus('Building tables… ' + parts.join(''), '#fbbf24');
+    } else if (data.type === 'tables_built') {
+        const { tableSizes } = data;
+        const tableInfo = tableSizes.map((s, i) => `T${i + 1}: ${s}`).join(', ');
+        setStatus(`Tables built (${tableInfo}). Solving...`, '#fbbf24');
     } else if (data.type === 'solution') {
         const { solution } = data;
         const resultEl = $('result');
@@ -232,6 +236,9 @@ D2: D D
 B2: B B
 `;
 
-$('target-gens').value   = `D, R2 D2 R D2 R2, F2 D2 F D2 F2, L2 D2 L D2 L2, B2 D2 B D2 B2, L R' B L' R, L' R F L R', F B' L F' B, F' B R F B', R D R' D' R' B R B', B R D R' D' B'`;
+$('target-gens').value   = `R, U, F, B L B'
+R, U, B, F' L F
+R, U, D, L
+R, U, D2 L D2, L F L', L' B' L`;
 $('solving-gens').value  = `R, U, F, D, L, B`;
 $('starting-algo').value = `R' F R U R U' R' F' R U' R'`;

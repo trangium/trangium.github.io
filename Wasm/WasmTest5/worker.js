@@ -137,6 +137,8 @@ self.onmessage = function ({ data }) {
                 cachedAllMoveNames = allMoveNames;
                 cachedTableSizes = tableSizes;
 
+                self.postMessage({ type: 'tables_built', tableSizes });
+
                 solver.setCallback(function(moveIndicesArr) {
                     const solution = [];
                     for (let i = 0; i < moveIndicesArr.length; i++)
