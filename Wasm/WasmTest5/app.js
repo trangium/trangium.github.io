@@ -84,18 +84,16 @@ function parseDefs(text) {
 
 // ── Algorithm / generator parsers ─────────────────────────────────────────────
 
-// Parse a comma-or-newline-separated list of move-sequence generators
 function parseGenerators(text) {
     return text
-        .split(/[,\n]/)
+        .split(',')
         .map(g => g.trim().split(/\s+/).filter(Boolean))
         .filter(g => g.length > 0);
 }
 
-// Parse multiple generator groups separated by lines containing only "---".
-// Returns an array of arrays of permutations.
+// Each non-blank line is one target group; generators within a group are comma-separated.
 function parseTargetGroups(text, moves, k) {
-    const groups = text.split(/\n(?:[ \t]*\n)+/).map(s => s.trim()).filter(Boolean);
+    const groups = text.split('\n').map(s => s.trim()).filter(Boolean);
     if (!groups.length) throw new Error('No target generators entered.');
     return groups.map((groupText, idx) => {
         const algos = parseGenerators(groupText);

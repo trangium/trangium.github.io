@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Coset Canonicalizer</title>
+    <title>Simultaneous Subgroup Solver</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: system-ui, sans-serif; background: #111827; color: #d1d5db; padding: 24px; max-width: 820px; }
@@ -26,39 +26,35 @@
         .row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
         #status { font-size: 0.78rem; color: #6b7280; display: block; margin-top: 10px; font-family: monospace; min-height: 1.2em; }
         #result { margin-top: 10px; }
-        .id-display { font-size: 2.8rem; font-weight: 700; font-family: monospace; color: #93c5fd; }
+        .id-display { font-size: 0.78rem; font-weight: 700; font-family: monospace; color: #93c5fd; }
         #hint-enter { font-size: 0.72rem; color: #4b5563; }
     </style>
 </head>
 <body>
-    <h1>Coset Canonicalizer</h1>
+    <h1>Simultaneous Subgroup Solver</h1>
 
     <section>
         <h2>Puzzle</h2>
         <p class="hint">
-            Atomic: <code>Name: (a b c) (d e)</code> &nbsp;·&nbsp;
-            Derived: <code>X2: X X</code> &nbsp;·&nbsp;
-            <code>(a b c)</code> means a→b, b→c, c→a &nbsp;·&nbsp;
-            Inverses (<code>X'</code>) are added automatically
+            Inverses automatically added. Double moves must be added manually.
         </p>
         <textarea id="puzzle" rows="10" spellcheck="false" autocomplete="off"></textarea>
     </section>
 
     <section>
-        <h2>Target Generators</h2>
-        <p class="hint">Comma or newline separated. Separate multiple target groups with a blank line.</p>
+        <h2>Target Subgroups</h2>
+        <p class="hint">Comma-separated generators. One target group per line.</p>
         <textarea id="target-gens" rows="3" spellcheck="false" autocomplete="off"></textarea>
     </section>
 
     <section>
-        <h2>Solving Generators</h2>
-        <p class="hint">Comma or newline separated. Their BSGS base points are the output domain.</p>
+        <h2>Solving Subgroup</h2>
+        <p class="hint">Comma-separated generators.</p>
         <textarea id="solving-gens" rows="2" spellcheck="false" autocomplete="off"></textarea>
     </section>
 
     <section>
-        <h2>Starting Algorithm</h2>
-        <p class="hint">Space-separated move names. Enter to compute.</p>
+        <h2>Scramble</h2>
         <input id="starting-algo" class="full" type="text" spellcheck="false" autocomplete="off">
     </section>
 
