@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Schreier-Sims BSGS Calculator</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Courier New', Courier, system-ui, sans-serif; background: #111827; color: #d1d5db; padding: 24px; max-width: 700px; }
+        h1 { font-size: 1.3rem; margin-bottom: 20px; color: #6ee7b7; letter-spacing: 0.02em; }
+        section { background: #1f2937; border-radius: 8px; padding: 16px; margin-bottom: 14px; }
+        h2 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: #6b7280; margin-bottom: 10px; }
+        .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        input[type=number] {
+            background: #111827; border: 1px solid #374151; border-radius: 4px;
+            color: #e5e7eb; font-size: 0.9rem; font-family: monospace; padding: 6px 10px; width: 80px;
+        }
+        input:focus { outline: none; border-color: #3b82f6; }
+        textarea {
+            width: 100%; background: #111827; border: 1px solid #374151; border-radius: 4px;
+            color: #e5e7eb; font-size: 0.9rem; font-family: monospace; padding: 10px 12px;
+            resize: vertical; line-height: 1.6;
+        }
+        textarea:focus { outline: none; border-color: #3b82f6; }
+        button {
+            background: #374151; border: none; color: #d1d5db; border-radius: 4px;
+            padding: 6px 14px; cursor: pointer; font-size: 0.82rem;
+            font-family: monospace;
+        }
+        button:hover { background: #4b5563; }
+        button.primary { background: #065f46; color: #6ee7b7; }
+        button.primary:hover { background: #047857; }
+        .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+        .hint { font-size: 0.75rem; color: #6b7280; margin-bottom: 8px; }
+        #status { font-size: 0.78rem; color: #6b7280; margin-left: 8px; }
+        .result-row { display: flex; gap: 12px; align-items: baseline; margin-bottom: 8px; }
+        .result-label { color: #6b7280; font-size: 0.78rem; min-width: 100px; }
+        .result-val { color: #6ee7b7; font-family: monospace; font-weight: 600; }
+        .order-val { font-size: 1.8rem; font-weight: 700; color: #a5f3fc; font-family: monospace; }
+        .orbit-chip {
+            display: inline-block; background: #111827; border: 1px solid #374151;
+            border-radius: 4px; padding: 2px 8px; margin: 2px;
+            font-size: 0.85rem; color: #93c5fd; font-family: monospace;
+        }
+        .err { color: #f87171; font-size: 0.88rem; }
+        label { font-size: 0.82rem; color: #6b7280; }
+    </style>
+</head>
+<body>
+    <h1>Schreier-Sims BSGS Calculator</h1>
+
+    <section>
+        <h2>Degree</h2>
+        <div class="row">
+            <label>n =</label>
+            <input id="n-input" type="number" min="1" value="4">
+        </div>
+    </section>
+
+    <section>
+        <h2>Generators</h2>
+        <p class="hint">One permutation per line · 0-indexed · space or comma separated</p>
+        <textarea id="gens-input" rows="4" placeholder="0 1 3 2&#10;1 0 2 3" spellcheck="false"></textarea>
+        <div class="presets">
+            <button data-preset="v4">V₄ (n=4)</button>
+            <button data-preset="s4">S₄ (n=4)</button>
+            <button data-preset="s5">S₅ (n=5)</button>
+            <button data-preset="a5">A₅ (n=5)</button>
+            <button data-preset="s8">S₈ (n=8)</button>
+        </div>
+    </section>
+
+    <section>
+        <h2>Confidence</h2>
+        <div class="row">
+            <label>k =</label>
+            <input id="confidence-input" type="number" min="1" max="200" value="40">
+            <span style="font-size:0.78rem;color:#6b7280">error ≤ 2<sup>−k</sup></span>
+        </div>
+    </section>
+
+    <section style="display:flex;align-items:center;gap:12px;padding:14px 16px">
+        <button id="run-btn" class="primary">Compute BSGS</button>
+        <span id="status"></span>
+    </section>
+
+    <section>
+        <h2>Results</h2>
+        <div id="result" style="color:#6b7280">—</div>
+    </section>
+
+    <script>
+        const worker = new Worker('worker.js');
+
+        const presets = {
+            v4: { n: 4, gens: '0 1 3 2\n1 0 2 3' },
+            s4: { n: 4, gens: '1 2 3 0\n1 0 2 3' },
+            s5: { n: 5, gens: '1 2 3 4 0\n1 0 2 3 4' },
+            a5: { n: 5, gens: '1 2 0 3 4\n1 2 3 4 0' },
+            s8: { n: 8, gens: '1 2 3 4 5 6 7 0\n1 0 2 3 4 5 6 7' },
+        };
+
+        document.querySelectorAll('[data-preset]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const p = presets[btn.dataset.preset];
+                document.getElementById('n-input').value = p.n;
+                document.getElementById('gens-input').value = p.gens;
+            });
+        });
+
+        worker.onmessage = function({ data }) {
+            document.getElementById('status').textContent = '';
+            const result = document.getElementById('result');
+            if (data.type === 'result') {
+                const { base, orbitSizes, order } = data;
+                const chips = orbitSizes.map(s => `<span class="orbit-chip">${s}</span>`).join(' ×');
+                result.innerHTML = `
+                    <div class="result-row">
+                        <span class="result-label">Group order</span>
+                        <span class="order-val">${order}</span>
+                    </div>
+                    <div class="result-row">
+                        <span class="result-label">Base</span>
+                        <span class="result-val">[${base.join(', ')}]</span>
+                    </div>
+                    <div class="result-row" style="align-items:center">
+                        <span class="result-label">Orbit sizes</span>
+                        <span>${chips}</span>
+                    </div>
+                `;
+            } else if (data.type === 'error') {
+                result.innerHTML = `<span class="err">${data.message}</span>`;
+            }
+        };
+
+        document.getElementById('run-btn').addEventListener('click', () => {
+            const n = parseInt(document.getElementById('n-input').value) || 0;
+            const confidence = parseInt(document.getElementById('confidence-input').value) || 40;
+            const raw = document.getElementById('gens-input').value;
+            const result = document.getElementById('result');
+
+            if (n < 1) { result.innerHTML = '<span class="err">Degree must be ≥ 1.</span>'; return; }
+
+            const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+            if (!lines.length) { result.innerHTML = '<span class="err">Enter at least one generator.</span>'; return; }
+
+            const generators = [];
+            for (const line of lines) {
+                const parts = line.split(/[\s,]+/).filter(Boolean).map(Number);
+                if (parts.some(isNaN)) {
+                    result.innerHTML = `<span class="err">Invalid entry: "${line}"</span>`; return;
+                }
+                if (parts.length !== n) {
+                    result.innerHTML = `<span class="err">Generator has ${parts.length} entries but n=${n}: "${line}"</span>`; return;
+                }
+                generators.push(parts);
+            }
+
+            document.getElementById('status').textContent = 'computing…';
+            result.innerHTML = '<span style="color:#6b7280">—</span>';
+            worker.postMessage({ type: 'run', n, generators, confidence });
+        });
+    </script>
+</body>
+</html>

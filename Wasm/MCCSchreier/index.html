@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Min-Plus Algorithm Evaluator</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, sans-serif; background: #111827; color: #d1d5db; padding: 24px; max-width: 900px; }
+        h1 { font-size: 1.3rem; margin-bottom: 20px; color: #93c5fd; letter-spacing: 0.02em; }
+        section { background: #1f2937; border-radius: 8px; padding: 16px; margin-bottom: 14px; }
+        h2 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: #6b7280; margin-bottom: 12px; }
+        .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; overflow-x: auto; }
+        input.cell {
+            width: 52px; height: 34px; text-align: center;
+            background: #111827; border: 1px solid #374151; border-radius: 4px;
+            color: #e5e7eb; font-size: 0.82rem; font-family: monospace; flex-shrink: 0;
+        }
+        input.cell:focus { outline: none; border-color: #3b82f6; }
+        input.cell::placeholder { color: #374151; }
+        .matrix-wrap { overflow-x: auto; }
+        .matrix-grid { display: inline-grid; gap: 3px; }
+        .move-card { background: #111827; border-radius: 6px; padding: 12px; margin-bottom: 8px; }
+        .move-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+        input.move-name {
+            background: transparent; border: none; border-bottom: 1px solid #374151;
+            color: #60a5fa; font-size: 0.95rem; font-weight: 600; width: 72px; padding: 2px 4px; font-family: monospace;
+        }
+        input.move-name:focus { outline: none; border-bottom-color: #3b82f6; }
+        button {
+            background: #374151; border: none; color: #d1d5db; border-radius: 4px;
+            padding: 6px 12px; cursor: pointer; font-size: 0.82rem; flex-shrink: 0;
+        }
+        button:hover { background: #4b5563; }
+        button.primary { background: #1d4ed8; color: #fff; }
+        button.primary:hover { background: #2563eb; }
+        button.del { background: transparent; color: #6b7280; padding: 2px 8px; font-size: 1rem; }
+        button.del:hover { color: #ef4444; background: transparent; }
+        #algo-input {
+            width: 100%; background: #111827; border: 1px solid #374151; border-radius: 4px;
+            color: #e5e7eb; font-size: 0.95rem; font-family: monospace; padding: 8px 12px;
+        }
+        #algo-input:focus { outline: none; border-color: #3b82f6; }
+        #result-display {
+            font-size: 2.2rem; font-weight: 700; font-family: monospace;
+            color: #93c5fd; margin-top: 10px; min-height: 2.8rem; transition: color 0.2s;
+        }
+        #result-display.inf { color: #6b7280; }
+        #result-display.err { color: #f87171; font-size: 1rem; font-weight: 400; }
+        label { font-size: 0.82rem; color: #6b7280; }
+        #n-input { width: 56px; }
+        #eval-btn { margin-right: 8px; }
+        #status { font-size: 0.78rem; color: #6b7280; display: inline; }
+
+        /* ── Cube tracker ── */
+        hr.divider { border: none; border-top: 1px solid #374151; margin: 28px 0; }
+        h1.alt { color: #a5b4fc; }
+        textarea.defs-area {
+            width: 100%; background: #111827; border: 1px solid #374151; border-radius: 4px;
+            color: #e5e7eb; font-size: 0.82rem; font-family: monospace; padding: 10px 12px;
+            resize: vertical; line-height: 1.6;
+        }
+        textarea.defs-area:focus { outline: none; border-color: #3b82f6; }
+        input.full {
+            width: 100%; background: #111827; border: 1px solid #374151; border-radius: 4px;
+            color: #e5e7eb; font-size: 0.95rem; font-family: monospace; padding: 8px 12px;
+        }
+        input.full:focus { outline: none; border-color: #3b82f6; }
+        .status-line { font-size: 0.78rem; margin-left: 4px; }
+        .result-table { border-collapse: collapse; font-family: monospace; font-size: 0.92rem; margin-top: 6px; }
+        .result-table td { padding: 2px 8px; }
+        .result-table .bp  { color: #9ca3af; text-align: right; }
+        .result-table .arr { color: #374151; padding: 0; }
+        .result-table .moved { color: #fbbf24; font-weight: 600; }
+        .result-table .fixed { color: #4ade80; }
+        .warn { color: #fb923c; font-size: 0.8rem; margin-top: 8px; }
+    </style>
+</head>
+<body>
+    <h1>Min-Plus Algorithm Evaluator</h1>
+
+    <section>
+        <h2>Dimension</h2>
+        <div class="row">
+            <label>n =</label>
+            <input id="n-input" class="cell" type="number" min="1" value="2">
+        </div>
+    </section>
+
+    <section>
+        <h2>Initial Vector</h2>
+        <div id="vector-inputs" class="row"></div>
+    </section>
+
+    <section>
+        <h2>Moves</h2>
+        <div id="moves-list"></div>
+        <button id="add-move-btn">+ Add Move</button>
+    </section>
+
+    <section>
+        <h2>Algorithm <span style="text-transform:none;font-size:0.8em;color:#4b5563">(space-separated move names)</span></h2>
+        <input id="algo-input" type="text" placeholder="e.g.  R U R' U'" spellcheck="false" autocomplete="off">
+    </section>
+
+    <section>
+        <h2>Result</h2>
+        <button id="eval-btn" class="primary">Evaluate</button>
+        <span id="status"></span>
+        <div id="result-display">—</div>
+    </section>
+
+    <!-- Shared worker: both main.js and cube.js subscribe via addEventListener -->
+    <script>const worker = new Worker('worker.js');</script>
+    <script src="main.js"></script>
+
+    <hr class="divider">
+    <h1 class="alt">Rubik's Cube Permutation Tracker</h1>
+
+    <section>
+        <h2>Move Definitions</h2>
+        <p style="font-size:0.75rem;color:#6b7280;margin-bottom:8px">
+            Atomic: <code>Name: (a b c) (d e)</code> &nbsp;·&nbsp;
+            Derived: <code>X2: X X</code> &nbsp;·&nbsp;
+            <code>(a b c)</code> means a→b, b→c, c→a
+        </p>
+        <textarea id="cube-defs" class="defs-area" rows="10" spellcheck="false"></textarea>
+        <div class="row" style="margin-top:8px">
+            <button id="cube-parse-btn">Parse</button>
+            <span id="cube-parse-status" class="status-line" style="color:#6b7280"></span>
+        </div>
+    </section>
+
+    <section>
+        <h2>Base Points <span style="text-transform:none;font-size:0.8em;color:#4b5563">(space or comma separated)</span></h2>
+        <input id="cube-base" class="full" type="text" spellcheck="false" autocomplete="off">
+    </section>
+
+    <section>
+        <h2>Algorithm <span style="text-transform:none;font-size:0.8em;color:#4b5563">(space-separated move names)</span></h2>
+        <input id="cube-algo" class="full" type="text" placeholder="e.g.  R U R' U'" spellcheck="false" autocomplete="off">
+    </section>
+
+    <section>
+        <h2>Result — Base Point Positions After Algorithm</h2>
+        <button id="cube-eval-btn" class="primary">Evaluate</button>
+        <div id="cube-result" style="margin-top:12px;color:#6b7280">—</div>
+    </section>
+
+    <script src="cube.js"></script>
+
+    <hr class="divider">
+    <h1 class="alt" style="color:#6ee7b7">Subgroup Membership (Schreier-Sims)</h1>
+
+    <section>
+        <h2>Generators <span style="text-transform:none;font-size:0.8em;color:#4b5563">(one algorithm per line)</span></h2>
+        <textarea id="sims-generators" class="defs-area" rows="4" spellcheck="false"
+            placeholder="F R U R' U' F'&#10;R U R' U R U2 R'"></textarea>
+        <div class="row" style="margin-top:8px">
+            <button id="sims-build-btn">Build BSGS</button>
+            <span id="sims-status" class="status-line" style="color:#6b7280"></span>
+        </div>
+    </section>
+
+    <section>
+        <h2>Test Algorithm <span style="text-transform:none;font-size:0.8em;color:#4b5563">(is this permutation in the subgroup?)</span></h2>
+        <input id="sims-test-algo" class="full" type="text" placeholder="e.g.  R U R' U'" spellcheck="false" autocomplete="off">
+        <div style="margin-top:8px">
+            <button id="sims-test-btn" class="primary">Test Membership</button>
+        </div>
+        <div id="sims-result" style="font-size:1.4rem;font-weight:600;font-family:monospace;margin-top:10px;min-height:1.8rem"></div>
+    </section>
+
+    <script src="sims.js"></script>
+</body>
+</html>
