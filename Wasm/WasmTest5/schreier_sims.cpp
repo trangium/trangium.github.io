@@ -420,6 +420,9 @@ class SchreierSimsRunner {
     // transition_table_[id][mi] = canonical ID after applying solving_moves_[mi]
     std::vector<std::vector<int>> transition_table_;
 
+    // distance_table_[id] = min solving moves to reach identity (populated by buildDistanceTable)
+    std::vector<int> distance_table_;
+
     std::string canonKey(const Perm& perm, const std::vector<int>& base) const {
         Perm c = bsgs_.canonicalize(perm);
         std::string key;
@@ -468,8 +471,16 @@ public:
 
     void clearSolvingMoves() { solving_moves_.clear(); }
 
+    // Adds m and inv(m) to solving_moves_, skipping each if already present.
     void addSolvingMove(const std::vector<int>& m) {
-        solving_moves_.emplace_back(m.begin(), m.end());
+        Perm p(m.begin(), m.end());
+        auto already = [&](const Perm& q) {
+            for (const Perm& e : solving_moves_) if (e == q) return true;
+            return false;
+        };
+        if (!already(p)) solving_moves_.push_back(p);
+        Perm p_inv = inv(p);
+        if (p_inv != p && !already(p_inv)) solving_moves_.push_back(p_inv);
     }
 
     // DFS over the solving moves, canonicalizing each state with the target
@@ -573,6 +584,41 @@ public:
         return transition_table_[id];
     }
 
+    // BFS from the identity state outward using all solving_moves_ (which
+    // include inverses). distance_table_[id] is the minimum number of moves
+    // to reach identity from any state with that canonical ID.
+    // Must be called after buildTransitionTable.
+    void buildDistanceTable() {
+        const int tableSize = (int)canon_id_table_.size();
+        const int nMoves = (int)solving_moves_.size();
+        distance_table_.assign(tableSize, -1);
+
+        if (nMoves == 0 || tableSize == 0) return;
+
+        int identity_id = canon_id_table_.at(canonKey(identity(n_), canon_id_base_));
+        distance_table_[identity_id] = 0;
+
+        std::queue<int> q;
+        q.push(identity_id);
+
+        while (!q.empty()) {
+            int id = q.front(); q.pop();
+            int d = distance_table_[id];
+            for (int mi = 0; mi < nMoves; mi++) {
+                int next_id = transition_table_[id][mi];
+                if (distance_table_[next_id] == -1) {
+                    distance_table_[next_id] = d + 1;
+                    q.push(next_id);
+                }
+            }
+        }
+    }
+
+    int getDistance(int id) const {
+        if (id < 0 || id >= (int)distance_table_.size()) return -1;
+        return distance_table_[id];
+    }
+
     // Returns the canonical ID of perm, or -1 if not in the table.
     int lookupCanonId(const std::vector<int>& perm) const {
         Perm p(perm.begin(), perm.end());
@@ -599,7 +645,9 @@ EMSCRIPTEN_BINDINGS(module) {
         .function("lookupCanonId",          &SchreierSimsRunner::lookupCanonId)
         .function("getTableSize",           &SchreierSimsRunner::getTableSize)
         .function("buildTransitionTable",   &SchreierSimsRunner::buildTransitionTable)
-        .function("getTransitionRow",       &SchreierSimsRunner::getTransitionRow);
+        .function("getTransitionRow",       &SchreierSimsRunner::getTransitionRow)
+        .function("buildDistanceTable",     &SchreierSimsRunner::buildDistanceTable)
+        .function("getDistance",            &SchreierSimsRunner::getDistance);
 }
 
 #else

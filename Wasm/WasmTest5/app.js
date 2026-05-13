@@ -106,13 +106,16 @@ function setResult(html) {
 
 worker.addEventListener('message', ({ data }) => {
     if (data.type === 'result') {
-        const { id, tableSize } = data;
-        if (id === -1) {
+        const { solution, tableSize } = data;
+        if (!solution) {
             setStatus(`Table built — ${tableSize} canonical ID(s). Starting algorithm is not in the table.`, '#fb923c');
             setResult('<span style="color:#6b7280">Not found.</span>');
+        } else if (solution.length === 0) {
+            setStatus(`Table built — ${tableSize} canonical ID(s).`, '#4ade80');
+            setResult(`<span class="id-display">Already solved.</span>`);
         } else {
             setStatus(`Table built — ${tableSize} canonical ID(s).`, '#4ade80');
-            setResult(`<span class="id-display">${id}</span>`);
+            setResult(`<span class="id-display">${solution.join(' ')}</span>`);
         }
     } else if (data.type === 'error') {
         setStatus('Error: ' + data.message, '#f87171');
@@ -140,10 +143,12 @@ function compute() {
         return algos.map(algo => composeAlgo(algo, moves, k));
     }
 
-    let targetPerms, solvingPerms, startingPerm;
+    let targetPerms, solvingAlgos, solvingPerms, startingPerm;
     try {
         targetPerms  = parseAndCompose('target-gens', 'target generators');
-        solvingPerms = parseAndCompose('solving-gens', 'solving generators');
+        solvingAlgos = parseGenerators($('solving-gens').value);
+        if (!solvingAlgos.length) throw new Error('No solving generators entered.');
+        solvingPerms = solvingAlgos.map(algo => composeAlgo(algo, moves, k));
         const startAlgo = $('starting-algo').value.trim().split(/\s+/).filter(Boolean);
         if (!startAlgo.length) throw new Error('No starting algorithm entered.');
         startingPerm = composeAlgo(startAlgo, moves, k);
@@ -152,7 +157,7 @@ function compute() {
         return;
     }
 
-    worker.postMessage({ type: 'compute', k, targetPerms, startingPerm, solvingPerms });
+    worker.postMessage({ type: 'compute', k, targetPerms, startingPerm, solvingPerms, solvingAlgos });
 }
 
 // ── Event listeners ───────────────────────────────────────────────────────────

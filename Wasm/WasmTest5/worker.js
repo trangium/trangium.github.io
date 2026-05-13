@@ -38,7 +38,7 @@ self.onmessage = function ({ data }) {
         return;
     }
 
-    const { k, targetPerms, startingPerm, solvingPerms } = data;
+    const { k, targetPerms, startingPerm, solvingPerms, solvingAlgos } = data;
     try {
         // Step 1: build target BSGS (used for canonicalization inside buildTable)
         loadRunner(targetRunner, k, targetPerms);
@@ -52,12 +52,31 @@ self.onmessage = function ({ data }) {
         baseVec.delete();
 
         // Step 3: load solving moves into targetRunner and run C++ DFS
+        // Mirror addSolvingMove's dedup logic to build a parallel name list.
+        const permStr = p => p.join(',');
+        const invPerm = p => { const r = new Array(k); for (let i = 0; i < k; i++) r[p[i]] = i; return r; };
+        const allMoveNames = [];
+        const seenPerms = new Set();
         targetRunner.clearSolvingMoves();
-        for (const move of solvingPerms) {
-            const v = new Module.VectorInt();
-            for (const x of move) v.push_back(x);
-            targetRunner.addSolvingMove(v);
-            v.delete();
+        for (let i = 0; i < solvingPerms.length; i++) {
+            const p = solvingPerms[i];
+            const name = solvingAlgos[i].join(' ');
+            const ps = permStr(p);
+            if (!seenPerms.has(ps)) {
+                seenPerms.add(ps);
+                allMoveNames.push(name);
+                const v = new Module.VectorInt();
+                for (const x of p) v.push_back(x);
+                targetRunner.addSolvingMove(v);
+                v.delete();
+            }
+            const pInv = invPerm(p);
+            const pInvS = permStr(pInv);
+            if (pInvS !== ps && !seenPerms.has(pInvS)) {
+                seenPerms.add(pInvS);
+                const invName = solvingAlgos[i].length === 1 ? name + "'" : "(" + name + ")'";
+                allMoveNames.push(invName);
+            }
         }
 
         const baseVec2 = new Module.VectorInt();
@@ -65,13 +84,38 @@ self.onmessage = function ({ data }) {
         const tableSize = targetRunner.buildTable(baseVec2);
         baseVec2.delete();
 
-        // Step 4: look up canonical ID of the starting algorithm
+        targetRunner.buildTransitionTable();
+        targetRunner.buildDistanceTable();
+
+        // Step 4: reconstruct solution path from starting algorithm to identity
         const startVec = new Module.VectorInt();
         for (const x of startingPerm) startVec.push_back(x);
-        const id = targetRunner.lookupCanonId(startVec);
+        const canonId = targetRunner.lookupCanonId(startVec);
         startVec.delete();
 
-        self.postMessage({ type: 'result', id, tableSize });
+        let solution = null;
+        if (canonId !== -1) {
+            solution = [];
+            let currentId = canonId;
+            let d = targetRunner.getDistance(canonId);
+            while (d > 0) {
+                const row = targetRunner.getTransitionRow(currentId);
+                let nextId = -1, nextMi = -1;
+                for (let mi = 0; mi < row.size(); mi++) {
+                    const nid = row.get(mi);
+                    if (targetRunner.getDistance(nid) === d - 1) {
+                        nextId = nid; nextMi = mi; break;
+                    }
+                }
+                row.delete();
+                if (nextId === -1) break;
+                solution.push(allMoveNames[nextMi]);
+                currentId = nextId;
+                d--;
+            }
+        }
+
+        self.postMessage({ type: 'result', solution, tableSize });
     } catch (e) {
         self.postMessage({ type: 'error', message: e.message });
     }

@@ -6,7 +6,7 @@ Emscripten.  The frontend in this directory (`index.html` / `app.js` /
 
 ---
 
-## Compile
+## Compile (Powershell)
 
 ```bat
 REM From repo root (Windows).  emsdk must be installed next to the repo.
