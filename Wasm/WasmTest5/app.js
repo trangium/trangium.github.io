@@ -80,6 +80,18 @@ function parseGenerators(text) {
         .filter(g => g.length > 0);
 }
 
+// Parse multiple generator groups separated by lines containing only "---".
+// Returns an array of arrays of permutations.
+function parseTargetGroups(text, moves, k) {
+    const groups = text.split(/^-{3,}$/m).map(s => s.trim()).filter(Boolean);
+    if (!groups.length) throw new Error('No target generators entered.');
+    return groups.map((groupText, idx) => {
+        const algos = parseGenerators(groupText);
+        if (!algos.length) throw new Error(`Target group ${idx + 1} is empty.`);
+        return algos.map(algo => composeAlgo(algo, moves, k));
+    });
+}
+
 function composeAlgo(algo, moves, k) {
     let perm = Array.from({ length: k }, (_, i) => i);
     for (const name of algo) {
@@ -105,16 +117,24 @@ function setResult(html) {
 // ── Worker messages ───────────────────────────────────────────────────────────
 
 worker.addEventListener('message', ({ data }) => {
-    if (data.type === 'result') {
-        const { solution, tableSize } = data;
+    if (data.type === 'preview') {
+        const { groupPreviews } = data;
+        const parts = groupPreviews.map((g, i) =>
+            `T${i + 1}: |G|=${g.solvingOrder} / |T${i + 1}|=${g.targetOrder} ≈ ${g.predictedSize} states`
+        );
+        setStatus('Building tables… ' + parts.join(' · '), '#fbbf24');
+    } else if (data.type === 'result') {
+        const { solution, tableSizes } = data;
+        const tableInfo = tableSizes.map((s, i) => `T${i + 1}: ${s}`).join(', ');
+        const statusBase = `Tables built (${tableInfo}).`;
         if (!solution) {
-            setStatus(`Table built — ${tableSize} canonical ID(s). Starting algorithm is not in the table.`, '#fb923c');
+            setStatus(`${statusBase} Starting algorithm not reachable.`, '#fb923c');
             setResult('<span style="color:#6b7280">Not found.</span>');
         } else if (solution.length === 0) {
-            setStatus(`Table built — ${tableSize} canonical ID(s).`, '#4ade80');
+            setStatus(statusBase, '#4ade80');
             setResult(`<span class="id-display">Already solved.</span>`);
         } else {
-            setStatus(`Table built — ${tableSize} canonical ID(s).`, '#4ade80');
+            setStatus(statusBase, '#4ade80');
             setResult(`<span class="id-display">${solution.join(' ')}</span>`);
         }
     } else if (data.type === 'error') {
@@ -143,9 +163,9 @@ function compute() {
         return algos.map(algo => composeAlgo(algo, moves, k));
     }
 
-    let targetPerms, solvingAlgos, solvingPerms, startingPerm;
+    let targetPermsArray, solvingAlgos, solvingPerms, startingPerm;
     try {
-        targetPerms  = parseAndCompose('target-gens', 'target generators');
+        targetPermsArray = parseTargetGroups($('target-gens').value, moves, k);
         solvingAlgos = parseGenerators($('solving-gens').value);
         if (!solvingAlgos.length) throw new Error('No solving generators entered.');
         solvingPerms = solvingAlgos.map(algo => composeAlgo(algo, moves, k));
@@ -157,7 +177,7 @@ function compute() {
         return;
     }
 
-    worker.postMessage({ type: 'compute', k, targetPerms, startingPerm, solvingPerms, solvingAlgos });
+    worker.postMessage({ type: 'compute', k, targetPermsArray, startingPerm, solvingPerms, solvingAlgos });
 }
 
 // ── Event listeners ───────────────────────────────────────────────────────────

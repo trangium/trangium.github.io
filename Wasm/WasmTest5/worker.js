@@ -1,10 +1,8 @@
-let targetRunner = null;
-let solvingRunner = null;
+let solver = null;
 
 var Module = {
     onRuntimeInitialized() {
-        targetRunner  = new Module.SchreierSimsRunner();
-        solvingRunner = new Module.SchreierSimsRunner();
+        solver = new Module.MultiTargetSolver();
     }
 };
 
@@ -14,50 +12,45 @@ try {
     self.postMessage({ type: 'error', message: 'Failed to load WASM: ' + e.message });
 }
 
-function vecToArray(v) {
-    const a = [];
-    for (let i = 0; i < v.size(); i++) a.push(v.get(i));
-    return a;
-}
-
-function loadRunner(runner, k, perms) {
-    runner.reset(k);
-    for (const perm of perms) {
-        const v = new Module.VectorInt();
-        for (const x of perm) v.push_back(x);
-        runner.addGenerator(v);
-        v.delete();
-    }
-}
-
 self.onmessage = function ({ data }) {
     if (data.type !== 'compute') return;
 
-    if (!targetRunner || !solvingRunner) {
+    if (!solver) {
         self.postMessage({ type: 'error', message: 'WASM not ready' });
         return;
     }
 
-    const { k, targetPerms, startingPerm, solvingPerms, solvingAlgos } = data;
+    const { k, targetPermsArray, startingPerm, solvingPerms, solvingAlgos } = data;
     try {
-        // Step 1: build target BSGS (used for canonicalization inside buildTable)
-        loadRunner(targetRunner, k, targetPerms);
-        targetRunner.build(40);
+        solver.reset(k);
 
-        // Step 2: build solving BSGS, get base points
-        loadRunner(solvingRunner, k, solvingPerms);
-        solvingRunner.build(40);
-        const baseVec = solvingRunner.getBase();
-        const base = vecToArray(baseVec);
-        baseVec.delete();
+        // ── Phase 1: build BSGSes (fast) ─────────────────────────────────────
 
-        // Step 3: load solving moves into targetRunner and run C++ DFS
-        // Mirror addSolvingMove's dedup logic to build a parallel name list.
+        for (const targetPerms of targetPermsArray) {
+            solver.beginTargetGroup();
+            for (const perm of targetPerms) {
+                const v = new Module.VectorInt();
+                for (const x of perm) v.push_back(x);
+                solver.addTargetGenerator(v);
+                v.delete();
+            }
+            solver.buildTargetGroup(40);
+        }
+
+        for (const perm of solvingPerms) {
+            const v = new Module.VectorInt();
+            for (const x of perm) v.push_back(x);
+            solver.addSolvingGenerator(v);
+            v.delete();
+        }
+        solver.buildSolvingBSGS(40);
+
+        // Build solving move list and parallel name list
         const permStr = p => p.join(',');
         const invPerm = p => { const r = new Array(k); for (let i = 0; i < k; i++) r[p[i]] = i; return r; };
         const allMoveNames = [];
         const seenPerms = new Set();
-        targetRunner.clearSolvingMoves();
+        solver.clearSolvingMoves();
         for (let i = 0; i < solvingPerms.length; i++) {
             const p = solvingPerms[i];
             const name = solvingAlgos[i].join(' ');
@@ -67,55 +60,57 @@ self.onmessage = function ({ data }) {
                 allMoveNames.push(name);
                 const v = new Module.VectorInt();
                 for (const x of p) v.push_back(x);
-                targetRunner.addSolvingMove(v);
+                solver.addSolvingMove(v);
                 v.delete();
             }
             const pInv = invPerm(p);
             const pInvS = permStr(pInv);
             if (pInvS !== ps && !seenPerms.has(pInvS)) {
                 seenPerms.add(pInvS);
-                const invName = solvingAlgos[i].length === 1 ? name + "'" : "(" + name + ")'";
-                allMoveNames.push(invName);
+                allMoveNames.push(solvingAlgos[i].length === 1 ? name + "'" : "(" + name + ")'");
             }
         }
 
-        const baseVec2 = new Module.VectorInt();
-        for (const b of base) baseVec2.push_back(b);
-        const tableSize = targetRunner.buildTable(baseVec2);
-        baseVec2.delete();
+        // Post group sizes so the UI can show predicted table sizes before the
+        // heavy work starts. setTimeout(0) yields back to the event loop so the
+        // main thread receives this message first.
+        const solvingOrder = solver.getSolvingOrderStr();
+        const groupPreviews = [];
+        for (let g = 0; g < solver.getNumGroups(); g++) {
+            const targetOrder = solver.getTargetGroupOrderStr(g);
+            const predictedSize = (BigInt(solvingOrder) / BigInt(targetOrder)).toString();
+            groupPreviews.push({ solvingOrder, targetOrder, predictedSize });
+        }
+        self.postMessage({ type: 'preview', groupPreviews });
 
-        targetRunner.buildTransitionTable();
-        targetRunner.buildDistanceTable();
+        // ── Phase 2: heavy work (deferred) ───────────────────────────────────
+        setTimeout(() => {
+            try {
+                solver.buildTables();
 
-        // Step 4: reconstruct solution path from starting algorithm to identity
-        const startVec = new Module.VectorInt();
-        for (const x of startingPerm) startVec.push_back(x);
-        const canonId = targetRunner.lookupCanonId(startVec);
-        startVec.delete();
+                const startVec = new Module.VectorInt();
+                for (const x of startingPerm) startVec.push_back(x);
+                const moveIndices = solver.solve(startVec);
+                startVec.delete();
 
-        let solution = null;
-        if (canonId !== -1) {
-            solution = [];
-            let currentId = canonId;
-            let d = targetRunner.getDistance(canonId);
-            while (d > 0) {
-                const row = targetRunner.getTransitionRow(currentId);
-                let nextId = -1, nextMi = -1;
-                for (let mi = 0; mi < row.size(); mi++) {
-                    const nid = row.get(mi);
-                    if (targetRunner.getDistance(nid) === d - 1) {
-                        nextId = nid; nextMi = mi; break;
-                    }
+                let solution = null;
+                if (!(moveIndices.size() === 1 && moveIndices.get(0) === -1)) {
+                    solution = [];
+                    for (let i = 0; i < moveIndices.size(); i++)
+                        solution.push(allMoveNames[moveIndices.get(i)]);
                 }
-                row.delete();
-                if (nextId === -1) break;
-                solution.push(allMoveNames[nextMi]);
-                currentId = nextId;
-                d--;
-            }
-        }
+                moveIndices.delete();
 
-        self.postMessage({ type: 'result', solution, tableSize });
+                const tableSizes = [];
+                for (let g = 0; g < solver.getNumGroups(); g++)
+                    tableSizes.push(solver.getGroupTableSize(g));
+
+                self.postMessage({ type: 'result', solution, tableSizes });
+            } catch (e) {
+                self.postMessage({ type: 'error', message: e.message });
+            }
+        }, 0);
+
     } catch (e) {
         self.postMessage({ type: 'error', message: e.message });
     }

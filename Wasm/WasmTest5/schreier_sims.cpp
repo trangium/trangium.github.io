@@ -35,8 +35,10 @@
 
 #include <algorithm>
 #include <cassert>
+#include <climits>
 #include <iostream>
 #include <numeric>
+#include <queue>
 #include <random>
 #include <string>
 #include <unordered_map>
@@ -619,6 +621,29 @@ public:
         return distance_table_[id];
     }
 
+    // Returns the sequence of solving_moves_ indices that takes state id to
+    // identity, following the steepest descent in distance_table_.
+    // Must be called after buildDistanceTable. Returns empty if id == identity
+    // or id is out of range.
+    std::vector<int> solve(int id) const {
+        std::vector<int> path;
+        if (id < 0 || id >= (int)distance_table_.size()) return path;
+        int d = distance_table_[id];
+        int currentId = id;
+        while (d > 0) {
+            const auto& row = transition_table_[currentId];
+            for (int mi = 0; mi < (int)row.size(); mi++) {
+                if (distance_table_[row[mi]] == d - 1) {
+                    path.push_back(mi);
+                    currentId = row[mi];
+                    d--;
+                    break;
+                }
+            }
+        }
+        return path;
+    }
+
     // Returns the canonical ID of perm, or -1 if not in the table.
     int lookupCanonId(const std::vector<int>& perm) const {
         Perm p(perm.begin(), perm.end());
@@ -627,6 +652,258 @@ public:
     }
 
     int getTableSize() const { return (int)canon_id_table_.size(); }
+};
+
+// ─── MultiTargetSolver ────────────────────────────────────────────────────────
+//
+// Manages t target groups (each with its own BSGS + tables) and one set of
+// solving moves.  buildTables() runs the full pipeline for every group.
+// solve() runs IDA* with h = max distance across all groups.
+
+class MultiTargetSolver {
+    int n_ = 0;
+
+    struct TargetGroup {
+        std::vector<Perm> generators;
+        BSGS bsgs{0};
+        std::unordered_map<std::string, int> canon_id_table;
+        std::vector<std::vector<int>> transition_table; // [id][mi]
+        std::vector<int> distance_table;
+        int identity_id = -1;
+
+        std::string canonKey(const Perm& perm, const std::vector<int>& base) const {
+            Perm c = bsgs.canonicalize(perm);
+            std::string key;
+            for (int i = 0; i < (int)base.size(); i++) {
+                if (i) key += ',';
+                key += std::to_string(c[base[i]]);
+            }
+            return key;
+        }
+    };
+
+    std::vector<TargetGroup> groups_;
+    std::vector<Perm> solving_generators_;
+    BSGS solving_bsgs_{0};
+    std::vector<Perm> solving_moves_;
+    std::vector<int> solution_;
+
+    // Returns -1 if found, otherwise minimum f that exceeded threshold.
+    int idaDfs(std::vector<int>& state, int g, int threshold) {
+        int h = 0;
+        for (int i = 0; i < (int)groups_.size(); i++)
+            h = std::max(h, groups_[i].distance_table[state[i]]);
+        if (h == 0) return -1;
+        int f = g + h;
+        if (f > threshold) return f;
+
+        const std::vector<int> parent = state;
+        const int nMoves = (int)solving_moves_.size();
+        const int t = (int)groups_.size();
+        int minExceeded = INT_MAX;
+
+        for (int mi = 0; mi < nMoves; mi++) {
+            for (int i = 0; i < t; i++)
+                state[i] = groups_[i].transition_table[parent[i]][mi];
+            solution_.push_back(mi);
+            int result = idaDfs(state, g + 1, threshold);
+            if (result == -1) return -1;
+            solution_.pop_back();
+            if (result < minExceeded) minExceeded = result;
+        }
+        state = parent;
+        return minExceeded;
+    }
+
+public:
+    void reset(int n) {
+        n_ = n;
+        groups_.clear();
+        solving_generators_.clear();
+        solving_bsgs_ = BSGS(n);
+        solving_moves_.clear();
+    }
+
+    // ── Target groups ─────────────────────────────────────────────────────────
+
+    void beginTargetGroup() {
+        groups_.emplace_back();
+        groups_.back().bsgs = BSGS(n_);
+    }
+
+    void addTargetGenerator(const std::vector<int>& g) {
+        groups_.back().generators.emplace_back(g.begin(), g.end());
+    }
+
+    void buildTargetGroup(int confidence) {
+        auto& grp = groups_.back();
+        grp.bsgs = randomized_schreier_sims(n_, grp.generators, confidence);
+    }
+
+    // ── Solving moves ─────────────────────────────────────────────────────────
+
+    void addSolvingGenerator(const std::vector<int>& g) {
+        solving_generators_.emplace_back(g.begin(), g.end());
+    }
+
+    void buildSolvingBSGS(int confidence) {
+        solving_bsgs_ = randomized_schreier_sims(n_, solving_generators_, confidence);
+    }
+
+    void clearSolvingMoves() { solving_moves_.clear(); }
+
+    void addSolvingMove(const std::vector<int>& m) {
+        Perm p(m.begin(), m.end());
+        auto already = [&](const Perm& q) {
+            for (const Perm& e : solving_moves_) if (e == q) return true;
+            return false;
+        };
+        if (!already(p)) solving_moves_.push_back(p);
+        Perm p_inv = inv(p);
+        if (p_inv != p && !already(p_inv)) solving_moves_.push_back(p_inv);
+    }
+
+    // ── Table building ────────────────────────────────────────────────────────
+
+    // Runs the full 3-phase pipeline (canon IDs → transitions → BFS distances)
+    // for every target group. Must be called after buildSolvingBSGS.
+    void buildTables() {
+        const int nMoves = (int)solving_moves_.size();
+        if (nMoves == 0 || groups_.empty()) return;
+
+        const std::vector<int> base = solving_bsgs_.base();
+
+        std::vector<Perm> invs;
+        invs.reserve(nMoves);
+        for (const Perm& mv : solving_moves_) invs.push_back(inv(mv));
+
+        for (auto& grp : groups_) {
+            grp.canon_id_table.clear();
+
+            // Phase 1: build canon_id_table
+            Perm cube = identity(n_);
+            std::vector<int> stack = {0};
+            grp.canon_id_table[grp.canonKey(cube, base)] = 0;
+
+            while (!stack.empty()) {
+                if (stack.back() == nMoves) {
+                    stack.pop_back();
+                    if (!stack.empty()) cube = compose(cube, invs[stack.back() - 1]);
+                    continue;
+                }
+                int mi = stack.back(); stack.back()++;
+                cube = compose(cube, solving_moves_[mi]);
+                std::string h = grp.canonKey(cube, base);
+                if (!grp.canon_id_table.count(h)) {
+                    grp.canon_id_table[h] = (int)grp.canon_id_table.size();
+                    stack.push_back(0);
+                } else {
+                    cube = compose(cube, invs[mi]);
+                }
+            }
+
+            const int tableSize = (int)grp.canon_id_table.size();
+            grp.identity_id = grp.canon_id_table.at(grp.canonKey(identity(n_), base));
+            grp.transition_table.assign(tableSize, std::vector<int>(nMoves, -1));
+
+            // Phase 2: build transition_table
+            std::vector<bool> visited(tableSize, false);
+            cube = identity(n_);
+            visited[grp.identity_id] = true;
+
+            auto fillTransitions = [&](const Perm& c, int id) {
+                for (int mi = 0; mi < nMoves; mi++) {
+                    Perm next = compose(c, solving_moves_[mi]);
+                    grp.transition_table[id][mi] = grp.canon_id_table.at(grp.canonKey(next, base));
+                }
+            };
+            fillTransitions(cube, grp.identity_id);
+
+            stack = {0};
+            while (!stack.empty()) {
+                if (stack.back() == nMoves) {
+                    stack.pop_back();
+                    if (!stack.empty()) cube = compose(cube, invs[stack.back() - 1]);
+                    continue;
+                }
+                int mi = stack.back(); stack.back()++;
+                cube = compose(cube, solving_moves_[mi]);
+                int id = grp.canon_id_table.at(grp.canonKey(cube, base));
+                if (!visited[id]) {
+                    visited[id] = true;
+                    fillTransitions(cube, id);
+                    stack.push_back(0);
+                } else {
+                    cube = compose(cube, invs[mi]);
+                }
+            }
+
+            // Phase 3: BFS for distance_table
+            grp.distance_table.assign(tableSize, -1);
+            grp.distance_table[grp.identity_id] = 0;
+            std::queue<int> q;
+            q.push(grp.identity_id);
+            while (!q.empty()) {
+                int id = q.front(); q.pop();
+                int d = grp.distance_table[id];
+                for (int mi = 0; mi < nMoves; mi++) {
+                    int nid = grp.transition_table[id][mi];
+                    if (grp.distance_table[nid] == -1) {
+                        grp.distance_table[nid] = d + 1;
+                        q.push(nid);
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Query ─────────────────────────────────────────────────────────────────
+
+    int getNumGroups() const { return (int)groups_.size(); }
+
+    int getGroupTableSize(int g) const {
+        if (g < 0 || g >= (int)groups_.size()) return 0;
+        return (int)groups_[g].canon_id_table.size();
+    }
+
+    std::string getSolvingOrderStr() const {
+        return std::to_string(solving_bsgs_.order());
+    }
+
+    std::string getTargetGroupOrderStr(int g) const {
+        if (g < 0 || g >= (int)groups_.size()) return "0";
+        return std::to_string(groups_[g].bsgs.order());
+    }
+
+    // Runs IDA* from startPerm to the simultaneous identity of all groups.
+    // Returns the move-index sequence, empty if already solved, or {-1} if
+    // startPerm is not reachable in any group's table.
+    std::vector<int> solve(const std::vector<int>& startPerm) {
+        solution_.clear();
+        const Perm p(startPerm.begin(), startPerm.end());
+        const std::vector<int> base = solving_bsgs_.base();
+        const int t = (int)groups_.size();
+
+        std::vector<int> state(t);
+        for (int i = 0; i < t; i++) {
+            auto it = groups_[i].canon_id_table.find(groups_[i].canonKey(p, base));
+            if (it == groups_[i].canon_id_table.end()) return {-1};
+            state[i] = it->second;
+        }
+
+        int h = 0;
+        for (int i = 0; i < t; i++)
+            h = std::max(h, groups_[i].distance_table[state[i]]);
+        if (h == 0) return {};
+
+        int threshold = h;
+        while (true) {
+            int result = idaDfs(state, 0, threshold);
+            if (result == -1) return solution_;
+            if (result == INT_MAX) return {-1};
+            threshold = result;
+        }
+    }
 };
 
 EMSCRIPTEN_BINDINGS(module) {
@@ -647,7 +924,24 @@ EMSCRIPTEN_BINDINGS(module) {
         .function("buildTransitionTable",   &SchreierSimsRunner::buildTransitionTable)
         .function("getTransitionRow",       &SchreierSimsRunner::getTransitionRow)
         .function("buildDistanceTable",     &SchreierSimsRunner::buildDistanceTable)
-        .function("getDistance",            &SchreierSimsRunner::getDistance);
+        .function("getDistance",            &SchreierSimsRunner::getDistance)
+        .function("solve",                  &SchreierSimsRunner::solve);
+    emscripten::class_<MultiTargetSolver>("MultiTargetSolver")
+        .constructor<>()
+        .function("reset",               &MultiTargetSolver::reset)
+        .function("beginTargetGroup",    &MultiTargetSolver::beginTargetGroup)
+        .function("addTargetGenerator",  &MultiTargetSolver::addTargetGenerator)
+        .function("buildTargetGroup",    &MultiTargetSolver::buildTargetGroup)
+        .function("addSolvingGenerator", &MultiTargetSolver::addSolvingGenerator)
+        .function("buildSolvingBSGS",    &MultiTargetSolver::buildSolvingBSGS)
+        .function("clearSolvingMoves",   &MultiTargetSolver::clearSolvingMoves)
+        .function("addSolvingMove",      &MultiTargetSolver::addSolvingMove)
+        .function("buildTables",         &MultiTargetSolver::buildTables)
+        .function("getNumGroups",           &MultiTargetSolver::getNumGroups)
+        .function("getGroupTableSize",      &MultiTargetSolver::getGroupTableSize)
+        .function("getSolvingOrderStr",     &MultiTargetSolver::getSolvingOrderStr)
+        .function("getTargetGroupOrderStr", &MultiTargetSolver::getTargetGroupOrderStr)
+        .function("solve",                  &MultiTargetSolver::solve);
 }
 
 #else
