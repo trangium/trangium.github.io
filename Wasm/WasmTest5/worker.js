@@ -30,22 +30,25 @@ self.onmessage = function ({ data }) {
     try {
         if (tableKey === lastTableKey) {
             // ── Tables already built — jump straight to solve ─────────────────
+            self.postMessage({ type: 'cache_hit', tableSizes: cachedTableSizes });
             setTimeout(() => {
                 try {
+                    solver.setCallback(function(moveIndicesArr) {
+                        const solution = [];
+                        for (let i = 0; i < moveIndicesArr.length; i++)
+                            solution.push(cachedAllMoveNames[moveIndicesArr[i]]);
+                        self.postMessage({ type: 'solution', solution });
+                    });
+
                     const startVec = new Module.VectorInt();
                     for (const x of startingPerm) startVec.push_back(x);
-                    const moveIndices = solver.solve(startVec);
+                    const result = solver.solve(startVec);
                     startVec.delete();
 
-                    let solution = null;
-                    if (!(moveIndices.size() === 1 && moveIndices.get(0) === -1)) {
-                        solution = [];
-                        for (let i = 0; i < moveIndices.size(); i++)
-                            solution.push(cachedAllMoveNames[moveIndices.get(i)]);
-                    }
-                    moveIndices.delete();
+                    const unreachable = result.size() === 1 && result.get(0) === -1;
+                    result.delete();
 
-                    self.postMessage({ type: 'result', solution, tableSizes: cachedTableSizes });
+                    self.postMessage({ type: 'done', tableSizes: cachedTableSizes, unreachable });
                 } catch (e) {
                     self.postMessage({ type: 'error', message: e.message });
                 }
@@ -134,20 +137,22 @@ self.onmessage = function ({ data }) {
                 cachedAllMoveNames = allMoveNames;
                 cachedTableSizes = tableSizes;
 
+                solver.setCallback(function(moveIndicesArr) {
+                    const solution = [];
+                    for (let i = 0; i < moveIndicesArr.length; i++)
+                        solution.push(allMoveNames[moveIndicesArr[i]]);
+                    self.postMessage({ type: 'solution', solution });
+                });
+
                 const startVec = new Module.VectorInt();
                 for (const x of startingPerm) startVec.push_back(x);
-                const moveIndices = solver.solve(startVec);
+                const result = solver.solve(startVec);
                 startVec.delete();
 
-                let solution = null;
-                if (!(moveIndices.size() === 1 && moveIndices.get(0) === -1)) {
-                    solution = [];
-                    for (let i = 0; i < moveIndices.size(); i++)
-                        solution.push(allMoveNames[moveIndices.get(i)]);
-                }
-                moveIndices.delete();
+                const unreachable = result.size() === 1 && result.get(0) === -1;
+                result.delete();
 
-                self.postMessage({ type: 'result', solution, tableSizes });
+                self.postMessage({ type: 'done', tableSizes, unreachable });
             } catch (e) {
                 self.postMessage({ type: 'error', message: e.message });
             }

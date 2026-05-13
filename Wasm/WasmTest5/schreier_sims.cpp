@@ -46,6 +46,7 @@
 
 #ifdef __EMSCRIPTEN__
 #include <emscripten/bind.h>
+#include <emscripten/val.h>
 #endif
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -788,13 +789,24 @@ class MultiTargetSolver {
     BSGS solving_bsgs_{0};
     std::vector<Perm> solving_moves_;
     std::vector<int> solution_;
+    emscripten::val js_callback_ = emscripten::val::undefined();
+    bool found_any_solution_ = false;
 
-    // Returns -1 if found, otherwise minimum f that exceeded threshold.
+    // Returns INT_MAX if a solution was found (and reported), or the minimum f
+    // that exceeded threshold, or INT_MAX if no branch exceeded it.
     int idaDfs(std::vector<int>& state, int g, int threshold) {
         int h = 0;
         for (int i = 0; i < (int)groups_.size(); i++)
             h = std::max(h, groups_[i].distance_table[state[i]]);
-        if (h == 0) return -1;
+        if (h == 0) {
+            found_any_solution_ = true;
+            if (!js_callback_.isUndefined() && !js_callback_.isNull()) {
+                emscripten::val arr = emscripten::val::array();
+                for (int mi : solution_) arr.call<void>("push", mi);
+                js_callback_(arr);
+            }
+            return INT_MAX;
+        }
         int f = g + h;
         if (f > threshold) return f;
 
@@ -808,7 +820,6 @@ class MultiTargetSolver {
                 state[i] = groups_[i].transition_table[parent[i]][mi];
             solution_.push_back(mi);
             int result = idaDfs(state, g + 1, threshold);
-            if (result == -1) return -1;
             solution_.pop_back();
             if (result < minExceeded) minExceeded = result;
         }
@@ -982,9 +993,12 @@ public:
         return sizes;
     }
 
+    void setCallback(emscripten::val cb) { js_callback_ = cb; }
+
     // Runs IDA* from startPerm to the simultaneous identity of all groups.
-    // Returns the move-index sequence, empty if already solved, or {-1} if
-    // startPerm is not reachable in any group's table.
+    // Solutions are streamed to js_callback_ as JS arrays of move indices.
+    // All solutions at the optimal depth are found before returning.
+    // Returns {} on success (including already-solved), {-1} if unreachable.
     std::vector<int> solve(const std::vector<int>& startPerm) {
         solution_.clear();
         const Perm p(startPerm.begin(), startPerm.end());
@@ -1001,12 +1015,17 @@ public:
         int h = 0;
         for (int i = 0; i < t; i++)
             h = std::max(h, groups_[i].distance_table[state[i]]);
-        if (h == 0) return {};
+        if (h == 0) {
+            if (!js_callback_.isUndefined() && !js_callback_.isNull())
+                js_callback_(emscripten::val::array());
+            return {};
+        }
 
         int threshold = h;
         while (true) {
+            found_any_solution_ = false;
             int result = idaDfs(state, 0, threshold);
-            if (result == -1) return solution_;
+            if (found_any_solution_) return {};
             if (result == INT_MAX) return {-1};
             threshold = result;
         }
@@ -1048,6 +1067,7 @@ EMSCRIPTEN_BINDINGS(module) {
         .function("getGroupTableSize",      &MultiTargetSolver::getGroupTableSize)
         .function("getSolvingOrbitSizes",     &MultiTargetSolver::getSolvingOrbitSizes)
         .function("getTargetGroupOrbitSizes", &MultiTargetSolver::getTargetGroupOrbitSizes)
+        .function("setCallback",            &MultiTargetSolver::setCallback)
         .function("solve",                  &MultiTargetSolver::solve);
 }
 

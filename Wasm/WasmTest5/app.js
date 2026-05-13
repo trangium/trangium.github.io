@@ -129,25 +129,39 @@ function setResult(html) {
 // ── Worker messages ───────────────────────────────────────────────────────────
 
 worker.addEventListener('message', ({ data }) => {
-    if (data.type === 'preview') {
+    if (data.type === 'cache_hit') {
+        const { tableSizes } = data;
+        const tableInfo = tableSizes.map((s, i) => `T${i + 1}: ${s}`).join(', ');
+        setStatus(`Tables built (${tableInfo}).`, '#fbbf24');
+    } else if (data.type === 'preview') {
         const { groupPreviews } = data;
         const parts = groupPreviews.map((g, i) =>
-            `\nT${i + 1}: ≤ ${g.solvingOrder} / ${g.targetOrder} = ${g.predictedSize} states`
+            `\nT${i + 1}: ≤ ${g.predictedSize} states (${g.solvingOrder} / ${g.targetOrder})`
         );
-        setStatus('Building tables… ' + parts.join(' · '), '#fbbf24');
-    } else if (data.type === 'result') {
-        const { solution, tableSizes } = data;
+        setStatus('Building tables… ' + parts.join(''), '#fbbf24');
+    } else if (data.type === 'solution') {
+        const { solution } = data;
+        const resultEl = $('result');
+        if (solution.length === 0) {
+            resultEl.innerHTML = '<span class="id-display">Already solved.</span>';
+        } else {
+            if (resultEl.hasChildNodes()) resultEl.appendChild(document.createElement('br'));
+            const span = document.createElement('span');
+            span.className = 'id-display';
+            span.textContent = solution.join(' ');
+            resultEl.appendChild(span);
+        }
+    } else if (data.type === 'done') {
+        const { tableSizes, unreachable } = data;
         const tableInfo = tableSizes.map((s, i) => `T${i + 1}: ${s}`).join(', ');
         const statusBase = `Tables built (${tableInfo}).`;
-        if (!solution) {
+        if (unreachable) {
             setStatus(`${statusBase} Starting algorithm not reachable.`, '#fb923c');
-            setResult('<span style="color:#6b7280">Not found.</span>');
-        } else if (solution.length === 0) {
-            setStatus(statusBase, '#4ade80');
-            setResult(`<span class="id-display">Already solved.</span>`);
+            if (!$('result').hasChildNodes())
+                setResult('<span style="color:#6b7280">Not found.</span>');
         } else {
-            setStatus(statusBase, '#4ade80');
-            setResult(`<span class="id-display">${solution.join(' ')}</span>`);
+            const count = $('result').querySelectorAll('.id-display').length;
+            setStatus(`${statusBase} Found ${count} solution(s).`, '#4ade80');
         }
     } else if (data.type === 'error') {
         setStatus('Error: ' + data.message, '#f87171');
