@@ -40,29 +40,38 @@ self.onmessage = function ({ data }) {
 
     const { k, targetPerms, startingPerm, solvingPerms } = data;
     try {
-        // Step 1: build target BSGS
+        // Step 1: build target BSGS (used for canonicalization inside buildTable)
         loadRunner(targetRunner, k, targetPerms);
         targetRunner.build(40);
 
-        // Step 2: canonicalize starting perm
-        const startVec = new Module.VectorInt();
-        for (const x of startingPerm) startVec.push_back(x);
-        const canonVec = targetRunner.canonicalizePerm(startVec);
-        startVec.delete();
-        const canonPerm = vecToArray(canonVec);
-        canonVec.delete();
-
-        // Step 3: build solving BSGS, get base
+        // Step 2: build solving BSGS, get base points
         loadRunner(solvingRunner, k, solvingPerms);
         solvingRunner.build(40);
         const baseVec = solvingRunner.getBase();
         const base = vecToArray(baseVec);
         baseVec.delete();
 
-        // Step 4: images of canonicalized perm at each base point
-        const images = base.map(b => canonPerm[b]);
+        // Step 3: load solving moves into targetRunner and run C++ DFS
+        targetRunner.clearSolvingMoves();
+        for (const move of solvingPerms) {
+            const v = new Module.VectorInt();
+            for (const x of move) v.push_back(x);
+            targetRunner.addSolvingMove(v);
+            v.delete();
+        }
 
-        self.postMessage({ type: 'result', base, images, canonPerm });
+        const baseVec2 = new Module.VectorInt();
+        for (const b of base) baseVec2.push_back(b);
+        const tableSize = targetRunner.buildTable(baseVec2);
+        baseVec2.delete();
+
+        // Step 4: look up canonical ID of the starting algorithm
+        const startVec = new Module.VectorInt();
+        for (const x of startingPerm) startVec.push_back(x);
+        const id = targetRunner.lookupCanonId(startVec);
+        startVec.delete();
+
+        self.postMessage({ type: 'result', id, tableSize });
     } catch (e) {
         self.postMessage({ type: 'error', message: e.message });
     }
