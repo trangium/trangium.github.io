@@ -152,6 +152,17 @@ struct BSGS {
         return g;
     }
 
+    Perm sift_from(Perm g, int start) const {
+        for (int i = start; i < (int)chain.size(); ++i) {
+            int img = g[chain[i].base_point];
+            auto it = chain[i].transversal.find(img);
+            if (it == chain[i].transversal.end()) return g;
+            g = compose(g, inv(it->second));
+            if (is_identity(g)) return g;
+        }
+        return g;
+    }
+
     // Canonical representative of the equivalence class of s under left G-action.
     //   canonicalize(compose(g, s)) == canonicalize(s)  for every g in G.
     // Equivalently: canonicalize(s) == canonicalize(t)  iff  compose(t, inv(s)) in G.
@@ -215,6 +226,61 @@ struct BSGS {
                 if (!is_identity(sg)) schreier.push_back(std::move(sg));
             }
         for (Perm& sg : schreier) augment(std::move(sg));
+    }
+
+    // Deterministic verification + correction via Schreier generators.
+    // After Monte Carlo, iterates every (orbit-point, generator) pair at each
+    // level, sifts the Schreier generator through the deeper levels, and
+    // augments on any non-trivial residue.  Repeats until fully closed.
+    void verify_and_complete() {
+        bool changed = true;
+        while (changed) {
+            changed = false;
+            for (int i = 0; i < (int)chain.size(); ++i) {
+                std::unordered_map<int, Perm> trans = chain[i].transversal;
+                std::vector<Perm> gens;
+                for (int j = i; j < (int)chain.size(); ++j)
+                    gens.insert(gens.end(),
+                                chain[j].generators.begin(),
+                                chain[j].generators.end());
+                for (auto& [omega, u_omega] : trans) {
+                    for (const Perm& s : gens) {
+                        int img = s[omega];
+                        auto it = trans.find(img);
+                        if (it == trans.end()) {
+                            // img not in snapshot — check the live orbit.
+                            auto live_it = chain[i].transversal.find(img);
+                            if (live_it == chain[i].transversal.end()) {
+                                // Genuinely missing: compose(u_omega, s) maps
+                                // base_point → omega → img ∉ orbit, so augmenting
+                                // it will extend the level-i orbit correctly.
+                                augment(compose(u_omega, s));
+                                changed = true;
+                                continue;
+                            }
+                            // img was added to the live orbit earlier this pass.
+                            // Fall through using the live representative so the
+                            // Schreier generator is not silently dropped.
+                            Perm sch = compose(compose(u_omega, s), inv(live_it->second));
+                            if (is_identity(sch)) continue;
+                            Perm residue = sift_from(sch, i + 1);
+                            if (!is_identity(residue)) {
+                                augment(residue);
+                                changed = true;
+                            }
+                            continue;
+                        }
+                        Perm sch = compose(compose(u_omega, s), inv(it->second));
+                        if (is_identity(sch)) continue;
+                        Perm residue = sift_from(sch, i + 1);
+                        if (!is_identity(residue)) {
+                            augment(residue);
+                            changed = true;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // Remove exact-duplicate generators within each level
@@ -360,6 +426,7 @@ BSGS randomized_schreier_sims(int n,
         }
     }
 
+    bsgs.verify_and_complete();
     bsgs.deduplicate();
     return bsgs;
 }

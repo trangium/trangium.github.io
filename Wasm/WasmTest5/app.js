@@ -200,13 +200,26 @@ $('starting-algo').addEventListener('keydown', e => { if (e.key === 'Enter') com
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
 $('puzzle').value =
-`U: (0 1 2 3) (4 16 12 8) (5 17 13 9)
-R: (12 13 14 15) (1 19 21 9) (2 16 22 10)
-F: (8 9 10 11) (3 12 21 6) (2 15 20 5)
+`U: (Ufr Ufl Ubl Ubr) (Uf Ul Ub Ur) (uF uL uB uR) (uFr ufL uBl ubR) (ufR uFl ubL uBr)
+y: (B R F L) (Ub Ur Uf Ul) (Db Dr Df Dl) (uB uR uF uL) (dB dR dF dL) (Ubl Ubr Ufr Ufl) (Dbl Dbr Dfr Dfl) (uBl ubR uFr ufL) (uBr ufR uFl ubL) (Bl bR Fr fL) (Br fR Fl bL) (dBl dbR dFr dfL) (dBr dfR dFl dbL)
+x: (B D F U) (uB Db dF Uf) (Ub dB Df uF) (Bl Dl Fl Ul) (Br Dr Fr Ur) (bL dL fL uL) (bR dR fR uR) (uBr Dbr dFr Ufr) (Ubr dBr Dfr uFr) (uBl Dbl dFl Ufl) (Ubl dBl Dfl uFl) (ubR dbR dfR ufR) (ubL dbL dfL ufL)
+z: x y x'
+y2: y y
+x2: x x
+z2: z z
+R: z' U z
+F: x U x'
+L: z U z'
+D: z2 U z2
+B: x' U x
 U2: U U
 R2: R R
-F2: F F`;
+F2: F F
+L2: L L
+D2: D D
+B2: B B
+`;
 
-$('target-gens').value   = `F R U R' U' F', R U R' U R U2 R'`;
-$('solving-gens').value  = `R, U, F`;
+$('target-gens').value   = `D, R2 D2 R D2 R2, F2 D2 F D2 F2, L2 D2 L D2 L2, B2 D2 B D2 B2, L R' B L' R, L' R F L R', F B' L F' B, F' B R F B', R D R' D' R' B R B', B R D R' D' B'`;
+$('solving-gens').value  = `R, U, F, D, L, B`;
 $('starting-algo').value = `R' F R U R U' R' F' R U' R'`;
