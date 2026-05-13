@@ -26,12 +26,7 @@
         .row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
         #status { font-size: 0.78rem; color: #6b7280; display: block; margin-top: 10px; font-family: monospace; min-height: 1.2em; }
         #result { margin-top: 10px; }
-        .result-table { border-collapse: collapse; font-family: monospace; font-size: 1rem; }
-        .result-table td { padding: 3px 10px; }
-        .result-table .bp   { color: #9ca3af; text-align: right; }
-        .result-table .arr  { color: #374151; padding: 0 4px; }
-        .result-table .moved { color: #fbbf24; font-weight: 600; }
-        .result-table .fixed { color: #4ade80; }
+        .id-display { font-size: 2.8rem; font-weight: 700; font-family: monospace; color: #93c5fd; }
         #hint-enter { font-size: 0.72rem; color: #4b5563; }
     </style>
 </head>
@@ -67,7 +62,7 @@
     </section>
 
     <section>
-        <h2>Result</h2>
+        <h2>Canonical ID</h2>
         <div class="row">
             <button id="compute-btn">Compute</button>
             <span id="hint-enter">or press Enter in the algorithm field</span>
