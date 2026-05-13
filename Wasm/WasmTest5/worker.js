@@ -12,6 +12,10 @@ try {
     self.postMessage({ type: 'error', message: 'Failed to load WASM: ' + e.message });
 }
 
+let lastTableKey = null;
+let cachedAllMoveNames = [];
+let cachedTableSizes = [];
+
 self.onmessage = function ({ data }) {
     if (data.type !== 'compute') return;
 
@@ -21,10 +25,37 @@ self.onmessage = function ({ data }) {
     }
 
     const { k, targetPermsArray, startingPerm, solvingPerms, solvingAlgos } = data;
+    const tableKey = JSON.stringify({ k, targetPermsArray, solvingPerms, solvingAlgos });
+
     try {
-        solver.reset(k);
+        if (tableKey === lastTableKey) {
+            // ── Tables already built — jump straight to solve ─────────────────
+            setTimeout(() => {
+                try {
+                    const startVec = new Module.VectorInt();
+                    for (const x of startingPerm) startVec.push_back(x);
+                    const moveIndices = solver.solve(startVec);
+                    startVec.delete();
+
+                    let solution = null;
+                    if (!(moveIndices.size() === 1 && moveIndices.get(0) === -1)) {
+                        solution = [];
+                        for (let i = 0; i < moveIndices.size(); i++)
+                            solution.push(cachedAllMoveNames[moveIndices.get(i)]);
+                    }
+                    moveIndices.delete();
+
+                    self.postMessage({ type: 'result', solution, tableSizes: cachedTableSizes });
+                } catch (e) {
+                    self.postMessage({ type: 'error', message: e.message });
+                }
+            }, 0);
+            return;
+        }
 
         // ── Phase 1: build BSGSes (fast) ─────────────────────────────────────
+
+        solver.reset(k);
 
         for (const targetPerms of targetPermsArray) {
             solver.beginTargetGroup();
@@ -32,6 +63,7 @@ self.onmessage = function ({ data }) {
                 const v = new Module.VectorInt();
                 for (const x of perm) v.push_back(x);
                 solver.addTargetGenerator(v);
+                solver.addSolvingGenerator(v);
                 v.delete();
             }
             solver.buildTargetGroup(40);
@@ -74,10 +106,16 @@ self.onmessage = function ({ data }) {
         // Post group sizes so the UI can show predicted table sizes before the
         // heavy work starts. setTimeout(0) yields back to the event loop so the
         // main thread receives this message first.
-        const solvingOrder = solver.getSolvingOrderStr();
+        const orbitSizesToOrder = v => {
+            let ord = 1n;
+            for (let i = 0; i < v.size(); i++) ord *= BigInt(v.get(i));
+            v.delete();
+            return ord.toString();
+        };
+        const solvingOrder = orbitSizesToOrder(solver.getSolvingOrbitSizes());
         const groupPreviews = [];
         for (let g = 0; g < solver.getNumGroups(); g++) {
-            const targetOrder = solver.getTargetGroupOrderStr(g);
+            const targetOrder = orbitSizesToOrder(solver.getTargetGroupOrbitSizes(g));
             const predictedSize = (BigInt(solvingOrder) / BigInt(targetOrder)).toString();
             groupPreviews.push({ solvingOrder, targetOrder, predictedSize });
         }
@@ -87,6 +125,14 @@ self.onmessage = function ({ data }) {
         setTimeout(() => {
             try {
                 solver.buildTables();
+
+                const tableSizes = [];
+                for (let g = 0; g < solver.getNumGroups(); g++)
+                    tableSizes.push(solver.getGroupTableSize(g));
+
+                lastTableKey = tableKey;
+                cachedAllMoveNames = allMoveNames;
+                cachedTableSizes = tableSizes;
 
                 const startVec = new Module.VectorInt();
                 for (const x of startingPerm) startVec.push_back(x);
@@ -100,10 +146,6 @@ self.onmessage = function ({ data }) {
                         solution.push(allMoveNames[moveIndices.get(i)]);
                 }
                 moveIndices.delete();
-
-                const tableSizes = [];
-                for (let g = 0; g < solver.getNumGroups(); g++)
-                    tableSizes.push(solver.getGroupTableSize(g));
 
                 self.postMessage({ type: 'result', solution, tableSizes });
             } catch (e) {

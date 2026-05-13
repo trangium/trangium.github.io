@@ -866,13 +866,19 @@ public:
         return (int)groups_[g].canon_id_table.size();
     }
 
-    std::string getSolvingOrderStr() const {
-        return std::to_string(solving_bsgs_.order());
+    std::vector<int> getSolvingOrbitSizes() const {
+        std::vector<int> sizes;
+        for (const Level& lev : solving_bsgs_.chain)
+            sizes.push_back((int)lev.transversal.size());
+        return sizes;
     }
 
-    std::string getTargetGroupOrderStr(int g) const {
-        if (g < 0 || g >= (int)groups_.size()) return "0";
-        return std::to_string(groups_[g].bsgs.order());
+    std::vector<int> getTargetGroupOrbitSizes(int g) const {
+        if (g < 0 || g >= (int)groups_.size()) return {};
+        std::vector<int> sizes;
+        for (const Level& lev : groups_[g].bsgs.chain)
+            sizes.push_back((int)lev.transversal.size());
+        return sizes;
     }
 
     // Runs IDA* from startPerm to the simultaneous identity of all groups.
@@ -939,8 +945,8 @@ EMSCRIPTEN_BINDINGS(module) {
         .function("buildTables",         &MultiTargetSolver::buildTables)
         .function("getNumGroups",           &MultiTargetSolver::getNumGroups)
         .function("getGroupTableSize",      &MultiTargetSolver::getGroupTableSize)
-        .function("getSolvingOrderStr",     &MultiTargetSolver::getSolvingOrderStr)
-        .function("getTargetGroupOrderStr", &MultiTargetSolver::getTargetGroupOrderStr)
+        .function("getSolvingOrbitSizes",     &MultiTargetSolver::getSolvingOrbitSizes)
+        .function("getTargetGroupOrbitSizes", &MultiTargetSolver::getTargetGroupOrbitSizes)
         .function("solve",                  &MultiTargetSolver::solve);
 }
 

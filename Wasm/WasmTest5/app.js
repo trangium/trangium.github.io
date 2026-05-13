@@ -5,10 +5,10 @@ const $ = id => document.getElementById(id);
 
 // ── Cycle-notation / defs parser ──────────────────────────────────────────────
 
-function parseCycles(str, k) {
+function parseCycles(str, k, tokenMap) {
     const p = Array.from({ length: k }, (_, i) => i);
     for (const m of str.matchAll(/\(([^)]+)\)/g)) {
-        const els = m[1].trim().split(/\s+/).map(Number);
+        const els = m[1].trim().split(/\s+/).map(tok => tokenMap.get(tok));
         for (let i = 0; i < els.length; i++)
             p[els[i]] = els[(i + 1) % els.length];
     }
@@ -20,20 +20,25 @@ function parseDefs(text) {
         .map(l => l.replace(/#.*$/, '').trim())
         .filter(Boolean);
 
-    let maxEl = -1;
+    const tokenMap = new Map();
+    const getOrAdd = tok => {
+        if (!tokenMap.has(tok)) tokenMap.set(tok, tokenMap.size);
+        return tokenMap.get(tok);
+    };
     for (const l of lines) {
         const ci = l.indexOf(':');
         if (ci < 0 || !l.slice(ci + 1).includes('(')) continue;
-        for (const m of l.matchAll(/\d+/g)) {
-            const v = +m[0];
-            if (v > maxEl) maxEl = v;
-        }
+        for (const m of l.matchAll(/\(([^)]+)\)/g))
+            for (const tok of m[1].trim().split(/\s+/)) getOrAdd(tok);
     }
-    if (maxEl < 0) throw new Error('No cycle definitions found in puzzle.');
-    const k = maxEl + 1;
+    if (tokenMap.size === 0) throw new Error('No cycle definitions found in puzzle.');
+    const k = tokenMap.size;
 
-    const identity = () => Array.from({ length: k }, (_, i) => i);
-    const compose  = (a, b) => a.map(x => b[x]);
+    const identity  = () => Array.from({ length: k }, (_, i) => i);
+    const compose   = (a, b) => a.map(x => b[x]);
+    const invPerm   = p => { const r = new Array(k); for (let i = 0; i < k; i++) r[p[i]] = i; return r; };
+    const hasSeq    = s => s.endsWith("'") ? moves.has(s.slice(0, -1)) : moves.has(s);
+    const lookupSeq = s => s.endsWith("'") ? invPerm(moves.get(s.slice(0, -1))) : moves.get(s);
 
     const moves   = new Map();
     const derived = [];
@@ -43,7 +48,7 @@ function parseDefs(text) {
         const name = line.slice(0, ci).trim();
         const def  = line.slice(ci + 1).trim();
         if (def.includes('(')) {
-            moves.set(name, parseCycles(def, k));
+            moves.set(name, parseCycles(def, k, tokenMap));
         } else {
             derived.push({ name, seq: def.split(/\s+/).filter(Boolean) });
         }
@@ -55,9 +60,9 @@ function parseDefs(text) {
         prev = moves.size;
         for (const { name, seq } of derived) {
             if (moves.has(name)) continue;
-            if (seq.every(s => moves.has(s))) {
+            if (seq.every(hasSeq)) {
                 let perm = identity();
-                for (const s of seq) perm = compose(perm, moves.get(s));
+                for (const s of seq) perm = compose(perm, lookupSeq(s));
                 moves.set(name, perm);
             }
         }
@@ -66,6 +71,13 @@ function parseDefs(text) {
     const unresolved = derived.filter(d => !moves.has(d.name));
     if (unresolved.length)
         throw new Error(`Unresolved moves: ${unresolved.map(d => d.name).join(', ')}`);
+
+    for (const name of moves.keys())
+        if (name.endsWith("'"))
+            throw new Error(`Move "${name}" ends with ' which is disallowed.`);
+
+    for (const [name, perm] of [...moves])
+        moves.set(name + "'", invPerm(perm));
 
     return { k, moves };
 }
@@ -83,7 +95,7 @@ function parseGenerators(text) {
 // Parse multiple generator groups separated by lines containing only "---".
 // Returns an array of arrays of permutations.
 function parseTargetGroups(text, moves, k) {
-    const groups = text.split(/^-{3,}$/m).map(s => s.trim()).filter(Boolean);
+    const groups = text.split(/\n(?:[ \t]*\n)+/).map(s => s.trim()).filter(Boolean);
     if (!groups.length) throw new Error('No target generators entered.');
     return groups.map((groupText, idx) => {
         const algos = parseGenerators(groupText);
@@ -120,7 +132,7 @@ worker.addEventListener('message', ({ data }) => {
     if (data.type === 'preview') {
         const { groupPreviews } = data;
         const parts = groupPreviews.map((g, i) =>
-            `T${i + 1}: |G|=${g.solvingOrder} / |T${i + 1}|=${g.targetOrder} ≈ ${g.predictedSize} states`
+            `\nT${i + 1}: ≤ ${g.predictedSize} states`
         );
         setStatus('Building tables… ' + parts.join(' · '), '#fbbf24');
     } else if (data.type === 'result') {
@@ -192,11 +204,8 @@ $('puzzle').value =
 R: (12 13 14 15) (1 19 21 9) (2 16 22 10)
 F: (8 9 10 11) (3 12 21 6) (2 15 20 5)
 U2: U U
-U': U U U
 R2: R R
-R': R R R
-F2: F F
-F': F F F`;
+F2: F F`;
 
 $('target-gens').value   = `F R U R' U' F', R U R' U R U2 R'`;
 $('solving-gens').value  = `R, U, F`;
