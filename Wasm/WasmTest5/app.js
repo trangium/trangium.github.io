@@ -1,6 +1,6 @@
 'use strict';
 
-const worker = new Worker('worker.js');
+let worker = new Worker('worker.js');
 const $ = id => document.getElementById(id);
 
 // ── Cycle-notation / defs parser ──────────────────────────────────────────────
@@ -124,9 +124,13 @@ function setResult(html) {
     $('result').innerHTML = html;
 }
 
+function setComputing(on) {
+    $('compute-btn').textContent = on ? 'Stop' : 'Compute';
+}
+
 // ── Worker messages ───────────────────────────────────────────────────────────
 
-worker.addEventListener('message', ({ data }) => {
+function onWorkerMessage({ data }) {
     if (data.type === 'cache_hit') {
         const { tableSizes } = data;
         const tableInfo = tableSizes.map((s, i) => `T${i + 1}: ${s}`).join(', ');
@@ -156,22 +160,33 @@ worker.addEventListener('message', ({ data }) => {
     } else if (data.type === 'done') {
         const { tableSizes, unreachable } = data;
         const tableInfo = tableSizes.map((s, i) => `T${i + 1}: ${s}`).join(', ');
-        const statusBase = `Tables built (${tableInfo}).`;
+        const statusBase = `Tables saved (${tableInfo}).`;
+        setComputing(false);
         if (unreachable) {
             setStatus(`${statusBase} Starting algorithm not reachable.`, '#fb923c');
             if (!$('result').hasChildNodes())
                 setResult('<span style="color:#6b7280">Not found.</span>');
         } else {
             const count = $('result').querySelectorAll('.id-display').length;
-            setStatus(`${statusBase} Found ${count} solution(s).`, '#4ade80');
+            setStatus(`${statusBase} Solutions found: ${count}.`, '#4ade80');
         }
     } else if (data.type === 'error') {
+        setComputing(false);
         setStatus('Error: ' + data.message, '#f87171');
         setResult('');
     }
-});
+}
+worker.addEventListener('message', onWorkerMessage);
 
 // ── Main compute ──────────────────────────────────────────────────────────────
+
+function stopComputation() {
+    worker.terminate();
+    worker = new Worker('worker.js');
+    worker.addEventListener('message', onWorkerMessage);
+    setComputing(false);
+    setStatus('Stopped.', '#6b7280');
+}
 
 function compute() {
     setStatus('Computing group orders…', '#fbbf24');
@@ -205,13 +220,17 @@ function compute() {
         return;
     }
 
+    setComputing(true);
     worker.postMessage({ type: 'compute', k, targetPermsArray, startingPerm, solvingPerms, solvingAlgos });
 }
 
 // ── Event listeners ───────────────────────────────────────────────────────────
 
-$('compute-btn').addEventListener('click', compute);
-$('starting-algo').addEventListener('keydown', e => { if (e.key === 'Enter') compute(); });
+$('compute-btn').addEventListener('click', () => {
+    if ($('compute-btn').textContent === 'Stop') stopComputation();
+    else compute();
+});
+$('starting-algo').addEventListener('keydown', e => { if (e.key === 'Enter' && $('compute-btn').textContent !== 'Stop') compute(); });
 
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
@@ -240,5 +259,5 @@ $('target-gens').value   = `R, U, F, B L B'
 R, U, B, F' L F
 R, U, D, L
 R, U, D2 L D2, L F L', L' B' L`;
-$('solving-gens').value  = `R, U, F, D, L, B`;
-$('starting-algo').value = `R' F R U R U' R' F' R U' R'`;
+$('solving-gens').value  = `R, U, F, D, L, B, R2, U2, F2, D2, L2, B2`;
+$('starting-algo').value = `U R2 F B R B2 R U2 L B2 R U' D' R2 F R' L B2 U2 F2`;
