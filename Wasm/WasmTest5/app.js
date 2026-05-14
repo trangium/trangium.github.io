@@ -181,7 +181,7 @@ function onWorkerMessage({ data }) {
                 setResult('<span style="color:#6b7280">Not found.</span>');
         } else {
             const count = $('result').querySelectorAll('.id-display').length;
-            setStatus(`${statusBase} Solutions found: ${count}.`, '#228822');
+            setStatus(`${statusBase} Solutions found: ${count}.`, '#6b7280');
         }
     } else if (data.type === 'error') {
         setComputing(false);
