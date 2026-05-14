@@ -885,18 +885,19 @@ class MultiTargetSolver {
     bool found_any_solution_ = false;
     MovePruner pruner_;
 
-    // Returns INT_MAX if a solution was found (and reported via callback), or the
-    // minimum f that exceeded threshold, or INT_MAX if no branch exceeded it.
+    // Returns the minimum f that exceeded threshold, or INT_MAX if no branch did.
     int idaDfs(std::vector<int>& state, int g, int threshold, MoveStreak tail) {
         int h = 0;
         for (int i = 0; i < (int)groups_.size(); i++)
             h = std::max(h, groups_[i].distance_table[state[i]]);
         if (h == 0) {
-            found_any_solution_ = true;
-            if (!js_callback_.isUndefined() && !js_callback_.isNull()) {
-                emscripten::val arr = emscripten::val::array();
-                for (int mi : solution_) arr.call<void>("push", mi);
-                js_callback_(arr);
+            if (g == threshold) {
+                found_any_solution_ = true;
+                if (!js_callback_.isUndefined() && !js_callback_.isNull()) {
+                    emscripten::val arr = emscripten::val::array();
+                    for (int mi : solution_) arr.call<void>("push", mi);
+                    js_callback_(arr);
+                }
             }
             return INT_MAX;
         }
@@ -1094,9 +1095,11 @@ public:
 
     // Runs IDA* from startPerm to the simultaneous identity of all groups.
     // Solutions are streamed to js_callback_ as JS arrays of move indices.
-    // All solutions at the optimal depth are found before returning.
+    // Reports solutions of length in [min_moves, max_moves] that are within
+    // slack moves of the shortest found solution (>= min_moves).
     // Returns {} on success (including already-solved), {-1} if unreachable.
-    std::vector<int> solve(const std::vector<int>& startPerm) {
+    std::vector<int> solve(const std::vector<int>& startPerm,
+                           int min_moves, int max_moves, int slack) {
         solution_.clear();
         const Perm p(startPerm.begin(), startPerm.end());
         const std::vector<int> base = solving_bsgs_.base();
@@ -1113,19 +1116,27 @@ public:
         for (int i = 0; i < t; i++)
             h = std::max(h, groups_[i].distance_table[state[i]]);
         if (h == 0) {
-            if (!js_callback_.isUndefined() && !js_callback_.isNull())
+            if (min_moves == 0 && !js_callback_.isUndefined() && !js_callback_.isNull())
                 js_callback_(emscripten::val::array());
             return {};
         }
 
-        int threshold = h;
-        while (true) {
+        int threshold = std::max(h, min_moves);
+        if (threshold > max_moves) return {};
+        int effective_max = max_moves;
+        bool first_solution_found = false;
+
+        while (threshold <= effective_max) {
             found_any_solution_ = false;
-            int result = idaDfs(state, 0, threshold, {});
-            if (found_any_solution_) return {};
-            if (result == INT_MAX) return {-1};
-            threshold = result;
+            int next = idaDfs(state, 0, threshold, {});
+            if (found_any_solution_ && !first_solution_found) {
+                first_solution_found = true;
+                effective_max = std::min(threshold + slack, max_moves);
+            }
+            if (next == INT_MAX || next > effective_max) break;
+            threshold = next;
         }
+        return {};
     }
 };
 

@@ -24,7 +24,7 @@ self.onmessage = function ({ data }) {
         return;
     }
 
-    const { k, targetPermsArray, startingPerm, solvingPerms, solvingAlgos } = data;
+    const { k, targetPermsArray, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack } = data;
     const tableKey = JSON.stringify({ k, targetPermsArray, solvingPerms, solvingAlgos });
 
     try {
@@ -42,7 +42,7 @@ self.onmessage = function ({ data }) {
 
                     const startVec = new Module.VectorInt();
                     for (const x of startingPerm) startVec.push_back(x);
-                    const result = solver.solve(startVec);
+                    const result = solver.solve(startVec, minMoves, maxMoves, slack);
                     startVec.delete();
 
                     const unreachable = result.size() === 1 && result.get(0) === -1;
@@ -69,7 +69,7 @@ self.onmessage = function ({ data }) {
                 solver.addSolvingGenerator(v);
                 v.delete();
             }
-            solver.buildTargetGroup(80);
+            solver.buildTargetGroup(100);
         }
 
         for (const perm of solvingPerms) {
@@ -78,7 +78,7 @@ self.onmessage = function ({ data }) {
             solver.addSolvingGenerator(v);
             v.delete();
         }
-        solver.buildSolvingBSGS(80);
+        solver.buildSolvingBSGS(100);
 
         // Build solving move list and parallel name list
         const permStr = p => p.join(',');
@@ -148,7 +148,7 @@ self.onmessage = function ({ data }) {
 
                 const startVec = new Module.VectorInt();
                 for (const x of startingPerm) startVec.push_back(x);
-                const result = solver.solve(startVec);
+                const result = solver.solve(startVec, minMoves, maxMoves, slack);
                 startVec.delete();
 
                 const unreachable = result.size() === 1 && result.get(0) === -1;

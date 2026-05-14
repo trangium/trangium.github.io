@@ -79,7 +79,7 @@ function parseDefs(text) {
     for (const [name, perm] of [...moves])
         moves.set(name + "'", invPerm(perm));
 
-    return { k, moves };
+    return { k, moves, tokenMap };
 }
 
 // ── Algorithm / generator parsers ─────────────────────────────────────────────
@@ -87,27 +87,36 @@ function parseDefs(text) {
 function parseGenerators(text) {
     return text
         .split(',')
-        .map(g => g.trim().split(/\s+/).filter(Boolean))
+        .map(g => [...g.matchAll(/\([^)]*\)|\S+/g)].map(m => m[0]))
         .filter(g => g.length > 0);
 }
 
 // Each non-blank line is one target group; generators within a group are comma-separated.
-function parseTargetGroups(text, moves, k) {
+function parseTargetGroups(text, moves, k, tokenMap) {
     const groups = text.split('\n').map(s => s.trim()).filter(Boolean);
     if (!groups.length) throw new Error('No target generators entered.');
     return groups.map((groupText, idx) => {
         const algos = parseGenerators(groupText);
         if (!algos.length) throw new Error(`Target group ${idx + 1} is empty.`);
-        return algos.map(algo => composeAlgo(algo, moves, k));
+        return algos.map(algo => composeAlgo(algo, moves, k, tokenMap));
     });
 }
 
-function composeAlgo(algo, moves, k) {
+function composeAlgo(algo, moves, k, tokenMap) {
     let perm = Array.from({ length: k }, (_, i) => i);
-    for (const name of algo) {
-        const m = moves.get(name);
-        if (!m) throw new Error(`Unknown move: "${name}"`);
-        perm = perm.map(x => m[x]);
+    for (const token of algo) {
+        if (token.startsWith('(')) {
+            for (const m of token.matchAll(/\(([^)]+)\)/g))
+                for (const tok of m[1].trim().split(/\s+/))
+                    if (!tokenMap.has(tok))
+                        throw new Error(`Unknown piece/sticker "${tok}" in cycle notation.`);
+            const cyclePerm = parseCycles(token, k, tokenMap);
+            perm = perm.map(x => cyclePerm[x]);
+        } else {
+            const m = moves.get(token);
+            if (!m) throw new Error(`Unknown move: "${token}"`);
+            perm = perm.map(x => m[x]);
+        }
     }
     return perm;
 }
@@ -154,7 +163,7 @@ function onWorkerMessage({ data }) {
             if (resultEl.hasChildNodes()) resultEl.appendChild(document.createElement('br'));
             const span = document.createElement('span');
             span.className = 'id-display';
-            span.textContent = solution.join(' ');
+            span.textContent = solution.join(' ') + ` (${solution.length})`;
             resultEl.appendChild(span);
         }
     } else if (data.type === 'done') {
@@ -192,9 +201,9 @@ function compute() {
     setStatus('Computing group orders…', '#fbbf24');
     setResult('');
 
-    let k, moves;
+    let k, moves, tokenMap;
     try {
-        ({ k, moves } = parseDefs($('puzzle').value));
+        ({ k, moves, tokenMap } = parseDefs($('puzzle').value));
     } catch (e) {
         setStatus('Puzzle error: ' + e.message, '#f87171');
         return;
@@ -203,25 +212,32 @@ function compute() {
     function parseAndCompose(fieldId, label) {
         const algos = parseGenerators($(fieldId).value);
         if (!algos.length) throw new Error(`No ${label} entered.`);
-        return algos.map(algo => composeAlgo(algo, moves, k));
+        return algos.map(algo => composeAlgo(algo, moves, k, tokenMap));
     }
 
     let targetPermsArray, solvingAlgos, solvingPerms, startingPerm;
     try {
-        targetPermsArray = parseTargetGroups($('target-gens').value, moves, k);
+        targetPermsArray = parseTargetGroups($('target-gens').value, moves, k, tokenMap);
         solvingAlgos = parseGenerators($('solving-gens').value);
         if (!solvingAlgos.length) throw new Error('No solving generators entered.');
-        solvingPerms = solvingAlgos.map(algo => composeAlgo(algo, moves, k));
-        const startAlgo = $('starting-algo').value.trim().split(/\s+/).filter(Boolean);
+        solvingPerms = solvingAlgos.map(algo => composeAlgo(algo, moves, k, tokenMap));
+        const startAlgo = [...$('starting-algo').value.matchAll(/\([^)]*\)|\S+/g)].map(m => m[0]);
         if (!startAlgo.length) throw new Error('No starting algorithm entered.');
-        startingPerm = composeAlgo(startAlgo, moves, k);
+        startingPerm = composeAlgo(startAlgo, moves, k, tokenMap);
     } catch (e) {
         setStatus('Input error: ' + e.message, '#f87171');
         return;
     }
 
+    const minMovesVal = $('min-moves').value.trim();
+    const maxMovesVal = $('max-moves').value.trim();
+    const slackVal    = $('slack').value.trim();
+    const minMoves = minMovesVal === '' ? 0 : Math.max(0, parseInt(minMovesVal) || 0);
+    const maxMoves = maxMovesVal === '' ? 2147483647 : Math.max(0, parseInt(maxMovesVal) || 0);
+    const slack    = slackVal    === '' ? 0 : Math.max(0, parseInt(slackVal)    || 0);
+
     setComputing(true);
-    worker.postMessage({ type: 'compute', k, targetPermsArray, startingPerm, solvingPerms, solvingAlgos });
+    worker.postMessage({ type: 'compute', k, targetPermsArray, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack });
 }
 
 // ── Event listeners ───────────────────────────────────────────────────────────
@@ -259,5 +275,5 @@ $('target-gens').value   = `R, U, F, B L B'
 R, U, B, F' L F
 R, U, D, L
 R, U, D2 L D2, L F L', L' B' L`;
-$('solving-gens').value  = `R, U, F, D, L, B, R2, U2, F2, D2, L2, B2`;
+$('solving-gens').value  = `U, U2, R, R2, F, F2, D, D2, L, L2, B, B2`;
 $('starting-algo').value = `U R2 F B R B2 R U2 L B2 R U' D' R2 F R' L B2 U2 F2`;
