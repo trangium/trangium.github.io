@@ -39,6 +39,9 @@ self.onmessage = function ({ data }) {
                             solution.push(cachedAllMoveNames[moveIndicesArr[i]]);
                         self.postMessage({ type: 'solution', solution });
                     });
+                    solver.setDepthCallback(function(depth) {
+                        self.postMessage({ type: 'depth', depth });
+                    });
 
                     const startVec = new Module.VectorInt();
                     for (const x of startingPerm) startVec.push_back(x);
@@ -144,6 +147,9 @@ self.onmessage = function ({ data }) {
                     for (let i = 0; i < moveIndicesArr.length; i++)
                         solution.push(allMoveNames[moveIndicesArr[i]]);
                     self.postMessage({ type: 'solution', solution });
+                });
+                solver.setDepthCallback(function(depth) {
+                    self.postMessage({ type: 'depth', depth });
                 });
 
                 const startVec = new Module.VectorInt();

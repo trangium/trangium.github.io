@@ -139,11 +139,15 @@ function setComputing(on) {
 
 // ── Worker messages ───────────────────────────────────────────────────────────
 
+let currentTableInfo = '';
+
 function onWorkerMessage({ data }) {
     if (data.type === 'cache_hit') {
         const { tableSizes } = data;
-        const tableInfo = tableSizes.map((s, i) => `T${i + 1}: ${s}`).join(', ');
-        setStatus(`Tables built (${tableInfo}). Solving...`, '#fbbf24');
+        currentTableInfo = tableSizes.map((s, i) => `T${i + 1}: ${s}`).join(', ');
+        setStatus(`Tables built (${currentTableInfo}). Solving...`, '#fbbf24');
+    } else if (data.type === 'depth') {
+        setStatus(`Tables built (${currentTableInfo}). Searching depth ${data.depth}.`, '#fbbf24');
     } else if (data.type === 'preview') {
         const { groupPreviews } = data;
         const parts = groupPreviews.map((g, i) =>
@@ -152,8 +156,8 @@ function onWorkerMessage({ data }) {
         setStatus('Building tables… ' + parts.join(''), '#fbbf24');
     } else if (data.type === 'tables_built') {
         const { tableSizes } = data;
-        const tableInfo = tableSizes.map((s, i) => `T${i + 1}: ${s}`).join(', ');
-        setStatus(`Tables built (${tableInfo}). Solving...`, '#fbbf24');
+        currentTableInfo = tableSizes.map((s, i) => `T${i + 1}: ${s}`).join(', ');
+        setStatus(`Tables built (${currentTableInfo}). Solving...`, '#fbbf24');
     } else if (data.type === 'solution') {
         const { solution } = data;
         const resultEl = $('result');

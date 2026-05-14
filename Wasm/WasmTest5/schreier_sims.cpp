@@ -52,6 +52,26 @@
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 using Perm = std::vector<int>;
+using Hash128 = std::pair<uint64_t, uint64_t>;
+
+struct Hash128Hasher {
+    size_t operator()(const Hash128& h) const {
+        size_t s = h.first;
+        s ^= h.second + 0x9e3779b97f4a7c15ULL + (s << 6) + (s >> 2);
+        return s;
+    }
+};
+
+// Zobrist table: zobrist[pos][val] are independent random 128-bit values.
+// Collision probability for any fixed pair of distinct inputs is exactly 2^-128.
+static std::vector<std::vector<Hash128>> makeZobrist(int base_size, int n) {
+    std::mt19937_64 rng(0xdeadbeefcafe1234ULL);
+    std::vector<std::vector<Hash128>> z(base_size, std::vector<Hash128>(n));
+    for (auto& row : z)
+        for (auto& h : row)
+            h = {rng(), rng()};
+    return z;
+}
 
 // ─── Permutation primitives ──────────────────────────────────────────────────
 
@@ -860,19 +880,20 @@ class MultiTargetSolver {
     struct TargetGroup {
         std::vector<Perm> generators;
         BSGS bsgs{0};
-        std::unordered_map<std::string, int> canon_id_table;
+        std::unordered_map<Hash128, int, Hash128Hasher> canon_id_table;
         std::vector<std::vector<int>> transition_table; // [id][mi]
         std::vector<int> distance_table;
         int identity_id = -1;
+        std::vector<std::vector<Hash128>> zobrist; // [pos][val]
 
-        std::string canonKey(const Perm& perm, const std::vector<int>& base) const {
+        Hash128 hashPerm(const Perm& perm, const std::vector<int>& base) const {
             Perm c = bsgs.canonicalize(perm);
-            std::string key;
-            for (int i = 0; i < (int)base.size(); i++) {
-                if (i) key += ',';
-                key += std::to_string(c[base[i]]);
+            uint64_t lo = 0, hi = 0;
+            for (int i = 0; i < (int)base.size(); ++i) {
+                lo ^= zobrist[i][c[base[i]]].first;
+                hi ^= zobrist[i][c[base[i]]].second;
             }
-            return key;
+            return {lo, hi};
         }
     };
 
@@ -882,6 +903,7 @@ class MultiTargetSolver {
     std::vector<Perm> solving_moves_;
     std::vector<int> solution_;
     emscripten::val js_callback_ = emscripten::val::undefined();
+    emscripten::val depth_callback_ = emscripten::val::undefined();
     bool found_any_solution_ = false;
     MovePruner pruner_;
 
@@ -982,6 +1004,7 @@ public:
         pruner_.build(solving_moves_);
 
         const std::vector<int> base = solving_bsgs_.base();
+        const auto zobrist = makeZobrist((int)base.size(), n_);
 
         std::vector<Perm> invs;
         invs.reserve(nMoves);
@@ -989,11 +1012,12 @@ public:
 
         for (auto& grp : groups_) {
             grp.canon_id_table.clear();
+            grp.zobrist = zobrist;
 
             // Phase 1: build canon_id_table
             Perm cube = identity(n_);
             std::vector<int> stack = {0};
-            grp.canon_id_table[grp.canonKey(cube, base)] = 0;
+            grp.canon_id_table[grp.hashPerm(cube, base)] = 0;
 
             while (!stack.empty()) {
                 if (stack.back() == nMoves) {
@@ -1003,7 +1027,7 @@ public:
                 }
                 int mi = stack.back(); stack.back()++;
                 cube = compose(cube, solving_moves_[mi]);
-                std::string h = grp.canonKey(cube, base);
+                Hash128 h = grp.hashPerm(cube, base);
                 if (!grp.canon_id_table.count(h)) {
                     grp.canon_id_table[h] = (int)grp.canon_id_table.size();
                     stack.push_back(0);
@@ -1013,7 +1037,7 @@ public:
             }
 
             const int tableSize = (int)grp.canon_id_table.size();
-            grp.identity_id = grp.canon_id_table.at(grp.canonKey(identity(n_), base));
+            grp.identity_id = grp.canon_id_table.at(grp.hashPerm(identity(n_), base));
             grp.transition_table.assign(tableSize, std::vector<int>(nMoves, -1));
 
             // Phase 2: build transition_table
@@ -1024,7 +1048,7 @@ public:
             auto fillTransitions = [&](const Perm& c, int id) {
                 for (int mi = 0; mi < nMoves; mi++) {
                     Perm next = compose(c, solving_moves_[mi]);
-                    grp.transition_table[id][mi] = grp.canon_id_table.at(grp.canonKey(next, base));
+                    grp.transition_table[id][mi] = grp.canon_id_table.at(grp.hashPerm(next, base));
                 }
             };
             fillTransitions(cube, grp.identity_id);
@@ -1038,7 +1062,7 @@ public:
                 }
                 int mi = stack.back(); stack.back()++;
                 cube = compose(cube, solving_moves_[mi]);
-                int id = grp.canon_id_table.at(grp.canonKey(cube, base));
+                int id = grp.canon_id_table.at(grp.hashPerm(cube, base));
                 if (!visited[id]) {
                     visited[id] = true;
                     fillTransitions(cube, id);
@@ -1092,6 +1116,7 @@ public:
     }
 
     void setCallback(emscripten::val cb) { js_callback_ = cb; }
+    void setDepthCallback(emscripten::val cb) { depth_callback_ = cb; }
 
     // Runs IDA* from startPerm to the simultaneous identity of all groups.
     // Solutions are streamed to js_callback_ as JS arrays of move indices.
@@ -1107,7 +1132,7 @@ public:
 
         std::vector<int> state(t);
         for (int i = 0; i < t; i++) {
-            auto it = groups_[i].canon_id_table.find(groups_[i].canonKey(p, base));
+            auto it = groups_[i].canon_id_table.find(groups_[i].hashPerm(p, base));
             if (it == groups_[i].canon_id_table.end()) return {-1};
             state[i] = it->second;
         }
@@ -1127,6 +1152,8 @@ public:
         bool first_solution_found = false;
 
         while (threshold <= effective_max) {
+            if (!depth_callback_.isUndefined() && !depth_callback_.isNull())
+                depth_callback_(threshold);
             found_any_solution_ = false;
             int next = idaDfs(state, 0, threshold, {});
             if (found_any_solution_ && !first_solution_found) {
@@ -1176,6 +1203,7 @@ EMSCRIPTEN_BINDINGS(module) {
         .function("getSolvingOrbitSizes",     &MultiTargetSolver::getSolvingOrbitSizes)
         .function("getTargetGroupOrbitSizes", &MultiTargetSolver::getTargetGroupOrbitSizes)
         .function("setCallback",            &MultiTargetSolver::setCallback)
+        .function("setDepthCallback",       &MultiTargetSolver::setDepthCallback)
         .function("solve",                  &MultiTargetSolver::solve);
 }
 
