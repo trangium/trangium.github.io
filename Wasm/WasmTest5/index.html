@@ -5,40 +5,37 @@
     <title>Simultaneous Subgroup Solver</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: system-ui, sans-serif; background: #111827; color: #d1d5db; padding: 24px; max-width: 820px; }
-        h1 { font-size: 1.3rem; margin-bottom: 20px; color: #6ee7b7; letter-spacing: 0.02em; }
-        section { background: #1f2937; border-radius: 8px; padding: 16px; margin-bottom: 14px; }
-        h2 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: #6b7280; margin-bottom: 8px; }
-        p.hint { font-size: 0.75rem; color: #6b7280; margin-bottom: 8px; }
-        p.hint code { color: #9ca3af; }
+        body { font-family: 'Courier New', Courier, monospace; background: #fff; color: #eee; padding: 24px; max-width: 820px; }
+        h1 { font-size: 1.5rem; margin-bottom: 20px; color: #234; letter-spacing: 0.02em; }
+        section { background: #eee; border-radius: 8px; padding: 16px; margin-bottom: 14px; }
+        h2 { font-size: 1rem; color: #333; margin-bottom: 8px; }
+        p.hint { font-size: 0.75rem; color: #555; margin-bottom: 8px; }
         textarea, input.full {
-            width: 100%; background: #111827; border: 1px solid #374151; border-radius: 4px;
-            color: #e5e7eb; font-size: 0.85rem; font-family: monospace; padding: 10px 12px;
+            width: 100%; background: #fff; border: 1px solid #bbb; border-radius: 4px;
+            color: #123; font-size: 0.85rem; font-family: monospace; padding: 10px 12px;
             resize: vertical; line-height: 1.6;
         }
         input.full { resize: none; height: 38px; padding: 8px 12px; }
         textarea:focus, input.full:focus { outline: none; border-color: #3b82f6; }
         input.num {
-            width: 72px; background: #111827; border: 1px solid #374151; border-radius: 4px;
-            color: #e5e7eb; font-size: 0.85rem; font-family: monospace; padding: 6px 8px; height: 34px;
+            width: 72px; background: #fff; border: 1px solid #bbb; border-radius: 4px;
+            color: #123; font-size: 0.85rem; font-family: monospace; padding: 6px 8px; height: 34px;
         }
-        input.num:focus { outline: none; border-color: #3b82f6; }
+        input.num:focus { outline: none; border-color: #57e; }
         label.num-label { font-size: 0.78rem; color: #6b7280; }
         button {
-            background: #1d4ed8; border: none; color: #fff; border-radius: 4px;
-            padding: 8px 18px; cursor: pointer; font-size: 0.88rem;
+            background: #57e; border: none; color: #000; border-radius: 4px;
+            padding: 8px 18px; cursor: pointer; font-size: 0.88rem; font-family: 'Courier New', Courier, monospace
         }
-        button:hover { background: #2563eb; }
+        button:hover { background: #8bf; }
         .row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
-        #status { font-size: 0.78rem; color: #6b7280; display: block; margin-top: 10px; font-family: monospace; min-height: 1.2em; }
+        #status { font-size: 0.78rem; color: #789; display: block; margin-top: 10px; font-family: monospace; min-height: 1.2em; }
         #result { margin-top: 10px; }
-        .id-display { font-size: 0.78rem; font-weight: 700; font-family: monospace; color: #93c5fd; }
-        #hint-enter { font-size: 0.72rem; color: #4b5563; }
+        .id-display { font-size: 0.78rem; font-weight: 700; font-family: monospace; color: #123; }
+        #hint-enter { font-size: 0.72rem; color: #89a; }
     </style>
 </head>
 <body>
-    <h1>Simultaneous Subgroup Solver</h1>
-
     <section>
         <h2>Puzzle</h2>
         <textarea id="puzzle" rows="10" spellcheck="false" autocomplete="off"></textarea>

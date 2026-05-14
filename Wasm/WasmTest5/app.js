@@ -145,19 +145,19 @@ function onWorkerMessage({ data }) {
     if (data.type === 'cache_hit') {
         const { tableSizes } = data;
         currentTableInfo = tableSizes.map((s, i) => `T${i + 1}: ${s}`).join(', ');
-        setStatus(`Tables built (${currentTableInfo}). Solving...`, '#fbbf24');
+        setStatus(`Tables built (${currentTableInfo}). Solving...`, '#6b7280');
     } else if (data.type === 'depth') {
-        setStatus(`Tables built (${currentTableInfo}). Searching depth ${data.depth}.`, '#fbbf24');
+        setStatus(`Tables built (${currentTableInfo}). Searching depth ${data.depth}.`, '#6b7280');
     } else if (data.type === 'preview') {
         const { groupPreviews } = data;
         const parts = groupPreviews.map((g, i) =>
             `\nT${i + 1}: ≤ ${g.predictedSize} states (${g.solvingOrder} / ${g.targetOrder})`
         );
-        setStatus('Building tables… ' + parts.join(''), '#fbbf24');
+        setStatus('Building tables… ' + parts.join(''), '#6b7280');
     } else if (data.type === 'tables_built') {
         const { tableSizes } = data;
         currentTableInfo = tableSizes.map((s, i) => `T${i + 1}: ${s}`).join(', ');
-        setStatus(`Tables built (${currentTableInfo}). Solving...`, '#fbbf24');
+        setStatus(`Tables built (${currentTableInfo}). Solving...`, '#6b7280');
     } else if (data.type === 'solution') {
         const { solution } = data;
         const resultEl = $('result');
@@ -176,16 +176,16 @@ function onWorkerMessage({ data }) {
         const statusBase = `Tables saved (${tableInfo}).`;
         setComputing(false);
         if (unreachable) {
-            setStatus(`${statusBase} Starting algorithm not reachable.`, '#fb923c');
+            setStatus(`${statusBase} Starting algorithm not reachable.`, '#6b7280');
             if (!$('result').hasChildNodes())
                 setResult('<span style="color:#6b7280">Not found.</span>');
         } else {
             const count = $('result').querySelectorAll('.id-display').length;
-            setStatus(`${statusBase} Solutions found: ${count}.`, '#4ade80');
+            setStatus(`${statusBase} Solutions found: ${count}.`, '#228822');
         }
     } else if (data.type === 'error') {
         setComputing(false);
-        setStatus('Error: ' + data.message, '#f87171');
+        setStatus('Error: ' + data.message, '#ee2727');
         setResult('');
     }
 }
@@ -202,14 +202,14 @@ function stopComputation() {
 }
 
 function compute() {
-    setStatus('Computing group orders…', '#fbbf24');
+    setStatus('Computing group orders…', '#6b7280');
     setResult('');
 
     let k, moves, tokenMap;
     try {
         ({ k, moves, tokenMap } = parseDefs($('puzzle').value));
     } catch (e) {
-        setStatus('Puzzle error: ' + e.message, '#f87171');
+        setStatus('Puzzle error: ' + e.message, '#ee2727');
         return;
     }
 
@@ -229,7 +229,7 @@ function compute() {
         if (!startAlgo.length) throw new Error('No starting algorithm entered.');
         startingPerm = composeAlgo(startAlgo, moves, k, tokenMap);
     } catch (e) {
-        setStatus('Input error: ' + e.message, '#f87171');
+        setStatus('Input error: ' + e.message, '#ee2727');
         return;
     }
 
@@ -280,4 +280,4 @@ R, U, B, F' L F
 R, U, D, L
 R, U, D2 L D2, L F L', L' B' L`;
 $('solving-gens').value  = `U, U2, R, R2, F, F2, D, D2, L, L2, B, B2`;
-$('starting-algo').value = `U R2 F B R B2 R U2 L B2 R U' D' R2 F R' L B2 U2 F2`;
+$('starting-algo').value = `R2 F R2 D' U F2 R F' B' D U R2 D R L' D U' L D' U' L2`;
