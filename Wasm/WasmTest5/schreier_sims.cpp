@@ -54,6 +54,10 @@
 using Perm = std::vector<int>;
 using Hash128 = std::pair<uint64_t, uint64_t>;
 
+// One integer per piece: base + m * source_piece + orientation_twist.
+// full_perm[base + m*pos] for each position pos.
+using PiecePerm = std::vector<int>;
+
 struct Hash128Hasher {
     size_t operator()(const Hash128& h) const {
         size_t s = h.first;
@@ -100,6 +104,37 @@ static Perm inv(const Perm& a) {
     Perm r(n);
     for (int i = 0; i < n; ++i) r[a[i]] = i;
     return r;
+}
+
+// ─── PiecePerm operations ────────────────────────────────────────────────────
+
+// Compose A then B for one piece type (base B_base, m stickers per piece).
+static PiecePerm compose_piece(const PiecePerm& A, const PiecePerm& B, int base, int m) {
+    PiecePerm R(A.size());
+    for (int src = 0; src < (int)A.size(); src++) {
+        int a = A[src] - base, mid = a / m, tA = a % m;
+        int b = B[mid] - base;
+        R[src] = base + (b / m) * m + (tA + b % m) % m;
+    }
+    return R;
+}
+
+// Invert: piece at src goes to dest with twist t  →  dest now holds src with -t.
+static PiecePerm invert_piece(const PiecePerm& A, int base, int m) {
+    PiecePerm R(A.size());
+    for (int src = 0; src < (int)A.size(); src++) {
+        int a = A[src] - base;
+        R[a / m] = base + m * src + (m - a % m) % m;
+    }
+    return R;
+}
+
+// Extract compact representation from full sticker permutation.
+static PiecePerm extract_piece(const Perm& full, int base, int m, int n_t) {
+    PiecePerm cp(n_t);
+    for (int pos = 0; pos < n_t; pos++)
+        cp[pos] = full[base + m * pos];
+    return cp;
 }
 
 // ─── Stabilizer level ────────────────────────────────────────────────────────
@@ -776,6 +811,53 @@ public:
     int getTableSize() const { return (int)canon_id_table_.size(); }
 };
 
+// ─── OrientPermSpec ───────────────────────────────────────────────────────────
+//
+// Describes the combinatorial structure of an OrientPerm target group:
+// pieces partitioned into equivalence classes, with per-class orientation knockdown.
+// All heavy computation (orientation analysis, multinomials) is in build() — commit 3.
+// Indexing (state_to_index) is in commit 4.
+
+struct OrientPermSpec {
+    int n = 0;  // total sticker domain size
+
+    struct PieceTypeMeta {
+        int base;               // sticker index of piece 0's sticker 0
+        int m;                  // stickers per piece
+        int count;              // pieces of this type
+        long long initial_multinomial;  // count! / (class_sizes[0]! * ...) — seed for rank loop
+    };
+    std::vector<PieceTypeMeta> types;
+
+    struct Class {
+        int type_idx;            // index into types[]
+        int orientation_mod;     // knockdown factor d
+        std::vector<int> pieces; // piece indices within the type, sorted
+    };
+    std::vector<Class> classes;
+
+    std::vector<std::vector<int>> piece_class;  // [type_idx][piece_within_type] → class idx
+
+    // Orientation constraints derived by Gaussian elimination in build().
+    std::vector<std::vector<int>> free_orient;                    // [type] → list of free positions
+    std::vector<std::vector<std::vector<int>>> forced_coeffs;     // [type][forced_pos][free_pos]
+    std::vector<std::vector<int>> forced_offsets;                 // [type][forced_pos]
+
+    long long perm_space   = 0;
+    long long orient_space = 0;
+    long long total_states = 0;
+
+    // Commit 3: orientation constraint analysis + per-type initial_multinomial.
+    void build(const std::vector<Class>& classes_in,
+               const std::vector<PieceTypeMeta>& types_in,
+               int n_in,
+               const std::vector<Perm>& generators) { /* stub */ }
+
+    // Commit 4: PiecePerm scatter (step 1) + incremental ratio rank (step 2).
+    long long state_to_index(const Perm& S) const { return 0; }
+    long long state_to_index_compact(const std::vector<PiecePerm>& compact) const { return 0; }
+};
+
 // ─── Move-sequence pruning ────────────────────────────────────────────────────
 
 // Tracks the trailing move streak in the current IDA* path.
@@ -878,6 +960,14 @@ class MultiTargetSolver {
     int n_ = 0;
 
     struct TargetGroup {
+        enum GroupKind { GENERAL, ORIENTPERM };
+        GroupKind kind = GENERAL;
+        OrientPermSpec op_spec;
+
+        // Temporary accumulator for addOrientPermClass calls; consumed by buildOrientPermGroup().
+        struct RawOPClass { std::vector<int> sticker_bases; int m; int orientation_mod; };
+        std::vector<RawOPClass> raw_classes;
+
         std::vector<Perm> generators;
         BSGS bsgs{0};
         std::unordered_map<Hash128, int, Hash128Hasher> canon_id_table;
@@ -970,6 +1060,22 @@ public:
         grp.bsgs = randomized_schreier_sims(n_, grp.generators, confidence);
     }
 
+    // ── OrientPerm groups ─────────────────────────────────────────────────────
+
+    void beginOrientPermGroup() {
+        groups_.emplace_back();
+        groups_.back().kind = TargetGroup::ORIENTPERM;
+    }
+
+    void addOrientPermClass(std::vector<int> sticker_bases, int m, int orientation_mod) {
+        groups_.back().raw_classes.push_back({std::move(sticker_bases), m, orientation_mod});
+    }
+
+    // Commit 3 will convert raw_classes → op_spec types/classes and call op_spec.build().
+    void buildOrientPermGroup() {
+        groups_.back().raw_classes.clear();
+    }
+
     // ── Solving moves ─────────────────────────────────────────────────────────
 
     void addSolvingGenerator(const std::vector<int>& g) {
@@ -1011,6 +1117,7 @@ public:
         for (const Perm& mv : solving_moves_) invs.push_back(inv(mv));
 
         for (auto& grp : groups_) {
+            if (grp.kind == TargetGroup::ORIENTPERM) continue;  // handled in commit 5
             grp.canon_id_table.clear();
             grp.zobrist = zobrist;
 
@@ -1193,6 +1300,9 @@ EMSCRIPTEN_BINDINGS(module) {
         .function("beginTargetGroup",    &MultiTargetSolver::beginTargetGroup)
         .function("addTargetGenerator",  &MultiTargetSolver::addTargetGenerator)
         .function("buildTargetGroup",    &MultiTargetSolver::buildTargetGroup)
+        .function("beginOrientPermGroup",  &MultiTargetSolver::beginOrientPermGroup)
+        .function("addOrientPermClass",    &MultiTargetSolver::addOrientPermClass)
+        .function("buildOrientPermGroup",  &MultiTargetSolver::buildOrientPermGroup)
         .function("addSolvingGenerator", &MultiTargetSolver::addSolvingGenerator)
         .function("buildSolvingBSGS",    &MultiTargetSolver::buildSolvingBSGS)
         .function("clearSolvingMoves",   &MultiTargetSolver::clearSolvingMoves)
