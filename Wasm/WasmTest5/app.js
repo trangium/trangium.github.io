@@ -153,7 +153,7 @@ function parseDefs(text) {
     for (const [name, perm] of [...moves])
         moves.set(name + "'", invPerm(perm));
 
-    return { k, moves, tokenMap };
+    return { k, moves, tokenMap, pieceInfo };
 }
 
 // ── Algorithm / generator parsers ─────────────────────────────────────────────
@@ -165,15 +165,81 @@ function parseGenerators(text) {
         .filter(g => g.length > 0);
 }
 
-// Each non-blank line is one target group; generators within a group are comma-separated.
-function parseTargetGroups(text, moves, k, tokenMap) {
-    const groups = text.split('\n').map(s => s.trim()).filter(Boolean);
-    if (!groups.length) throw new Error('No target generators entered.');
-    return groups.map((groupText, idx) => {
-        const algos = parseGenerators(groupText);
-        if (!algos.length) throw new Error(`Target group ${idx + 1} is empty.`);
-        return algos.map(algo => composeAlgo(algo, moves, k, tokenMap));
-    });
+// Parse one OrientPerm block (array of non-empty trimmed lines) into a flat class list.
+// Each line: [d:] item item ...  where item is {P1 P2 ...} or Pname.
+// Unmentioned pieces are appended as singletons with full orientation_mod.
+function parseOrientPermBlock(lines, pieceInfo) {
+    const classes = [];
+    const assigned = new Set();
+
+    for (const line of lines) {
+        const dMatch = line.match(/^(\d+):(.*)/);
+        const orientModOverride = dMatch ? parseInt(dMatch[1]) : null;
+        const rest = dMatch ? dMatch[2].trim() : line;
+
+        const itemRe = /\{([^}]*)\}|(\S+)/g;
+        let mt;
+        while ((mt = itemRe.exec(rest)) !== null) {
+            const names = mt[1] !== undefined
+                ? mt[1].trim().split(/\s+/).filter(Boolean)
+                : [mt[2]];
+            if (names.length === 0) continue;
+
+            for (const name of names) {
+                if (!pieceInfo.has(name))
+                    throw new Error(`Unknown piece "${name}" in OrientPerm group.`);
+                if (assigned.has(name))
+                    throw new Error(`Piece "${name}" appears in multiple classes in the same OrientPerm group.`);
+            }
+
+            const info0 = pieceInfo.get(names[0]);
+            for (let i = 1; i < names.length; i++) {
+                const info = pieceInfo.get(names[i]);
+                if (info.type !== info0.type)
+                    throw new Error(
+                        `Pieces in a class must share the same type: "${names[i]}" is ${info.type}, expected ${info0.type}.`);
+            }
+
+            const orientMod = orientModOverride !== null ? orientModOverride : info0.m;
+            for (const name of names) assigned.add(name);
+            classes.push({
+                bases: names.map(n => pieceInfo.get(n).base),
+                m: info0.m,
+                typeName: info0.type,
+                orientation_mod: orientMod,
+            });
+        }
+    }
+
+    for (const [name, info] of pieceInfo) {
+        if (!assigned.has(name))
+            classes.push({ bases: [info.base], m: info.m, typeName: info.type, orientation_mod: info.m });
+    }
+
+    return classes;
+}
+
+// Split textarea into blocks (separated by blank lines).
+// A block containing { or a /^\d+:/ line is one OrientPerm group.
+// Otherwise each non-blank line in the block is a separate generator group.
+function parseTargetGroups(text, moves, k, tokenMap, pieceInfo) {
+    const groups = [];
+    for (const block of text.split(/\n[ \t]*\n/)) {
+        const lines = block.split('\n').map(s => s.trim()).filter(Boolean);
+        if (lines.length === 0) continue;
+
+        if (lines.some(l => l.includes('{') || /^\d+:/.test(l))) {
+            groups.push({ kind: 'orientperm', classes: parseOrientPermBlock(lines, pieceInfo) });
+        } else {
+            for (const line of lines) {
+                const algos = parseGenerators(line);
+                if (algos.length === 0) continue;
+                groups.push({ kind: 'generator', perms: algos.map(algo => composeAlgo(algo, moves, k, tokenMap)) });
+            }
+        }
+    }
+    if (groups.length === 0) throw new Error('No target groups entered.');
+    return groups;
 }
 
 function composeAlgo(algo, moves, k, tokenMap) {
@@ -279,9 +345,9 @@ function compute() {
     setStatus('Computing group orders…', '#6b7280');
     setResult('');
 
-    let k, moves, tokenMap;
+    let k, moves, tokenMap, pieceInfo;
     try {
-        ({ k, moves, tokenMap } = parseDefs($('puzzle').value));
+        ({ k, moves, tokenMap, pieceInfo } = parseDefs($('puzzle').value));
     } catch (e) {
         setStatus('Puzzle error: ' + e.message, '#ee2727');
         return;
@@ -293,9 +359,9 @@ function compute() {
         return algos.map(algo => composeAlgo(algo, moves, k, tokenMap));
     }
 
-    let targetPermsArray, solvingAlgos, solvingPerms, startingPerm;
+    let targetGroups, solvingAlgos, solvingPerms, startingPerm;
     try {
-        targetPermsArray = parseTargetGroups($('target-gens').value, moves, k, tokenMap);
+        targetGroups = parseTargetGroups($('target-gens').value, moves, k, tokenMap, pieceInfo);
         solvingAlgos = parseGenerators($('solving-gens').value);
         if (!solvingAlgos.length) throw new Error('No solving generators entered.');
         solvingPerms = solvingAlgos.map(algo => composeAlgo(algo, moves, k, tokenMap));
@@ -315,7 +381,7 @@ function compute() {
     const slack    = slackVal    === '' ? 0 : Math.max(0, parseInt(slackVal)    || 0);
 
     setComputing(true);
-    worker.postMessage({ type: 'compute', k, targetPermsArray, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack });
+    worker.postMessage({ type: 'compute', k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack });
 }
 
 // ── Event listeners ───────────────────────────────────────────────────────────
@@ -347,8 +413,11 @@ B2: B B
 `;
 
 $('target-gens').value   = `R, U, F, B L B'
+
 R, U, B, F' L F
+
 R, U, D, L
+
 R, U, D2 L D2, L F L', L' B' L`;
 $('solving-gens').value  = `U, U2, R, R2, F, F2, D, D2, L, L2, B, B2`;
 $('starting-algo').value = `R2 F R2 D' U F2 R F' B' D U R2 D R L' D U' L D' U' L2`;

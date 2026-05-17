@@ -24,8 +24,8 @@ self.onmessage = function ({ data }) {
         return;
     }
 
-    const { k, targetPermsArray, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack } = data;
-    const tableKey = JSON.stringify({ k, targetPermsArray, solvingPerms, solvingAlgos });
+    const { k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack } = data;
+    const tableKey = JSON.stringify({ k, targetGroups, solvingPerms, solvingAlgos });
 
     try {
         if (tableKey === lastTableKey) {
@@ -63,9 +63,11 @@ self.onmessage = function ({ data }) {
 
         solver.reset(k);
 
-        for (const targetPerms of targetPermsArray) {
+        for (const group of targetGroups) {
+            if (group.kind === 'orientperm')
+                throw new Error('OrientPerm target groups not yet implemented.');
             solver.beginTargetGroup();
-            for (const perm of targetPerms) {
+            for (const perm of group.perms) {
                 const v = new Module.VectorInt();
                 for (const x of perm) v.push_back(x);
                 solver.addTargetGenerator(v);
