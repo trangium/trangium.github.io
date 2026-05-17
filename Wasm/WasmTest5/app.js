@@ -201,6 +201,8 @@ function parseOrientPermBlock(lines, pieceInfo) {
             }
 
             const orientMod = orientModOverride !== null ? orientModOverride : info0.m;
+            if (orientModOverride !== null && (info0.m % orientMod !== 0))
+                throw new Error(`Knockdown ${orientMod} does not divide ${info0.m} (orientation count for ${info0.type}).`);
             for (const name of names) assigned.add(name);
             classes.push({
                 bases: names.map(n => pieceInfo.get(n).base),
@@ -413,11 +415,8 @@ B2: B B
 `;
 
 $('target-gens').value   = `R, U, F, B L B'
-
 R, U, B, F' L F
-
 R, U, D, L
-
 R, U, D2 L D2, L F L', L' B' L`;
 $('solving-gens').value  = `U, U2, R, R2, F, F2, D, D2, L, L2, B, B2`;
 $('starting-algo').value = `R2 F R2 D' U F2 R F' B' D U R2 D R L' D U' L D' U' L2`;
