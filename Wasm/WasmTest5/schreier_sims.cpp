@@ -41,7 +41,6 @@
 #include <queue>
 #include <random>
 #include <string>
-#include <map>
 #include <unordered_map>
 #include <vector>
 
@@ -848,159 +847,11 @@ struct OrientPermSpec {
     long long orient_space = 0;
     long long total_states = 0;
 
+    // Commit 3: orientation constraint analysis + per-type initial_multinomial.
     void build(const std::vector<Class>& classes_in,
                const std::vector<PieceTypeMeta>& types_in,
                int n_in,
-               const std::vector<Perm>& generators) {
-        n = n_in;
-        classes = classes_in;
-        types = types_in;
-        int nTypes = (int)types.size();
-        int nClasses = (int)classes.size();
-
-        // --- 1. piece_class lookup ---
-        piece_class.assign(nTypes, {});
-        for (int t = 0; t < nTypes; t++)
-            piece_class[t].assign(types[t].count, -1);
-        for (int ci = 0; ci < nClasses; ci++)
-            for (int p : classes[ci].pieces)
-                piece_class[classes[ci].type_idx][p] = ci;
-
-        // --- 2. initial_multinomial per type = n_t! / prod(class_size!) ---
-        auto fact = [](int x) -> long long {
-            long long r = 1; for (int i = 2; i <= x; i++) r *= i; return r;
-        };
-        perm_space = 1;
-        for (int t = 0; t < nTypes; t++) {
-            int n_t = types[t].count;
-            std::vector<int> cnt(nClasses, 0);
-            for (int p = 0; p < n_t; p++) cnt[piece_class[t][p]]++;
-            long long multi = fact(n_t);
-            for (int ci = 0; ci < nClasses; ci++) if (cnt[ci] > 0) multi /= fact(cnt[ci]);
-            types[t].initial_multinomial = multi;
-            perm_space *= multi;
-        }
-
-        // --- 3. Compact generator PiecePerms per type ---
-        std::vector<std::vector<PiecePerm>> cgens(nTypes);
-        for (int t = 0; t < nTypes; t++) {
-            int n_t = types[t].count, base = types[t].base, m = types[t].m;
-            for (const Perm& G : generators)
-                cgens[t].push_back(extract_piece(G, base, m, n_t));
-        }
-
-        // --- 4. Orientation constraint analysis (Gaussian elimination over Z_d) ---
-        free_orient.resize(nTypes);
-        forced_coeffs.resize(nTypes);
-        forced_offsets.resize(nTypes);
-        orient_space = 1;
-
-        for (int t = 0; t < nTypes; t++) {
-            int n_t = types[t].count, base = types[t].base, m_t = types[t].m;
-
-            // Find orientation_mod per position and detect if all non-trivial share same d.
-            std::vector<int> d_per_pos(n_t, 1);
-            for (int p = 0; p < n_t; p++)
-                d_per_pos[p] = classes[piece_class[t][p]].orientation_mod;
-
-            int type_d = 1;
-            bool has_nontrivial = false, mixed = false;
-            for (int p = 0; p < n_t; p++) {
-                if (d_per_pos[p] <= 1) continue;
-                if (!has_nontrivial) { type_d = d_per_pos[p]; has_nontrivial = true; }
-                else if (d_per_pos[p] != type_d) { mixed = true; break; }
-            }
-            if (!has_nontrivial) continue;  // no orientation tracking for this type
-
-            // Require prime type_d for GE; otherwise treat all tracked positions as free.
-            bool prime_d = (type_d >= 2) && !mixed;
-            if (prime_d)
-                for (int f = 2; f * f <= type_d; f++)
-                    if (type_d % f == 0) { prime_d = false; break; }
-
-            if (!prime_d || generators.empty()) {
-                for (int p = 0; p < n_t; p++)
-                    if (d_per_pos[p] > 1) { free_orient[t].push_back(p); orient_space *= d_per_pos[p]; }
-                continue;
-            }
-
-            // Delta vector for a compact perm: scatter twist values into destination positions.
-            auto make_delta = [&](const PiecePerm& cp) {
-                std::vector<int> dv(n_t, 0);
-                for (int src = 0; src < n_t; src++) {
-                    int val = cp[src] - base;
-                    dv[val / m_t] = (val % m_t) % type_d;
-                }
-                return dv;
-            };
-
-            // Collect deltas: generators + inverses + depth-2 compositions.
-            std::vector<std::vector<int>> deltas;
-            for (int i = 0; i < (int)cgens[t].size(); i++) {
-                deltas.push_back(make_delta(cgens[t][i]));
-                deltas.push_back(make_delta(invert_piece(cgens[t][i], base, m_t)));
-                for (int j = 0; j < (int)cgens[t].size(); j++)
-                    deltas.push_back(make_delta(compose_piece(cgens[t][i], cgens[t][j], base, m_t)));
-            }
-            auto is_zero = [](const std::vector<int>& v) {
-                return std::all_of(v.begin(), v.end(), [](int x){ return x == 0; });
-            };
-            deltas.erase(std::remove_if(deltas.begin(), deltas.end(), is_zero), deltas.end());
-            std::sort(deltas.begin(), deltas.end());
-            deltas.erase(std::unique(deltas.begin(), deltas.end()), deltas.end());
-
-            if (deltas.empty()) continue;  // generators don't twist mod type_d → orient_space *= 1
-
-            // RREF over Z_{type_d}. Pivot columns = free positions (can be set independently).
-            // Non-pivot columns = forced (determined by free via row relations).
-            std::vector<std::vector<int>> mat = deltas;
-            int nrows = (int)mat.size(), cur_row = 0;
-            std::vector<int> pivot_cols;
-
-            for (int col = 0; col < n_t && cur_row < nrows; col++) {
-                int pr = -1;
-                for (int r = cur_row; r < nrows; r++)
-                    if (mat[r][col] != 0) { pr = r; break; }
-                if (pr < 0) continue;
-                std::swap(mat[cur_row], mat[pr]);
-
-                int lead = mat[cur_row][col], inv_lead = 1;
-                for (int k = 1; k < type_d; k++)
-                    if ((lead * k) % type_d == 1) { inv_lead = k; break; }
-                for (int j = 0; j < n_t; j++)
-                    mat[cur_row][j] = (mat[cur_row][j] * inv_lead) % type_d;
-
-                for (int r = 0; r < nrows; r++) {
-                    if (r == cur_row || mat[r][col] == 0) continue;
-                    int fac = mat[r][col];
-                    for (int j = 0; j < n_t; j++)
-                        mat[r][j] = ((mat[r][j] - fac * mat[cur_row][j]) % type_d + type_d) % type_d;
-                }
-                pivot_cols.push_back(col);
-                cur_row++;
-            }
-            int rank = (int)pivot_cols.size();
-            free_orient[t] = pivot_cols;
-
-            // For each non-pivot column (forced position):
-            // o[col] = sum_{pi=0}^{rank-1} mat[pi][col] * o[free_orient[t][pi]]  (mod type_d)
-            std::vector<bool> is_piv(n_t, false);
-            for (int pc : pivot_cols) is_piv[pc] = true;
-            for (int col = 0; col < n_t; col++) {
-                if (is_piv[col]) continue;
-                std::vector<int> coeffs(rank);
-                for (int pi = 0; pi < rank; pi++) coeffs[pi] = mat[pi][col];
-                forced_coeffs[t].push_back(coeffs);
-                forced_offsets[t].push_back(0);
-            }
-
-            long long contrib = 1;
-            for (int i = 0; i < rank; i++) contrib *= type_d;
-            orient_space *= contrib;
-        }
-
-        total_states = perm_space * orient_space;
-    }
+               const std::vector<Perm>& generators) { /* stub */ }
 
     // Commit 4: PiecePerm scatter (step 1) + incremental ratio rank (step 2).
     long long state_to_index(const Perm& S) const { return 0; }
@@ -1220,52 +1071,9 @@ public:
         groups_.back().raw_classes.push_back({std::move(sticker_bases), m, orientation_mod});
     }
 
+    // Commit 3 will convert raw_classes → op_spec types/classes and call op_spec.build().
     void buildOrientPermGroup() {
-        auto& grp = groups_.back();
-
-        // Group sticker_bases by m to find type boundaries.
-        std::map<int, std::vector<int>> bases_per_m;
-        for (const auto& rc : grp.raw_classes)
-            for (int b : rc.sticker_bases)
-                bases_per_m[rc.m].push_back(b);
-
-        // Within each m group, split sorted bases into contiguous arithmetic runs (step = m).
-        // Each run is one piece type: bases B, B+m, B+2m, ...
-        struct TypeDef { int base; int m; int count; };
-        std::vector<TypeDef> type_defs;
-        std::map<int, int> sticker_to_type;
-
-        for (auto& [m_val, bases] : bases_per_m) {
-            std::sort(bases.begin(), bases.end());
-            int start = 0;
-            for (int i = 1; i <= (int)bases.size(); i++) {
-                if (i == (int)bases.size() || bases[i] - bases[i - 1] != m_val) {
-                    int idx = (int)type_defs.size();
-                    type_defs.push_back({bases[start], m_val, i - start});
-                    for (int j = start; j < i; j++) sticker_to_type[bases[j]] = idx;
-                    start = i;
-                }
-            }
-        }
-
-        std::vector<OrientPermSpec::PieceTypeMeta> types;
-        for (const auto& td : type_defs)
-            types.push_back({td.base, td.m, td.count, 0LL});
-
-        std::vector<OrientPermSpec::Class> classes;
-        for (const auto& raw : grp.raw_classes) {
-            OrientPermSpec::Class cls;
-            int tidx = sticker_to_type.at(raw.sticker_bases[0]);
-            cls.type_idx = tidx;
-            cls.orientation_mod = raw.orientation_mod;
-            for (int b : raw.sticker_bases)
-                cls.pieces.push_back((b - type_defs[tidx].base) / type_defs[tidx].m);
-            std::sort(cls.pieces.begin(), cls.pieces.end());
-            classes.push_back(std::move(cls));
-        }
-
-        grp.op_spec.build(classes, types, n_, solving_generators_);
-        grp.raw_classes.clear();
+        groups_.back().raw_classes.clear();
     }
 
     // ── Solving moves ─────────────────────────────────────────────────────────
