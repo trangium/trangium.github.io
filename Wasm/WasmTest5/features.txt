@@ -1,0 +1,87 @@
+big feature request: new types of prune tables, that use more of the structure of Rubik's cubes.
+
+right now, the Puzzle input is just given as a permutation group on the stickers. however, real rubik's cubes have physical pieces, with orientations and permutations.
+
+this lends itself to a more compact way of expressing the cube. for example, in a real rubik's cube, you don't need to track all 54 stickers. you can just track the image of 20 of the stickers (or 26, if you care about the centers), and this is enough to reconstruct the entire permutation.
+
+we'll change the input format to accommodate this. for instance, for the 3x3x3, this would be the definition:
+
+EDGES 2 UF UL UB UR DF DL DB DR FR FL BL BR
+CORNERS 3 UFR UBR UBL UFL DFR DFL DBL DBR
+
+U: (UF UL UB UR) (UFR UFL UBL UBR)
+R: (UR BR DR FR) (UFR-1 UBR+1 DBR-1 DFR+1)
+F: (UF+1 FR+1 DF+1 FL+1) (UFR+1 DFR-1 DFL+1 UFL-1)
+D: (DF DR DB DL) (DFR DBR DBL DFL)
+L: (UL FL DL BL) (UFL+1 DFL-1 DBL+1 UBL-1)
+B: (UB+1 BL+1 DB+1 BR+1) (UBR-1 UBL+1 DBL-1 DBR+1)
+
+the first two lines indicate that UF UL UB UR DF DL DB DR FR FL BL BR are EDGES and each have two orientations, and UFR UBR UBL UFL DFR DFL DBL DBR are CORNERS and each have three.
+
+then, the piece cycles are like sticker cycles in the following way: suppose UF has two stickers UF1 and UF2; likewise for UL, UB, and UR. Then the piece cycle (UF UL UB UR) is equivalent to the sticker cycles (UF1 UL1 UB1 UR1) (UF2 UL2 UB2 UR2). Likewise, (UF+1 FR+1 DF+1 FL+1) is equivalent to (UF1 UL2 UB1 UR2) (UF2 UL1 UB2 UR1). Any cycle given will consist of pieces of all the same type (e.g. all edges or all corners).
+
+this can easily be converted back into sticker definition, so you can still do permutation group operations on it, but just more efficiently since a move can be done in O(20) instead of O(54). this keeps things backward-compatible with the current target groups.
+
+however, I now want to support another type of target group, one defined through orientations and permutations.
+
+here's an example syntax for the 3x3x3 group with the above definition:
+1: {UFR UFL UBL UBR}
+1: UF UL UB UR
+{DFR DFL} {DBR DBL} {DR DF DL DB}
+
+brackets around a set of pieces mean that they're interchangeable, and a 1: at the start of a line means that their orientation is to be ignored. any omitted pieces are considered distinct from (i.e. not interchangeable with) all other pieces. no piece will occur more than once, and any two pieces in the same set of brackets are of the same type.
+
+(you may choose to support 2: at the start of a line to indicate knocking down to 2 orientations, or 3:, etc, as long as it's a divisor of the initial number of orientations, if it's feasible, but this feature is not as high-priority)
+
+this can also be converted into a target group of the form already accepted by the solver (it is in fact a group - think about it!). but this special case of a group has key advantages: easy canonicalization, and easy numbering. instead of O(n^2) canonicalization and a 128-bit hash, we have O(n) canonicalization and a free way to number one of these states.
+
+to illustrate the numbering thing, I'll use a few examples.
+
+
+a simple example occurs on the 3x3x3 occurs when all EDGES and all CORNERS are considered interchangeable. 
+
+{UF UL UB UR DF DL DB FR FL DR BR BL} {UFR UFL UBL UBR DFR DBL DBR DFL}
+
+then you just have to figure out how many possibilities there are, and it decomposes nicely. on the 3x3x3, the orientation of 11 of the 12 edges is free, and that forces the orientation of the 12th edge. similarly, the orientation of 7 of the 8 corners is free, and this forces the orientation of the 8th corner. Thus there are 2^11 * 3^7 = 4478976 possibilities, and you can easily number a possibility from 0 to 4478975 without listing them all: just take (1st edge orientation) + 2(2nd edge orientation) + 4(3rd edge orientation) + … + 2^10(11th edge orientation) + 2^11(1st corner orientation) + 3*2^11(2nd corner orientation) + …. the orientations which are free/forced can be found fairly easily with schreier-sims. 
+
+(note: when pieces have a composite number of orientations, say 4, it's possible for its orientation to be neither free nor forced, and in fact restricted to 2 orientations. if it's easy to deal with this case, deal with it, otherwise you can pretend it's free and just eat the space usage).
+
+another example: suppose all pieces are knocked down to 1 orientation, all the edges are interchangeable, and the corners are split into 2 groups:
+
+1: {UF UL UB UR DF DL DB FR FL DR BR BL} {UFR UFL UBL UBR} {DFR DBL DBR DFL}
+
+Now, to figure out the numbering, we have to do some combinatorics. Designate the first group {UFR UFL UBL UBR} as 0, and the second group {DFR DBL DBR DFL} as 1, then a permutation can be reduced to a list of four 0s and four 1s. There are (8 choose 4) = 70 such permutations, and you can number them in O(n) if you have a table of pre-computed binomial coefficients, by taking the lexicographical ordering. example: let's number [1, 0, 0, 1, 0, 1, 0, 1]. There are (7 choose 3) orderings that start with 0, so it's later than all of them. Then, there are another (5 choose 1) orderings starting with [1, 0, 0, 0] which it's later than. Then, another (2 choose 0) orderings starting with [1, 0, 0, 1, 0, 0] which it's later than. Thus, it's later than (7 choose 3) + (5 choose 1) + (2 choose 0) = 41 orderings, so we've numbered that one.
+
+another example: suppose on the 2x2x2, all the pieces are knocked down to 1 orientation, but are all distinct. further suppose that we chose a solving subgroup that restricted to even permutations of the corners. Then we would have 8 choices for the first corner, 7 choices for the 2nd, …, 3 choices for the 6th, and the last 2 would be forced. Then there would be 8*7*6*5*4*3=20160 possibilities, easily enumerated by 7*6*5*4*3*(first piece permutation) + 6*5*4*3*(second piece permutation) + …
+
+the reason why this enumeration is useful is it allows us to make our distance table extremely compact. for example, if there are 10000 states, and the maximum distance is <=255, we can just use a 10000-byte array, and index it with its number.
+
+in fact, we can even do better if we're given a starting algorithm. we only need to store the position mod 3. then, if we start from the solved state, and apply a scramble one move at a time, we can use the fact that the distance must change by {-1, 0, 1} to deduce the distance at the final position.
+
+since canonicalizing is so much faster, this eliminates the need for transition tables (though we can still choose to have them).
+
+in addition to all of these features, I want to add incomplete target group tables. let's say one of my target groups is the full Rubik's cube group with all its orientations and no restrictions. this has order 4.3*10^19 and would be prohibitive to store all its states in memory, even with these memory savings. In this case, we can just store a map of positions at most 5 moves from solved (the 5 should be a configurable parameter). we can't have transition tables in this case.
+
+finally, I want to add support for multiple solved positions for a table. this would just be a list of states, affecting any distance tables. there would be a Scramble field, and the solver reads the Scramble field left to right:
+
+Any moves outside of square or angle brackets are just executed.
+
+Square brackets indicate multiple paths. For example, an input of [R U R' U R U2 R', R U2 R' U' R U' R'] would search for both sune and antisune algorithms.
+
+Angle brackets indicate generators. For example, an input of <R U R' F' R U R' U' R' F R2 U' R', R2 U R U R' U' R' U' R' U R', U> would search full PLL.
+
+As another example, R U R' U' [R', F] <B, U> indicates the states that are reachable by R U R' U' R' followed by any sequence of B and U moves and their inverses, or R U R' U' F followed by any sequence of B and U moves and their inverses. For each target group, you would go through the field left to right to figure out which cosets are the distance-0 ones.
+
+In summary, I want these supported:
+
+ - special case orientation/permutation target group with:
+   = super compact 1.6-bit-per-state distance table, or
+   = super compact 1.6-bit-per-state distance table along with transition tables, or
+   = incomplete table
+
+- general group, with:
+   = current implementation without transition table (just distance table, canonicalization gets recomputed every time, which may be slow so only compute it when it can make a difference as to whether this state gets explored)
+   = current implementation (transition table, distance table)
+   = incomplete table
+
+for each of these: multiple solved states

@@ -15,23 +15,97 @@ function parseCycles(str, k, tokenMap) {
     return p;
 }
 
+// Expand one piece-mode cycle (the text between parentheses) into perm.
+// Handles plain, oriented, and skew-oriented piece cycles.
+function parsePieceCycle(content, perm, pieceInfo) {
+    const tokens = content.trim().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return;
+
+    const elements = tokens.map(tok => {
+        const match = tok.match(/^([^+\-]+)([+-]\d+)?$/);
+        if (!match) throw new Error(`Invalid cycle token: "${tok}"`);
+        const name   = match[1];
+        const offset = match[2] ? parseInt(match[2]) : 0;
+        if (!pieceInfo.has(name))
+            throw new Error(`Unknown piece "${name}" — every token must be a declared piece name.`);
+        return { name, offset };
+    });
+
+    // Skew cycle: last token is the same piece as the first (carries kfinal only).
+    let kfinal, pieces;
+    if (elements.length > 1 && elements[elements.length - 1].name === elements[0].name) {
+        kfinal = elements[elements.length - 1].offset;
+        pieces = elements.slice(0, -1);
+    } else {
+        kfinal = elements[0].offset;
+        pieces = elements;
+    }
+
+    const t = pieces.length;
+    if (t === 0) return;
+
+    const info0 = pieceInfo.get(pieces[0].name);
+    const m     = info0.m;
+    const type0 = info0.type;
+    for (let i = 1; i < t; i++) {
+        const info = pieceInfo.get(pieces[i].name);
+        if (info.type !== type0)
+            throw new Error(
+                `Cannot mix piece types in a cycle: "${pieces[i].name}" is ${info.type}, expected ${type0}.`);
+    }
+
+    // Pi_s  →  P(i+1)_{ (s − ki + k(i+1)) mod m }
+    // Last transition uses kfinal instead of k[0].
+    for (let i = 0; i < t; i++) {
+        const next  = (i + 1) % t;
+        const ki    = pieces[i].offset;
+        const knext = (i === t - 1) ? kfinal : pieces[next].offset;
+        const bi    = pieceInfo.get(pieces[i].name).base;
+        const bn    = pieceInfo.get(pieces[next].name).base;
+        for (let s = 0; s < m; s++)
+            perm[bi + s] = bn + ((s - ki + knext) % m + m) % m;
+    }
+}
+
+function parsePieceCycles(str, k, pieceInfo) {
+    const p = Array.from({ length: k }, (_, i) => i);
+    for (const match of str.matchAll(/\(([^)]+)\)/g))
+        parsePieceCycle(match[1], p, pieceInfo);
+    return p;
+}
+
 function parseDefs(text) {
     const lines = text.split('\n')
         .map(l => l.replace(/#.*$/, '').trim())
         .filter(Boolean);
 
-    const tokenMap = new Map();
-    const getOrAdd = tok => {
-        if (!tokenMap.has(tok)) tokenMap.set(tok, tokenMap.size);
-        return tokenMap.get(tok);
-    };
+    // ── Parse piece-type header lines ─────────────────────────────────────────
+    // Format:  TYPENAME N name1 name2 ...   (no colon; TYPENAME is ALL-CAPS)
+    const pieceInfo = new Map();  // piece name → { base: int, m: int, type: string }
     for (const l of lines) {
-        const ci = l.indexOf(':');
-        if (ci < 0 || !l.slice(ci + 1).includes('(')) continue;
-        for (const m of l.matchAll(/\(([^)]+)\)/g))
-            for (const tok of m[1].trim().split(/\s+/)) getOrAdd(tok);
+        const hm = l.match(/^([A-Z][A-Z0-9_-]*)\s+(\d+)\s+(.+)$/);
+        if (!hm) continue;
+        const type = hm[1];
+        const m    = parseInt(hm[2]);
+        if (m < 1) throw new Error(`Piece type "${type}" must have at least 1 orientation.`);
+        for (const name of hm[3].trim().split(/\s+/).filter(Boolean)) {
+            if (pieceInfo.has(name)) throw new Error(`Piece "${name}" declared twice.`);
+            pieceInfo.set(name, { base: -1, m, type });
+        }
     }
-    if (tokenMap.size === 0) throw new Error('No cycle definitions found in puzzle.');
+
+    if (pieceInfo.size === 0)
+        throw new Error('No piece-type headers found. Declare pieces with e.g. "EDGES 2 UF UL …"');
+
+    // Assign consecutive sticker indices in declaration order.
+    const tokenMap = new Map();
+    let idx = 0;
+    for (const [name, info] of pieceInfo) {
+        info.base = idx;
+        for (let s = 0; s < info.m; s++)
+            tokenMap.set(`${name}_${s}`, idx + s);
+        idx += info.m;
+    }
     const k = tokenMap.size;
 
     const identity  = () => Array.from({ length: k }, (_, i) => i);
@@ -48,7 +122,7 @@ function parseDefs(text) {
         const name = line.slice(0, ci).trim();
         const def  = line.slice(ci + 1).trim();
         if (def.includes('(')) {
-            moves.set(name, parseCycles(def, k, tokenMap));
+            moves.set(name, parsePieceCycles(def, k, pieceInfo));
         } else {
             derived.push({ name, seq: def.split(/\s+/).filter(Boolean) });
         }
@@ -255,24 +329,21 @@ $('starting-algo').addEventListener('keydown', e => { if (e.key === 'Enter' && $
 // ── Defaults ──────────────────────────────────────────────────────────────────
 
 $('puzzle').value =
-`U: (Ufr Ufl Ubl Ubr) (Uf Ul Ub Ur) (uF uL uB uR) (uFr ufL uBl ubR) (ufR uFl ubL uBr)
-y: (B R F L) (Ub Ur Uf Ul) (Db Dr Df Dl) (uB uR uF uL) (dB dR dF dL) (Ubl Ubr Ufr Ufl) (Dbl Dbr Dfr Dfl) (uBl ubR uFr ufL) (uBr ufR uFl ubL) (Bl bR Fr fL) (Br fR Fl bL) (dBl dbR dFr dfL) (dBr dfR dFl dbL)
-x: (B D F U) (uB Db dF Uf) (Ub dB Df uF) (Bl Dl Fl Ul) (Br Dr Fr Ur) (bL dL fL uL) (bR dR fR uR) (uBr Dbr dFr Ufr) (Ubr dBr Dfr uFr) (uBl Dbl dFl Ufl) (Ubl dBl Dfl uFl) (ubR dbR dfR ufR) (ubL dbL dfL ufL)
-z: x y x'
-y2: y y
-x2: x x
-z2: z z
-R: z' U z
-F: x U x'
-L: z U z'
-D: z2 U z2
-B: x' U x
-U2: U U
-R2: R R
-F2: F F
-L2: L L
-D2: D D
-B2: B B
+`EDGES 2 UF UL UB UR DF DL DB DR FR FL BL BR
+CORNERS 3 UFR UBR UBL UFL DFR DFL DBL DBR
+
+U: (UF UL UB UR) (UFR UFL UBL UBR)
+R: (UR BR DR FR) (UFR UBR+1 DBR DFR+1)
+F: (UF FR+1 DF FL+1) (UFR DFR-1 DFL UFL-1)
+D: (DF DR DB DL) (DFR DBR DBL DFL)
+L: (UL FL DL BL) (UFL DFL-1 DBL UBL-1)
+B: (UB BL+1 DB BR+1) (UBR UBL+1 DBL DBR+1)
+U2: U U    
+R2: R R    
+F2: F F    
+D2: D D    
+L2: L L    
+B2: B B    
 `;
 
 $('target-gens').value   = `R, U, F, B L B'
