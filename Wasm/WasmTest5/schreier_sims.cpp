@@ -1044,7 +1044,7 @@ class MultiTargetSolver {
         OrientPermSpec op_spec;
 
         // Temporary accumulator for addOrientPermClass calls; consumed by buildOrientPermGroup().
-        struct RawOPClass { std::vector<int> sticker_bases; int m; int orientation_mod; };
+        struct RawOPClass { std::vector<int> sticker_bases; int m; int orientation_mod; std::string type_name; };
         std::vector<RawOPClass> raw_classes;
 
         std::vector<Perm> generators;
@@ -1146,68 +1146,61 @@ public:
         groups_.back().kind = TargetGroup::ORIENTPERM;
     }
 
-    void addOrientPermClass(std::vector<int> sticker_bases, int m, int orientation_mod) {
-        groups_.back().raw_classes.push_back({std::move(sticker_bases), m, orientation_mod});
+    void addOrientPermClass(std::vector<int> sticker_bases, int m, int orientation_mod,
+                            std::string type_name) {
+        groups_.back().raw_classes.push_back(
+            {std::move(sticker_bases), m, orientation_mod, std::move(type_name)});
     }
 
+    // Must be called after all solving generators have been added (addSolvingGenerator /
+    // buildSolvingBSGS), because build() uses solving_generators_ for fixed-piece detection
+    // and later orientation analysis.
     void buildOrientPermGroup() {
         auto& grp = groups_.back();
 
-        // ── Step 1: determine types from raw_classes ──────────────────────────
-        // Collect all (sticker_base, m) pairs, deduplicated and sorted by (m, sb).
-        struct SBEntry { int sb, m; };
-        std::vector<SBEntry> all_sb;
-        for (const auto& rc : grp.raw_classes)
-            for (int sb : rc.sticker_bases)
-                all_sb.push_back({sb, rc.m});
-        std::sort(all_sb.begin(), all_sb.end(), [](const SBEntry& a, const SBEntry& b) {
-            return a.m != b.m ? a.m < b.m : a.sb < b.sb;
-        });
-        all_sb.erase(std::unique(all_sb.begin(), all_sb.end(), [](const SBEntry& a, const SBEntry& b) {
-            return a.m == b.m && a.sb == b.sb;
-        }), all_sb.end());
+        // ── Step 1: determine types, grouped by (type_name, m) ───────────────
+        // Using (type_name + "|" + m) as hash key correctly distinguishes two piece
+        // types that share the same m value even if their sticker bases are adjacent.
+        struct TypeInfo { std::string type_name; int m, base, count; };
+        std::vector<TypeInfo> type_infos;
+        std::unordered_map<std::string, int> type_key_idx;
 
-        // Split into contiguous runs of the same m; each run is one piece type.
-        std::vector<OrientPermSpec::PieceTypeMeta> types;
-        int i = 0;
-        while (i < (int)all_sb.size()) {
-            int m = all_sb[i].m;
-            int j = i;
-            while (j < (int)all_sb.size() && all_sb[j].m == m) j++;
-            // all_sb[i..j) share the same m, sorted by sb
-            int run_start = i;
-            for (int k = i + 1; k <= j; k++) {
-                if (k == j || all_sb[k].sb != all_sb[k-1].sb + m) {
-                    types.push_back({all_sb[run_start].sb, m, k - run_start, 0, 0LL});
-                    run_start = k;
-                }
+        for (const auto& rc : grp.raw_classes) {
+            if (rc.sticker_bases.empty()) continue;
+            const std::string key = rc.type_name + "|" + std::to_string(rc.m);
+            if (!type_key_idx.count(key)) {
+                type_key_idx[key] = (int)type_infos.size();
+                type_infos.push_back({rc.type_name, rc.m, INT_MAX, 0});
             }
-            i = j;
+            TypeInfo& ti = type_infos[type_key_idx[key]];
+            for (int sb : rc.sticker_bases) {
+                ti.base = std::min(ti.base, sb);
+                ti.count++;
+            }
         }
-        // Sort types by base for a consistent, puzzle-layout order
-        std::sort(types.begin(), types.end(),
-                  [](const OrientPermSpec::PieceTypeMeta& a,
-                     const OrientPermSpec::PieceTypeMeta& b) { return a.base < b.base; });
+        // Sort by base for consistent puzzle-layout order
+        std::sort(type_infos.begin(), type_infos.end(),
+                  [](const TypeInfo& a, const TypeInfo& b) { return a.base < b.base; });
+        // Rebuild key→index after sort
+        type_key_idx.clear();
+        for (int t = 0; t < (int)type_infos.size(); t++)
+            type_key_idx[type_infos[t].type_name + "|" + std::to_string(type_infos[t].m)] = t;
+
+        std::vector<OrientPermSpec::PieceTypeMeta> types;
+        for (const auto& ti : type_infos)
+            types.push_back({ti.base, ti.m, ti.count, 0, 0LL});
 
         // ── Step 2: build OrientPermSpec::Class list ──────────────────────────
-        int n_types = (int)types.size();
-        auto find_type_idx = [&](int sb, int m) -> int {
-            for (int t = 0; t < n_types; t++)
-                if (types[t].m == m && sb >= types[t].base &&
-                    (sb - types[t].base) % m == 0 &&
-                    (sb - types[t].base) / m < types[t].count)
-                    return t;
-            return -1;
-        };
-
         std::vector<OrientPermSpec::Class> classes;
         for (const auto& rc : grp.raw_classes) {
             if (rc.sticker_bases.empty()) continue;
+            const std::string key = rc.type_name + "|" + std::to_string(rc.m);
+            int t = type_key_idx.at(key);
             OrientPermSpec::Class cls;
-            cls.type_idx = find_type_idx(rc.sticker_bases[0], rc.m);
+            cls.type_idx = t;
             cls.orientation_mod = rc.orientation_mod;
             for (int sb : rc.sticker_bases)
-                cls.pieces.push_back((sb - types[cls.type_idx].base) / rc.m);
+                cls.pieces.push_back((sb - types[t].base) / rc.m);
             std::sort(cls.pieces.begin(), cls.pieces.end());
             classes.push_back(std::move(cls));
         }

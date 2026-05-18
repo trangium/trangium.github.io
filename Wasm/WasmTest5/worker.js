@@ -63,9 +63,9 @@ self.onmessage = function ({ data }) {
 
         solver.reset(k);
 
+        // First pass: GENERAL target groups — their generators feed the solving BSGS.
         for (const group of targetGroups) {
-            if (group.kind === 'orientperm')
-                throw new Error('OrientPerm target groups not yet implemented.');
+            if (group.kind === 'orientperm') continue;
             solver.beginTargetGroup();
             for (const perm of group.perms) {
                 const v = new Module.VectorInt();
@@ -84,6 +84,20 @@ self.onmessage = function ({ data }) {
             v.delete();
         }
         solver.buildSolvingBSGS(100);
+
+        // Second pass: ORIENTPERM groups — must come after buildSolvingBSGS so that
+        // solving_generators_ is complete when buildOrientPermGroup() calls build().
+        for (const group of targetGroups) {
+            if (group.kind !== 'orientperm') continue;
+            solver.beginOrientPermGroup();
+            for (const cls of group.classes) {
+                const v = new Module.VectorInt();
+                for (const b of cls.bases) v.push_back(b);
+                solver.addOrientPermClass(v, cls.m, cls.orientation_mod, cls.typeName);
+                v.delete();
+            }
+            solver.buildOrientPermGroup();
+        }
 
         // Build solving move list and parallel name list
         const permStr = p => p.join(',');
