@@ -2,214 +2,580 @@
 
 ## Approach: Extend in place
 
-Same folder, same files. The C++ and JS changes are self-contained enough to be additive. No structural rename is needed.
+Same folder, same files. The C++ and JS changes are self-contained enough to be additive.
 
 ---
 
-## 1. Piece-based puzzle input (JS — `app.js`)
+## 1. Piece-based puzzle input — **IMPLEMENTED** (JS — `app.js`)
 
-### What changes
+### What was built
 
-`parseDefs` currently treats every token in a cycle as a raw integer index. The new format introduces **required** header lines declaring piece types and a number of orientations:
+`parseDefs` now requires piece-type header lines. Puzzle input without headers gives an error immediately. Header format (any ALL-CAPS keyword):
 
 ```
 EDGES 2 UF UL UB UR DF DL DB DR FR FL BL BR
 CORNERS 3 UFR UBR UBL UFL DFR DFL DBL DBR
 ```
 
-These headers are required whenever piece names are used — without them there is no way to know how many sticker slots to assign each piece. If any piece name is used in a subsequent line without having been defined in a header line, the user should be notified of an error in the definition.
+The regex `/^([A-Z][A-Z0-9_-]*)\s+(\d+)\s+(.+)$/` matches them. Any type name is accepted (EDGES, CORNERS, X-CENTERS, PLUS-CENTERS, etc.). Each piece declaration stores `{base: int, m: int, type: string}` in `pieceInfo`.
 
-After headers are declared, cycle notation uses piece names with optional orientation offsets.
+Sticker tokens are `PieceName_0`, `PieceName_1`, … and are added to `tokenMap` for use by `composeAlgo` (inline cycle notation in generators/algorithms). These sticker names are the only valid identifiers for target generators that use explicit cycle notation.
 
-### How to expand
+Two new standalone functions handle piece-mode cycles:
+- `parsePieceCycle(content, perm, pieceInfo)` — one cycle (text between parentheses)
+- `parsePieceCycles(str, k, pieceInfo)` — full move definition string
 
-Each declared piece name (e.g. `UF`) with `m` orientations gets `m` consecutive sticker integer indices: `UF` occupies slots `base, base+1, ..., base+m-1`.
+**Expansion formula** for `(P1+k1 P2+k2 ... Pt+kt)`:
+> `Pi_s  →  P(i+1 mod t)` at sticker `(s − ki + k(i+1)) mod m`
 
-**Plain piece cycle** `(UF UL UB UR)`: sticker index `s` of `UF` maps to sticker index `s` of `UL`, and so on. Expanded: `(UF_0 UL_0 UB_0 UR_0)(UF_1 UL_1 UB_1 UR_1)`.
+For the last transition, `k(i+1)` uses `kfinal` (from the skew-closing element if present, else `k1`).
 
-**Oriented piece cycle** `(P1+k1 P2+k2 ... Pt+kt)`:
+**Skew cycle detection:** if the last token names the same piece as the first, it is a skew closer — its offset becomes `kfinal` and it is removed from the position list. Implements in-place twists (`(A A+2)`) and merged-cycle moves (`(UF UB+1 UF+1)`).
 
-The orientation offsets define which sticker index is the "anchor" in each position. The rule for sticker `s` of piece `Pi`:
+**Cycle type validation:** all pieces in a cycle must share the same `type` string (e.g. all EDGES). An error is thrown if EDGES and CORNERS are mixed, even if they happen to have the same `m`.
 
-> **`Pi_s` maps to `P(i+1 mod t)` at sticker index `(s − ki + k(i+1)) mod m`**
+The old sticker-mode fallback is gone. `parseCycles` is retained only for `composeAlgo`.
 
-This means the offset difference `k(i+1) − ki` is the shift applied to the sticker index as the piece moves from position `Pi` to position `P(i+1)`. Pieces without an explicit offset default to `+0`.
-
-**Verification with `(UFR+1 DFR DFL-1 UFL+2)` (m=3, offsets k=[1,0,2,2]):**
-- `UFR_s → DFR_{(s−1+0) mod 3}` → shift of −1
-- `DFR_s → DFL_{(s−0+2) mod 3}` → shift of +2
-- `DFL_s → UFL_{(s−2+2) mod 3}` → shift of 0
-- `UFL_s → UFR_{(s−2+1) mod 3}` → shift of −1
-
-This produces exactly the three sticker cycles:
-- `(UFR_1 DFR_0 DFL_2 UFL_2)`
-- `(UFR_2 DFR_1 DFL_0 UFL_0)`
-- `(UFR_0 DFR_2 DFL_1 UFL_1)`
-
-Note: for an unoriented cycle (all offsets 0), the formula reduces to `Pi_s → P(i+1)_s` — each sticker index maps straight across, matching the plain piece cycle rule.
-
-### Skew-oriented piece cycles
-
-A cycle is **skew** if its last token names the same piece as its first token. The last token is not an additional position — it is only there to carry an alternate closing offset `kfinal`. The cycle has `t = len − 1` real positions.
-
-> **Detection:** after tokenising a cycle, if `last_piece == first_piece`, strip the last token and record its offset as `kfinal`. Otherwise `kfinal = k1` (standard closure).
-
-The only difference from a normal cycle is the final transition `Pt → P1`:
-
-> **`Pt_s` maps to `P1` at sticker index `(s − kt + kfinal) mod m`**
-
-All other transitions `Pi → P(i+1)` (for i = 1 … t−1) use the same formula as before.
-
-**What this controls:** the net sticker-index shift per lap around the cycle is `kfinal − k1`. Starting from sticker `s` of `P1`, after one full lap through all t positions the sticker index has shifted by `(kfinal − k1) mod m`. The sticker cycle length is therefore `t × m / gcd(m, kfinal − k1)`.
-
-| Example | t | m | kfinal−k1 | Cycle structure |
-|---|---|---|---|---|
-| `(UF UB+1 UF+1)` | 2 | 2 | 1 | one 4-cycle |
-| `(UF UB+1 UF)` | 2 | 2 | 0 | two 2-cycles (same as normal) |
-| `(A A+2)` | 1 | 4 | 2 | two 2-cycles (in-place twist) |
-
-The `(A A+2)` case (`t = 1`) is a single-piece self-cycle: the only "transition" is the one from P1 back to itself, using `kfinal = 2`, giving `A_s → A_{(s+2) mod 4}`.
-
-When `kfinal = k1` (or no closing element), the skew formula reduces exactly to the normal cycle formula — no special case is needed.
-
-### Implementation in `parseDefs`
-
-1. Before the main line-parsing loop, scan for `EDGES N name1 name2 ...` and `CORNERS N name1 name2 ...` lines. (Their names could be something other than EDGES or CORNERS). Build a map: `pieceName → {baseIndex: int, numOrientations: int}`. Register all `m` sticker indices for each piece into the existing token map.
-2. In the cycle parser, tokenise each cycle. If the last token names the same piece as the first, record its offset as `kfinal` and drop it from the position list. Otherwise set `kfinal = k1`.
-3. Apply the transition formula to fill the permutation array: use `kfinal` for the `Pt → P1` transition, `k(i+1)` for all others.
-4. Tokens that don't match any declared piece name should give an error message. Move definitions that don't use pieces (e.g. derived moves like `U2: U U`) are unaffected.
-
-C++ sees the same flat sticker permutations as today — no C++ changes for this part.
+Default puzzle updated to 3×3 piece notation (48 sticker slots: 12 edges × 2 + 8 corners × 3).
 
 ---
 
 ## 2. OrientPerm target group type (JS + C++)
 
-### JS: parsing a new syntax
+### 2a. JS: target group textarea — new delimiter and detection — **IMPLEMENTED**
 
-A target group can now be specified as an "OrientPerm group" using lines like:
+**Group delimiter change.** The textarea is split by blank lines into *blocks*. Within a block:
+- If any line contains `{` OR matches `/^\s*\d+:/`, the entire block is one **OrientPerm group** (all its lines together define one group).
+- Otherwise each line in the block is a separate **generator group** (existing behavior — one line, comma-separated generators).
 
+This means the defaults for generator groups must be separated by blank lines. Update `$('target-gens').value` accordingly.
+
+### 2b. JS: parsing an OrientPerm block — **IMPLEMENTED**
+
+Each line within an OrientPerm block has the form:
 ```
-{UFR UFL UBL UBR}
-1: UF UL UB UR
-{DFR DFL} {DBR DBL} {DR DF DL DB}
+[d:] item item item ...
+```
+where `d` is an integer knockdown factor (default: full orientations = `m` for each piece type encountered) and each item is either:
+- `{P1 P2 ...}` — an equivalence class of interchangeable pieces
+- `Pname` — a singleton equivalence class (piece is distinct, its position matters)
+
+All pieces on a `d:`-prefixed line get knockdown factor `d`. Pieces on a line with no prefix keep their full `m`.
+
+After parsing the explicit lines, iterate over all pieces in `pieceInfo`. Any piece not yet assigned to a class is added as a singleton class with full orientation (`orientation_mod = m`).
+
+The parsed result for the block is a flat ordered list of classes:
+```js
+// Sent in the worker message as targetGroups[i].classes
+[
+  { bases: [24, 27, 30, 33], m: 3, typeName: 'CORNERS', orientation_mod: 1 },
+  { bases: [0, 2, 4, 6],     m: 2, typeName: 'EDGES',   orientation_mod: 1 },
+  { bases: [36, 39],         m: 3, typeName: 'CORNERS', orientation_mod: 3 },
+  // ...
+]
 ```
 
-Detection rule: if any token in the target group text begins with `{` or a line begins with `N:`, treat the whole block as an OrientPerm specification. Otherwise, use the existing generator-list parser.
+`bases` is the list of `pieceInfo.get(name).base` for each piece in the class. `m` and `typeName` come from the first piece's `pieceInfo` entry; validate that all pieces in one `{...}` share the same `typeName`.
 
-Parsing rules:
-- `{P1 P2 ...}` — these piece names form one equivalence class; they are interchangeable.
-- `N:` prefix on a line — all `{...}` groups on that line have their orientations knocked down to `N`. `1:` means ignore orientation entirely. `2:` on a 4-orientation piece means reduce to 2 orientations.
-- Pieces not inside `{...}` are singleton equivalence classes (distinct from all others).
-- No piece appears twice. All pieces in one `{...}` must have the same piece type (same number of orientations).
+### 2c. Worker message format — **IMPLEMENTED**
 
-The parsed result is a structure sent to C++ via `worker.postMessage`:
+The `compute` message gains a new field replacing `targetPermsArray`:
 
 ```js
-{
-  type: 'orientperm',
-  classes: [
-    { pieces: ['UFR','UFL','UBL','UBR'], orientation_mod: 1 },
-    { pieces: ['UF','UL','UB','UR'],     orientation_mod: 1 },
-    ...
-  ]
+targetGroups: [
+  {
+    kind: 'generator',
+    perms: Perm[],   // same as current targetPermsArray[i]
+  },
+  {
+    kind: 'orientperm',
+    classes: [{ bases: int[], m: int, typeName: string, orientation_mod: int }, ...],
+  },
+]
+```
+
+The worker builds `targetPermsArray` from generator groups (for backward compatibility with the C++ `addTargetGenerator` path) and calls new C++ API for orientperm groups.
+
+### 2d. C++ structs — **IMPLEMENTED** (scaffolding; `build()` is a stub)
+
+Add to `MultiTargetSolver::TargetGroup`:
+
+```cpp
+enum GroupKind { GENERAL, ORIENTPERM };
+GroupKind kind = GENERAL;
+OrientPermSpec op_spec;   // only valid when kind == ORIENTPERM
+```
+
+A **compact piece permutation** (`PiecePerm`) for a single piece type stores one integer per piece rather than one per sticker:
+
+```cpp
+// PiecePerm[pos] = base + m * source_piece + orientation_twist
+// This is exactly full_perm[base + m * pos] — sticker 0 of each position.
+// The remaining stickers are recoverable: full_perm[base + m*pos + s] = base + m*dest + (s + twist) % m
+using PiecePerm = std::vector<int>;  // length n_t
+```
+
+Composition and inversion are O(pieces), not O(stickers):
+
+```cpp
+// Compose A then B for one piece type (base B, m stickers per piece):
+PiecePerm compose_piece(const PiecePerm& A, const PiecePerm& B, int base, int m) {
+    PiecePerm R(A.size());
+    for (int src = 0; src < (int)A.size(); src++) {
+        int a = A[src] - base, mid = a / m, tA = a % m;
+        int b = B[mid] - base;
+        R[src] = base + (b / m) * m + (tA + b % m) % m;  // combined dest + twist
+    }
+    return R;
+}
+
+// Invert: piece at src_pos goes to dest_pos with twist t  →  dest_pos now holds src_pos with -t
+PiecePerm invert_piece(const PiecePerm& A, int base, int m) {
+    PiecePerm R(A.size());
+    for (int src = 0; src < (int)A.size(); src++) {
+        int a = A[src] - base;
+        R[a / m] = base + m * src + (m - a % m) % m;
+    }
+    return R;
 }
 ```
 
-Each entry in `classes` gives the sticker-index base of each piece (looked up from the token map built during puzzle parsing), the number of orientations for that piece type, and the knockdown factor.
+**Where PiecePerm is used:** in `buildTables()` DFS (apply/undo moves in O(pieces) instead of O(stickers)), and inside `state_to_index` (scatter replaces O(n) inversion — see §2e). The IDA\* DFS does **not** use PiecePerm: FULL OrientPerm groups go through the pre-built transition table (no perm maintained at all), and NO_TRANSITION GENERAL groups need the full Perm for Zobrist hashing anyway.
 
-### C++: new `OrientPermSpec` struct
+New `OrientPermSpec` struct (all fields computed in `build()`):
 
-`MultiTargetSolver::TargetGroup` gains a `table_kind` field (enum: `GENERAL`, `ORIENTPERM`) and, for the OrientPerm case, an `OrientPermSpec` object.
+```cpp
+struct OrientPermSpec {
+    int n;          // total sticker domain size
 
-`OrientPermSpec` stores:
-- The equivalence class partition: for each class, which piece indices (not sticker indices — logical piece positions 0..n-1) it contains and their orientation count.
-- The knockdown factor per class.
-- A precomputed **orientation constraint basis**: which orientations are "free" and which are determined by the others.
-- Precomputed **binomial coefficient table** (Pascal's triangle up to `n` for combinatorial numbering).
+    struct PieceTypeMeta {
+        int base;              // sticker index of piece 0's sticker 0
+        int m;                 // stickers per piece
+        int count;             // number of pieces of this type (including fixed pieces)
+        int effective_count;   // count minus fixed pieces; used for multinomial and ranking
+        long long initial_multinomial; // effective_count! / (class_sizes[0]! * class_sizes[1]! * ...)
+                               // = perm_space contribution BEFORE parity halving; seed for incremental ratio
+    };
+    std::vector<PieceTypeMeta> types;  // one entry per unique piece type
 
-#### Orientation constraint analysis
+    struct Class {
+        int type_idx;              // index into types[]
+        int orientation_mod;       // knockdown d (1 = don't track, m = full)
+        std::vector<int> pieces;   // sorted piece indices within the type
+    };
+    std::vector<Class> classes;   // in order of first appearance
 
-For each piece type with `m` orientations, project the solving group generators onto orientation-only space: each generator becomes a vector in `Z_m^n` giving the orientation delta it applies to each piece (accounting for permutation: piece at position `i` ends up at position `g(i)` with orientation delta `delta_i`). The image of these vectors spans the reachable orientation combinations. Using Gaussian elimination over `Z_m`, find a basis for the kernel (the constraint) — this tells us which orientations are determined by the others. Typically for standard puzzles this is just the "sum ≡ 0 mod m" constraint (last orientation forced), but the code handles the general case.
+    // piece_class[type_idx][piece_within_type] = class index
+    std::vector<std::vector<int>> piece_class;
 
-The result: a list of "free" orientation indices (0..n-2 for the standard case) and a function to recover the forced orientations from the free ones.
+    // orient_step[t] = m_t / orbit_size_t
+    //   = gcd of all achievable sum-deltas for type t (in the stabilizer of all previous types),
+    //     taking m_t into account.
+    // orient_step[t] == 1  → no constraint; last tracked piece is fully free.
+    // orient_step[t] == m_t → sum is always 0; last tracked piece is completely forced (contributes
+    //                         only 1 value to the index = effectively not tracked).
+    // Computed by build() via joint BSGS on virtual permutations. See §2f.
+    std::vector<int> orient_step;
 
-#### State indexing: `state_to_index(perm)` and `index_to_state(idx)`
+    // is_parity_forced[t]: true iff the permutation parity of type t is forced,
+    // given that all previous types' parities are already determined.
+    // Always false for restricted types (any class with > 1 piece after fixed-piece filtering).
+    // Computed in build() via joint BSGS on parity deltas. See §2l.
+    std::vector<bool> is_parity_forced;
 
-Given a full puzzle permutation (on stickers), compute a dense integer index in `[0, N)`:
+    long long perm_space;    // product of perm_space contributions across all types
+                             // contribution = initial_multinomial / 2 for parity-forced types,
+                             //               initial_multinomial otherwise
+    long long orient_space;  // see §2e Step 3 for formula
+    long long total_states;  // perm_space * orient_space
 
-**Orientation part** (for each piece type with knockdown `d > 1`):  
-For each piece in canonical position order, read its orientation from the sticker permutation and reduce mod `d`. Then index the free orientations as a mixed-radix number: `o_0 + d*o_1 + d²*o_2 + ...` (only free positions contribute). The forced orientations are omitted.
+    void build(const std::vector<Class>& classes_in,
+               const std::vector<PieceTypeMeta>& types_in,
+               int n_in,
+               const std::vector<Perm>& generators);
 
-**Permutation part** (for pieces with knockdown `d = 1`, or after separating orientation out):  
-For each piece type, canonical state is determined only by which equivalence class occupies each position. Number these using the **combinatorial number system**:  
-- Represent the assignment as a sequence `L_0, L_1, ..., L_{n-1}` where `L_i ∈ {class index}`, and the count of each class label equals its class size.  
-- Lexicographic rank using precomputed binomial/multinomial coefficients.  
-- For singleton classes (distinct pieces), this degenerates to a Lehmer code / factoradic.
+    // External call: extracts compact representation internally from full sticker perm.
+    long long state_to_index(const Perm& S) const;
+    // Internal DFS call: accepts pre-maintained compact perms (one per type), O(pieces) total.
+    long long state_to_index_compact(const std::vector<PiecePerm>& compact) const;
+};
+```
 
-The full index is: `orientation_index + orientation_count * permutation_index`.
+### 2e. `state_to_index` algorithm
 
-`index_to_state` is not strictly required for solving (only needed for debugging or the Scramble-walk distance recovery trick), so it can be implemented later.
+Given state permutation S where `S[i] = j` means solved sticker `i` is now at position `j`.
 
-#### Canonicalization (O(n) instead of O(n²))
+**Step 1: Extract piece and orientation at each position.**
 
-Given a permutation, canonical form:
-1. For each equivalence class of pieces, sort the class members into their canonical (lowest-label) positions.
-2. Apply orientation knockdown.
+Instead of computing `R = inv(S)` over all `n` stickers (O(n)), scatter over pieces only (O(n_t) per type). Skip fixed positions (see §2k) — their piece and orientation are always trivial and are not tracked.
 
-This is O(n) — just reorder pieces within each class in sorted order. Replaces BSGS.canonicalize entirely for this group type.
+```
+for each piece type t (base B, m stickers, n_t pieces):
+    for src_pos in 0..n_t-1:
+        if src_pos is fixed for type t: continue
+        val   = S[B + m * src_pos] - B   // = m * dest_pos + twist
+        dest  = val / m
+        twist = val % m
+        piece_at_p[t][dest]  = src_pos
+        orient_at_p[t][dest] = (m - twist) % m   // orientation at destination
+```
+
+When called as `state_to_index_compact(compact)`, the same scatter loop reads `compact[t][src_pos]` directly instead of `S[B + m * src_pos]`.
+
+**Step 2: Compute permutation index.**
+
+For each piece type `t`:
+  Build label sequence `L` over the `effective_count_t` non-fixed positions (in position order),
+  where `L[p] = class_of(piece_at_p[t][p])`.
+
+  Compute lex rank using the **incremental ratio method** (no lookup table needed):
+
+  ```
+  rank = 0
+  remaining_class_counts = copy of class sizes (after fixed-piece filtering, §2k)
+  n_eff = types[t].effective_count
+  current = types[t].initial_multinomial   // = n_eff! / (class_sizes[0]! * class_sizes[1]! * ...)
+  for p = 0 to n_eff - 1:
+      label   = L[p]
+      n_rem   = n_eff - p
+      for each class c' with index < label and remaining_class_counts[c'] > 0:
+          rank += current * remaining_class_counts[c'] / n_rem
+      current = current * remaining_class_counts[label] / n_rem
+      remaining_class_counts[label]--
+  ```
+
+  Each `rank +=` and the `current` update are O(1) integer operations (the division is always exact because `current * count[c'] / n_rem` equals `M(n_rem-1, counts-with-c'-decremented)`, a valid multinomial coefficient). No precomputed table is required.
+
+  **Parity halving.** For types where `is_parity_forced[t]` is true (see §2l), the reachable permutations form exactly half the lex-rank space. Since consecutive lex ranks differ by a swap of the last two elements — and every such swap changes parity — even-ranked permutations are all one parity and odd-ranked permutations are all the other. Therefore `floor(rank / 2)` bijects the reachable permutations onto `{0, ..., n_eff!/2 - 1}`. Apply it:
+  ```
+  index_t = is_parity_forced[t] ? rank / 2 : rank
+  ```
+  The perm_space contribution of a parity-forced type is `initial_multinomial / 2`; all other types contribute `initial_multinomial`.
+
+  Combine across types: `perm_idx = index_type0 + perm_size_type0 * index_type1 + ...`
+
+**Step 3: Compute orientation index.**
+
+For each piece type `t`:
+
+  Let `d_p = classes[piece_class[t][p]].orientation_mod` for each piece position `p`.
+
+  Let `carrier` = the last piece position `p` in type `t` with `d_p > 1`. If no such position exists, skip this type (no orientation tracking).
+
+  Let `orbit_size_t = types[t].m / orient_step[t]`.
+
+  Iterate positions `p = 0..n_t-1` in order, accumulating into a mixed-radix index:
+  ```
+  stride = 1
+  orient_idx_t = 0
+  for p = 0..n_t-1:
+      if d_p == 1: skip
+      elif p == carrier:
+          if orbit_size_t > 1:
+              orient_idx_t += floor(orient_at_p[t][p] / orient_step[t]) * stride
+              stride *= orbit_size_t
+          // else orbit_size_t == 1: last piece is forced, contributes nothing
+      else:
+          orient_idx_t += orient_at_p[t][p] * stride
+          stride *= d_p
+  ```
+
+  Why `floor(o / orient_step[t])` for the carrier: the carrier's valid orientation values are a coset
+  of the orbit, spaced exactly `orient_step[t]` apart. Dividing by `orient_step[t]` maps them
+  bijectively to `{0, 1, ..., orbit_size_t - 1}` regardless of the coset offset. This works as long
+  as `orient_step[t]` divides `d_carrier` (the carrier's knockdown). See §2f for the known limitation.
+
+  Combine across types: `orient_idx = orient_idx_t0 + stride_t0 * orient_idx_t1 + ...`
+
+  **orient_space** = product of `stride` values after processing each type.
+
+**Final:** `index = perm_idx + perm_space * orient_idx`
+
+### 2f. Orientation constraint analysis in `build()`
+
+The goal is to compute `orient_step[t]` for each piece type `t`. This captures how constrained the
+orientation sum is for each type, **given that all previous types' sums are already fixed**.
+
+**Why per-type gcd is wrong (critical pitfall):**
+
+A naive approach would compute `gcd(all Δ_t(G) for all generators G, m_t)` for each type
+independently. This is incorrect. Example: generators U:[0,0,0], R:[0,2,2], F:[1,0,3] acting on
+types EDGES (m=2), CORNERS (m=3), BLOBS (m=6). Blob deltas alone: {0, 2, 3}. gcd(0,2,3,6) = 1,
+suggesting orbit_size=6 (no constraint). But this is wrong.
+
+To fix EDGES, F must appear in even counts → each such pair contributes 2×3=6≡0 (mod 6) to blobs.
+To fix CORNERS, R must appear in multiples of 3 → each such triple contributes 3×2=6≡0 (mod 6)
+to blobs. So in the stabilizer of (EDGES, CORNERS), every generator sequence leaves blobs unchanged.
+Blob orbit in that stabilizer = {0}, orbit_size = 1. The blob sum is completely fixed — even though
+gcd of blob deltas alone is 1.
+
+The cross-type coupling through shared generators means the analysis must be **joint**.
+
+**Algorithm:**
+
+**Step 1 — Compute sum-delta per type per generator.**
+
+For each solving generator G and each piece type t, extract compact PiecePerm and compute:
+```
+Δ_t(G) = (sum over all src positions p: (compact[t][p] - base_t) % m_t) % m_t
+```
+This is the total orientation sum change that G applies to all type-t pieces.
+
+**Step 2 — Add knockdown deltas.**
+
+For each class `c` in the target group:
+- Let `d = classes[c].orientation_mod`, `t = classes[c].type_idx`.
+- Add `d` to the delta set for type `t`.
+
+Interpretation: having knockdown `d` on a class means changing any of those pieces' orientations by
+`d` is "free" for indexing. This is equivalent to adding a virtual move with sum-delta `d` for type
+`t` (and 0 for all other types).
+
+If multiple classes of the same type contribute knockdowns `d_1, d_2, ...`, add each as a separate
+delta. (Equivalently, their gcd is the only new information, but adding each individually is fine.)
+
+**Step 3 — Build virtual permutation group.**
+
+Allocate `total_virtual = sum(m_t)` virtual pieces, with type `t` occupying indices
+`[offset_t, offset_t + m_t)` where `offset_t = sum(m_s for s < t)`.
+
+A sum-delta of `d` for type `t` = the cyclic-shift-by-d permutation on type `t`'s virtual pieces:
+```
+virtual_perm[offset_t + i] = offset_t + (i + d) % m_t  for i = 0..m_t-1
+virtual_perm[offset_s + i] = offset_s + i               for all other types s
+```
+
+Build one virtual permutation per solving generator (encoding all types' deltas simultaneously) and
+one virtual permutation per distinct knockdown delta per type.
+
+**Step 4 — Run joint BSGS on the virtual permutation group.**
+
+Run `randomized_schreier_sims` on the joint virtual permutation group (using the existing machinery).
+Force the BSGS base to include one virtual piece per type in type order (i.e., `offset_0`, `offset_1`,
+..., `offset_{nTypes-1}`). This ensures that at BSGS level `t`, the transversal captures the orbit of
+type `t`'s representative in the stabilizer of all previous types' representatives.
+
+To force the base ordering, insert the base points before the randomized phase by augmenting with
+identity-except-at-one-type permutations, or equivalently, rely on the deterministic seed phase to
+establish the levels before Monte Carlo.
+
+**Step 5 — Read orbit sizes.**
+
+```
+for each type t:
+    orbit_size_t = bsgs.chain[t].transversal.size()
+    orient_step[t] = m_t / orbit_size_t
+```
+
+If a type has no level in the BSGS chain (all its deltas were 0 and it was never assigned a base
+point), its orbit_size = 1 and orient_step = m_t (sum is fixed at 0, last piece is forced).
+
+**Step 6 — Compute orient_space.**
+
+```
+orient_space = 1
+for each type t:
+    carrier_d = d_p for the carrier piece (last piece with d_p > 1); 0 if no such piece
+    if carrier_d > 1:
+        n_tracked_non_carrier = count of pieces with d_p > 1, excluding carrier
+        orient_space *= (product of d_p for non-carrier tracked pieces) * orbit_size_t
+```
+
+### 2g. Precomputing per-type initial multinomials
+
+For each piece type `t` in `build()`, compute once using the filtered class sizes (after fixed-piece removal, §2k):
+
+```
+effective_count_t = sum of class sizes of type t (= n_t - num_fixed_t)
+initial_multinomial[t] = effective_count_t! / (class_sizes[0]! * class_sizes[1]! * ...)
+```
+
+using a single pass: compute `effective_count_t!` then divide by each `class_size!`. Store in `PieceTypeMeta::initial_multinomial`. This is the seed for the incremental ratio method and equals the per-type permutation count before parity halving.
+
+`perm_space` is the product of per-type contributions:
+```
+perm_space = product over t of:
+    initial_multinomial[t] / 2   if is_parity_forced[t]
+    initial_multinomial[t]       otherwise
+```
+
+The ratio identity used during `state_to_index`:
+```
+M(n_rem - 1, counts_with_c'_decremented) = current * counts[c'] / n_rem
+```
+holds because `(n_rem - 1)! / (... (counts[c']-1)! ...) = n_rem! / (... counts[c']! ...) * counts[c'] / n_rem`. The division is always exact.
+
+### 2h. Table building for OrientPerm groups (in `buildTables()`)
+
+When `kind == ORIENTPERM`:
+- **No phase 1 (hash map ID enumeration)**. Instead, allocate `distance_table` as `std::vector<uint8_t>(op_spec.total_states, 0xFF)` and `transition_table` as `std::vector<std::vector<int>>(op_spec.total_states, std::vector<int>(nMoves, -1))` — indexed directly by `state_to_index`.
+- **Phase 1-like DFS** still runs to find all reachable states, but instead of building a hash map, it marks entries in the flat arrays. The DFS maintains a stack of `std::vector<PiecePerm>` (one `PiecePerm` per type) rather than a full `Perm`. Applying move `i` composes each type's compact perm with `compact_move[i][t]` using `compose_piece` — O(pieces) per move instead of O(stickers). The DFS calls `state_to_index_compact(compact)` to compute the index. Undo is O(pieces) (restore previous compact perms from the stack).
+- Pre-extract compact representations of all solving moves once before the DFS: `compact_move[i][t] = extract(solving_perm[i], types[t].base, types[t].m)`.
+- **Phase 3 (BFS for distances)** is the same BFS over `distance_table`, seeded from `state_to_index_compact(identity_compact)`.
+
+For `FULL` mode: build both transition and distance tables.
+For `INCOMPLETE` mode: BFS only (up to `max_depth`); skip the DFS; `distance_table` remains `0xFF` for all unreached states.
+
+### 2i. IDA* lookup for OrientPerm groups
+
+In `idaDfs`, the current state tracking is `std::vector<int> state` (one integer per group). This still works for OrientPerm groups: `state[i] = op_spec.state_to_index(cube)`. The lookup is `distance_table[state[i]]`, which is O(1) and a direct array access.
+
+The transition table `transition_table[state[i]][mi]` gives the next state index directly. This is the same as for GENERAL groups, so the IDA* inner loop is unchanged. The difference is in how `state[i]` is initialized (using `state_to_index` instead of `hashPerm`) and how `state[i]` handles the `0xFF` sentinel (unreachable state → pretend distance 0 to avoid false pruning).
+
+Since the cube permutation is not needed for the FULL OrientPerm path (we go through the transition table), the DFS does not need to maintain the full cube when all groups are FULL-mode.
+
+### 2k. Fixed piece detection (in `build()`)
+
+Before orientation analysis (§2f) and parity analysis (§2l), determine which piece positions never
+move under any solving generator. Fixed positions do not contribute to permutation ranking,
+orientation tracking, or parity analysis.
+
+**Definition.** Position `p` in type `t` is **fixed** if for every solving generator `G`:
+```
+compact_G[t][p] == types[t].base + types[t].m * p
+```
+(the piece at position `p` remains at position `p` with zero twist after `G`).
+
+**Algorithm:**
+1. For each type `t` and position `p = 0..n_t-1`, check all compact generator perms. A position that fails the test for any one generator is not fixed.
+2. For each class `c`, remove any fixed positions from `classes[c].pieces`. If the class becomes empty, drop it entirely.
+3. Set `types[t].effective_count` = number of non-fixed positions in type `t` (= sum of remaining class sizes for classes of type `t`).
+
+Fixed positions are skipped in `state_to_index` Steps 1, 2, and 3.
+
+**Example.** On a 3×3×3 with solving subgroup ⟨R, U⟩, the bottom-left corners DFL and DBL never
+appear in any R or U move. They are fixed. A class `{DFL DFR DBR}` becomes `{DFR DBR}`, and the
+effective corner count drops from 8 to 6 (giving 6! permutations instead of 8!).
+
+### 2l. Parity constraint analysis (in `build()`)
+
+Runs after §2k. For unrestricted piece types, checks whether the permutation parity of each type
+is forced given that all previous types' parities are already fixed. Uses the same joint virtual
+BSGS approach as orientation constraint analysis (§2f).
+
+**Restricted vs. unrestricted types.** Type `t` is **restricted** if any class of type `t` has
+`|pieces| > 1` after fixed-piece filtering. Restricted types always have
+`is_parity_forced[t] = false` (we make no parity reduction for them).
+
+**Parity delta.** For each solving generator `G` and each type `t`:
+- If type `t` is restricted: `parity_delta[t] = 0`.
+- Otherwise: extract the position permutation of non-fixed pieces induced by `G`:
+  ```
+  pos_perm[i] = (compact_G[t][non_fixed_pos[i]] - types[t].base) / types[t].m
+  ```
+  where `non_fixed_pos[0..effective_count-1]` lists non-fixed positions in order, and
+  `pos_perm[i]` is the destination piece index (re-indexed to 0..effective_count-1 by skipping
+  fixed positions). `parity_delta[t] = parity of pos_perm` (0 = even, 1 = odd, computed from
+  cycle structure or inversion count).
+
+**Virtual parity permutations.** Build virtual permutations over domain size `2 * nTypes` (two
+virtual pieces per type, representing Z/2Z):
+```
+offset_t = 2 * t
+for each generator G with deltas [delta_0, ..., delta_{nTypes-1}]:
+    virtual_perm[offset_t + i] = offset_t + (i + delta_t) % 2   for i in {0, 1}, all t
+```
+One virtual permutation per solving generator, using the same base-forcing technique as §2f
+Step 4 (force base points `[offset_0, offset_1, ..., offset_{nTypes-1}]`).
+
+**Joint BSGS and orbit sizes.** Run `randomized_schreier_sims` on these virtual permutations.
+```
+for each type t:
+    orbit_size_t = bsgs.chain[t].transversal.size()   // 1 or 2
+    is_parity_forced[t] = (orbit_size_t == 1) && !restricted[t]
+```
+If type `t` has no level in the BSGS chain (all its deltas were 0), `orbit_size_t = 1`.
+
+**Example.** Unrestricted 3×3×3 with solving moves R, R2, U, U2:
+```
+R:  corners=odd, edges=odd   → parity delta [1, 1]
+R2: corners=even, edges=even → parity delta [0, 0]
+U:  corners=odd, edges=odd   → parity delta [1, 1]
+U2: corners=even, edges=even → parity delta [0, 0]
+```
+Integer span of {[1,1], [0,0]} over Z/2Z: corner parity is free (orbit size 2), but given
+corner parity is fixed, edge parity is also fixed (orbit size 1 in the stabilizer).
+`is_parity_forced[corners] = false`, `is_parity_forced[edges] = true`.
+
+**Effect on indexing.** For types where `is_parity_forced[t]` is true: apply `floor(rank / 2)` in
+Step 2 of §2e, and use `initial_multinomial / 2` as the perm_space contribution (see §2g).
+
+### 2j. New C++ API — **IMPLEMENTED**
+
+```cpp
+// On MultiTargetSolver:
+void beginOrientPermGroup();
+// Call once per equivalence class:
+void addOrientPermClass(std::vector<int> sticker_bases, int m, int orientation_mod);
+// After all classes are added, finalise (runs orientation constraint analysis):
+void buildOrientPermGroup();  // uses solving_generators_ for orientation analysis
+```
+
+`buildOrientPermGroup` populates `groups_.back().op_spec` by calling `OrientPermSpec::build(...)`.
+
+### Commit Plan:
+
+#### Commit 1 — JS: OrientPerm parsing + worker wiring (2a, 2b, 2c) — **DONE**
+Pure JS, self-contained. Parses the OrientPerm textarea syntax, detects it via the `{` / `d:` heuristic, and emits the structured classes array in the worker message.
+
+#### Commit 2 — C++ scaffolding: structs + API bindings (2d, 2j) — **DONE**
+Defines PiecePerm, OrientPermSpec (all fields, `build()` is a stub), compose_piece, invert_piece, extract_piece, and the EMSCRIPTEN_BINDINGS for beginOrientPermGroup / addOrientPermClass / buildOrientPermGroup.
+
+#### Commit 3 — OrientPermSpec::build(): fixed-piece detection, parity + orientation analysis, initial multinomials (2f, 2g, 2k, 2l)
+Implement `build()` and `buildOrientPermGroup()`. Specifically:
+- Extract compact PiecePerms for each generator.
+- **Fixed piece detection (§2k):** identify positions that are stationary under all generators; remove them from classes; compute `effective_count` per type.
+- **Orientation constraint analysis (§2f):**
+  - Compute orientation sum-delta per type per generator.
+  - Add knockdown deltas from classes.
+  - Construct virtual cyclic-shift permutations and run joint BSGS.
+  - Store `orient_step[t]` from orbit sizes at each BSGS level.
+- **Parity constraint analysis (§2l):**
+  - For unrestricted types, compute parity delta per generator.
+  - Construct virtual Z/2Z permutations and run joint BSGS.
+  - Store `is_parity_forced[t]` from orbit sizes.
+- **Multinomials (§2g):** compute `initial_multinomial` per type from `effective_count` and filtered class sizes.
+- Set `perm_space` (accounting for parity halving), `orient_space`, `total_states`.
+
+**Do NOT** compute per-type gcd of deltas in isolation — that misses cross-type dependencies through
+shared generators (see §2f pitfall section for the canonical counter-example). The same warning
+applies to parity: do not compute parity independence per type in isolation.
+
+#### Commit 4 — state_to_index with PiecePerm scatter + incremental ratio (2e)
+Both overloads. Step 1: scatter to get piece_at_p and orient_at_p. Step 2: incremental ratio rank loop (current * count[c'] / n_rem). Step 3: mixed-radix orientation index using orient_step and carrier position.
+
+#### Commit 5 — buildTables() DFS/BFS + IDA* integration (2h, 2i)
+Flat-array allocation, DFS with compact perm stack, BFS seeding from identity, and wiring state[i] initialization and lookup into idaDfs. First commit where end-to-end solving works for OrientPerm groups.
 
 ---
 
 ## 3. Compact and incomplete distance tables (C++)
 
-Each `TargetGroup` now has a `TableMode` enum:
+Each `TargetGroup` has a `TableMode` enum:
 
 ```cpp
-enum TableMode {
-    FULL,            // transition table + distance table (current)
-    NO_TRANSITION,   // distance table only, canonicalize on the fly
-    INCOMPLETE,      // partial BFS up to max_depth, stored as hash map
-};
+enum TableMode { FULL, NO_TRANSITION, INCOMPLETE };
 ```
 
-`OrientPermSpec` groups also have a `compact_dist` bool: when true, store the distance table as a packed 2-bit array (the mod-3 trick) instead of `uint8_t[]`.
+`OrientPermSpec` groups also have a `compact_dist` bool: when true, store 2 bits per state (dist mod 3) in a packed array instead of `uint8_t[]`.
 
 ### Full OrientPerm table
 
-Replace the hash map `unordered_map<Hash128, int>` with a flat `std::vector<uint8_t> distance_table` of size `N` (the theoretical state space size). Phase 1 (enumerate canonical IDs) is replaced with the math indexing: no DFS needed to build the ID mapping, since every index in `[0, N)` corresponds to a valid state. Phase 2 (transition table) is built by iterating over all reachable states.
+`distance_table` is a flat `std::vector<uint8_t>` of size `total_states`. Direct array access replaces hash map lookup. `0xFF` is the sentinel for "not reachable within this group" (treated as distance 0 in IDA* heuristic to avoid incorrect pruning).
 
 ### Compact (mod-3) distance table
 
-Store `dist[state] mod 3` in a packed array: 4 entries per byte, 2 bits each. Size is `N / 4` bytes.
-
-During IDA*, the DFS traverses the tree one move at a time. The key invariant: at each node, the parent's exact distance is known. Since applying one move changes distance by at most 1, and we know the new state's `dist mod 3` (from the table), we can recover the exact distance:
-- `d_new ∈ {d_parent - 1, d_parent, d_parent + 1}`
-- `d_new ≡ table[new_state]` (mod 3)
-- Exactly one of the three candidates satisfies both — that's `d_new`.
-
-For the root of the DFS (the scrambled state), the exact distance is unknown. We use IDA*'s iterative deepening: the outer loop over `threshold` means we never need a better-than-linear heuristic for the root.
+Store `dist[state] mod 3` packed 4 entries per byte (2 bits each). During IDA*: at each node, the parent's exact distance is known. Since one move changes distance by at most 1, and we know `d_new mod 3`, exactly one of `{d_parent-1, d_parent, d_parent+1}` matches — that's `d_new`. The root's exact distance is recovered by IDA*'s iterative deepening, so no special case is needed.
 
 ### Incomplete table
 
-BFS from the set of solved states, up to depth `max_depth` (configurable). For general groups: stored as `unordered_map<Hash128, uint8_t>`. For OrientPerm groups: stored as the flat `uint8_t[]` with a sentinel value (e.g., `0xFF`) meaning "not reached within max_depth".
-
-IDA* heuristic for a state not in the incomplete table: if the state is absent, we know its exact distance is `> max_depth`, so `h = max_depth + 1` is a valid (but loose) lower bound. This means the solver can still prune aggressively as long as the remaining budget is ≤ `max_depth`.
-
-No transition table is built for incomplete mode.
+BFS from solved states up to `max_depth`. For GENERAL groups: `unordered_map<Hash128, uint8_t>`. For ORIENTPERM groups: flat `uint8_t[]` with `0xFF` sentinel. In IDA*: absent state → `h = max_depth + 1` (valid lower bound since distance > max_depth).
 
 ---
 
 ## 4. General group without transition table (C++)
 
-New `TableMode::NO_TRANSITION`: only the distance table is stored. During IDA*, instead of `state[i] = transition_table[parent_state[i]][mi]`, we maintain the full cube permutation alongside the DFS stack (apply/undo moves explicitly). Canonicalization is recomputed at each node: `hash = hashPerm(canonicalize(cube), base)`, then `distance_table.find(hash)`.
-
-**Optimization**: canonicalization is O(n²) (BSGS) and expensive. Only invoke it when it can affect pruning:
-- If `remaining_depth >= 2`: always canonicalize (heuristic can save work).
-- If `remaining_depth == 1`: skip (we'll try all moves directly; there are at most `|moves|` of them).
-- If `remaining_depth == 0`: this node is a solution — we've already checked it.
-
-This avoids the O(|moves| × n²) cost at the leaves of the DFS tree where canonicalization provides no benefit.
+`TableMode::NO_TRANSITION`: skip phase 2. During IDA*, maintain the full cube permutation on the DFS stack (apply/undo). At each node, compute `canonicalize(cube)` + hash + distance lookup. Skip canonicalization when `remaining_depth == 1` (no pruning benefit).
 
 ---
 
@@ -217,130 +583,88 @@ This avoids the O(|moves| × n²) cost at the leaves of the DFS tree where canon
 
 ### JS: Scramble field parsing
 
-The existing "Starting Algorithm" field is renamed "Scramble" and gains a richer syntax. Parsing proceeds left to right through a sequence of tokens / bracket groups:
+Parse left-to-right:
+- Plain token: compose onto current state.
+- `[A, B, ...]`: evaluate each branch independently from current prefix, collect permutations.
+- `<g1, g2, ...>`: BFS from current state using generators and inverses, collect all reachable states.
 
-**Plain token** (`R`, `U`, `F'`, etc.): look up in the move map and compose onto the current state.
-
-**Square brackets** `[A, B, ...]`: the solver branches. Each branch is evaluated independently from the current prefix state. Results in multiple solved positions. Implemented recursively: parse each comma-separated sub-sequence, apply it to the current permutation accumulator, collect permutation results.
-
-**Angle brackets** `<g1, g2, ...>`: treat `g1, g2, ...` as generators. BFS/DFS from the current permutation using those generators (and their inverses) to collect all reachable permutations. Each one is a solved position.
-
-Full example: `R U R' U' [R', F] <B, U>` expands to:
-1. Apply `R U R' U'` → state S
-2. Branch: S + `R'` → S1; S + `F` → S2
-3. For each branch, expand `<B, U>`: BFS from S1 (resp. S2) using B and U, collecting all reachable states.
-
-The result is a list of `Perm[]` (solved positions) sent to the worker.
+Result: `startingPerms: Perm[]` in the worker message.
 
 ### C++: multi-source BFS
 
-`TargetGroup` gains a `vector<Perm> solved_states` (default: `{identity}`).
-
-Phases 1 (enumerate canonical IDs) and 2 (build transition table) are unchanged — they don't depend on which states are "solved".
-
-Phase 3 (BFS for distances) becomes multi-source: seed the queue with all solved state IDs simultaneously, each at distance 0. The rest of the BFS is identical.
-
-For incomplete tables, BFS also starts from all solved states simultaneously.
+`TargetGroup` gains `std::vector<Perm> solved_states`. Phase 3 BFS seeds the queue with all solved state indices at distance 0. Phases 1 and 2 are unchanged.
 
 ---
 
 ## 6. IDA* changes for new table types
 
-The current `idaDfs` is a tight loop indexing `transition_table[state[i]][mi]`. We need to dispatch on `table_kind` and `TableMode` per group. Two approaches:
+The DFS carries `state[i]` per group. For FULL-mode groups (both GENERAL and ORIENTPERM), `state[i]` chains through the transition table — unchanged. For NO_TRANSITION groups, the DFS also carries the cube permutation and recomputes lookup on the fly.
 
-**Option A (simpler)**: duplicate the IDA* inner loop for each mode combination and template/dispatch at the top of `solve()`. Avoids branch prediction misses inside the tight loop.
-
-**Option B (cleaner for now)**: a virtual-dispatch or function-pointer approach on `TargetGroup`, where each group provides a `lookup(cube) → distance` function. The DFS calls this for each group at each node.
-
-Plan: start with Option B for clarity, profile later.
-
-The DFS also needs to carry the current cube permutation when any group uses `NO_TRANSITION` or `ORIENTPERM` (since OrientPerm lookup computes the index from the cube directly rather than chaining through a transition table). This means the DFS stack always maintains the cube permutation (apply move on descent, undo on ascent) when at least one group needs it.
-
-For groups using `FULL` mode + transition table, the current `state[i] → transition_table[state[i]][mi]` path is preserved as an O(1) fast path.
+Dispatch per group in `idaDfs`: check `groups_[i].kind` and `groups_[i].table_mode` before the inner loop, not inside it (to avoid branch overhead in the hot path).
 
 ---
 
 ## 7. UI changes (`index.html`)
 
-New fields added:
-
-- **Target Groups**: the existing textarea is kept as-is. Each line is either a generator list (current behavior) or an OrientPerm block (new). The parser auto-detects which syntax is being used per line/block.
-- **Table mode selector**: a small dropdown or radio group per target group — "Full", "No transition table", "Incomplete (depth:)". Rendered dynamically as the user edits the target groups textarea (can start as a global setting below the textarea).
-- **Incomplete depth**: a number input (only relevant for incomplete mode).
-- **Scramble** (renamed from "Starting Algorithm"): same `<input>` element, new label.
+- **Target Groups**: same textarea; new blank-line delimiter; OrientPerm syntax auto-detected.
+- **Table mode**: global dropdown — "Full", "No transition table", "Incomplete (depth N)".
+- **Incomplete depth**: number input (only active for incomplete mode).
+- **Scramble** (renamed from "Starting Algorithm"): same element, new label.
 
 ---
 
 ## 8. Worker and message protocol (`worker.js`)
 
-The worker receives new fields in the `compute` message:
-
 ```js
 {
   type: 'compute',
   k,
-  targetGroups: [          // one entry per target group
-    {
-      kind: 'generator',   // existing
-      perms: [...],
-      tableMode: 'full' | 'no_transition' | 'incomplete',
-      maxDepth: 5,         // only for incomplete
-      solvedPerms: [...],  // list of solved permutations (default: [identity])
-    },
-    {
-      kind: 'orientperm',  // new
-      classes: [...],      // parsed OrientPerm class structure
-      tableMode: '...',
-      maxDepth: 5,
-      solvedPerms: [...],
-    }
+  targetGroups: [
+    { kind: 'generator',  perms: Perm[] },
+    { kind: 'orientperm', classes: [{ bases: int[], m: int, typeName: string, orientation_mod: int }] },
   ],
+  tableMode: 'full' | 'no_transition' | 'incomplete',
+  maxDepth: int,
   solvingPerms, solvingAlgos,
-  startingPerms: [...],    // list of starting permutations (may be 1 for single scramble)
+  startingPerms: Perm[],  // one or more starting permutations
 }
 ```
 
-The worker calls the corresponding new C++ API per group type. The solve call is adapted to handle a list of starting permutations (solve from each and union the results, or find solutions that work from any given start).
-
 ---
 
-## 9. New C++ API surface
-
-New methods on `MultiTargetSolver`:
+## 9. New C++ API (`EMSCRIPTEN_BINDINGS`)
 
 ```cpp
-// Per target group, before buildTargetGroup:
-void setGroupTableMode(TableMode mode, int max_depth);
-void setGroupKind(GroupKind kind);
-void addOrientPermClass(vector<int> piece_sticker_bases, int num_orientations, int knockdown);
-void addSolvedState(vector<int> perm);  // call multiple times for multi-source BFS
-
-// After buildTables, for solve:
-vector<int> solve(vector<int> startPerm, int min_moves, int max_moves, int slack);
-// (unchanged signature, but now handles all modes internally)
+// New methods on MultiTargetSolver:
+void beginOrientPermGroup();
+void addOrientPermClass(vector<int> sticker_bases, int m, int orientation_mod);
+void buildOrientPermGroup();
+void setTableMode(TableMode mode, int max_depth);   // call after beginTargetGroup or beginOrientPermGroup
+void addSolvedState(vector<int> perm);              // call before buildTables; may call multiple times
 ```
 
-The existing `buildTargetGroup`, `buildTables`, and `solve` methods are extended internally; their signatures remain compatible with the current `worker.js` where no new features are used.
+Existing bindings unchanged.
 
 ---
 
 ## 10. Build
 
-`schreier_sims.cpp` is the only C++ file. Compile command is unchanged (just add no new files). The new code is conditionally compiled under `#ifdef __EMSCRIPTEN__` as before.
-
-The new `EMSCRIPTEN_BINDINGS` block adds the new methods. The existing bindings remain for backward compatibility.
+`schreier_sims.cpp` only. Compile command unchanged. New code under `#ifdef __EMSCRIPTEN__` as before.
 
 ---
 
 ## Implementation order (suggested)
 
-1. Piece-based puzzle expansion in JS (pure JS, no C++ needed, low risk)
-2. Multi-source BFS in C++ (small change, high value, needed for #7)
-3. OrientPerm state indexing math in C++ (`OrientPermSpec`, `state_to_index`)
-4. OrientPerm target group: full table mode (flat array distance + transition)
-5. Compact (mod-3) distance table
-6. Incomplete table mode for both general and OrientPerm groups
-7. No-transition IDA* for general groups
-8. OrientPerm JS parsing + worker wiring
-9. Scramble field: `[...]` and `<...>` syntax in JS
-10. UI: table mode controls, rename field
+1. **DONE** — Piece-based puzzle expansion in JS
+2. **DONE** — OrientPerm JS parsing + worker message wiring (section 2a–2c)
+3. **DONE** — C++ scaffolding: PiecePerm, OrientPermSpec struct, API bindings (section 2d, 2j)
+4. `OrientPermSpec::build()` — fixed-piece detection, orientation analysis, parity analysis, initial_multinomial (section 2f, 2g, 2k, 2l)
+5. `OrientPermSpec::state_to_index()` — PiecePerm scatter + incremental ratio + orient carrier (section 2e)
+6. OrientPerm table building in `buildTables()` — flat array, DFS, BFS (section 2h)
+7. OrientPerm IDA* lookup in `idaDfs` (section 2i)
+8. Multi-source BFS in C++ (section 5) — small change, high value
+9. Compact (mod-3) distance table (section 3)
+10. Incomplete table mode (section 3)
+11. No-transition IDA* for general groups (section 4)
+12. Scramble field `[...]` and `<...>` syntax in JS (section 5)
+13. UI: table mode controls, rename field (section 7)
