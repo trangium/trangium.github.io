@@ -351,24 +351,26 @@ one virtual permutation per distinct knockdown delta per type.
 **Step 4 — Run joint BSGS on the virtual permutation group.**
 
 Run `randomized_schreier_sims` on the joint virtual permutation group (using the existing machinery).
-Force the BSGS base to include one virtual piece per type in type order (i.e., `offset_0`, `offset_1`,
-..., `offset_{nTypes-1}`). This ensures that at BSGS level `t`, the transversal captures the orbit of
-type `t`'s representative in the stabilizer of all previous types' representatives.
-
-To force the base ordering, insert the base points before the randomized phase by augmenting with
-identity-except-at-one-type permutations, or equivalently, rely on the deterministic seed phase to
-establish the levels before Monte Carlo.
+No base forcing is required. Any base ordering the BSGS naturally picks is valid: different orderings
+partition the |G| degrees of freedom across types differently, but orient_space = (product of
+non-carrier d_p) × |G| is invariant, and state_to_index remains injective on the reachable set.
+This holds because: (a) the product of orbit sizes always equals |G|; (b) the "colliding" states in
+any ordering are unreachable by the same group structure the BSGS is computing; (c) the
+`floor(o / orient_step)` formula works for any ordering since the virtual group is cyclic-shift-based,
+making valid carrier values always a coset of ⟨orient_step⟩.
 
 **Step 5 — Read orbit sizes.**
 
+After the BSGS completes, match each chain level to its type by inspecting the base point:
 ```
-for each type t:
-    orbit_size_t = bsgs.chain[t].transversal.size()
-    orient_step[t] = m_t / orbit_size_t
+for each level i in bsgs.chain:
+    bp = bsgs.chain[i].base_point
+    t = type index such that offset_t <= bp < offset_t + m_t
+    orbit_size[t] = bsgs.chain[i].transversal.size()
+    orient_step[t] = m_t / orbit_size[t]
 ```
-
-If a type has no level in the BSGS chain (all its deltas were 0 and it was never assigned a base
-point), its orbit_size = 1 and orient_step = m_t (sum is fixed at 0, last piece is forced).
+Types whose representative never appears as a base point (all deltas were 0, never moved)
+get orbit_size = 1, orient_step = m_t (sum is fixed at 0, last piece is forced).
 
 **Step 6 — Compute orient_space.**
 
@@ -478,13 +480,16 @@ for each generator G with deltas [delta_0, ..., delta_{nTypes-1}]:
 One virtual permutation per solving generator, using the same base-forcing technique as §2f
 Step 4 (force base points `[offset_0, offset_1, ..., offset_{nTypes-1}]`).
 
-**Joint BSGS and orbit sizes.** Run `randomized_schreier_sims` on these virtual permutations.
+**Joint BSGS and orbit sizes.** Run `randomized_schreier_sims` on these virtual permutations. No
+base forcing is required (same argument as §2f Step 4: any ordering is valid). After the BSGS
+completes, match each level to its type by base point (`offset_t = 2*t`, so `t = base_point / 2`):
 ```
-for each type t:
-    orbit_size_t = bsgs.chain[t].transversal.size()   // 1 or 2
+for each level i in bsgs.chain:
+    t = bsgs.chain[i].base_point / 2
+    orbit_size_t = bsgs.chain[i].transversal.size()   // 1 or 2
     is_parity_forced[t] = (orbit_size_t == 1) && !restricted[t]
 ```
-If type `t` has no level in the BSGS chain (all its deltas were 0), `orbit_size_t = 1`.
+Types with no level in the chain (all parity deltas were 0) get `orbit_size_t = 1`.
 
 **Example.** Unrestricted 3×3×3 with solving moves R, R2, U, U2:
 ```
