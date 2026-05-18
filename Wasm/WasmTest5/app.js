@@ -382,8 +382,20 @@ function compute() {
     const maxMoves = maxMovesVal === '' ? 2147483647 : Math.max(0, parseInt(maxMovesVal) || 0);
     const slack    = slackVal    === '' ? 0 : Math.max(0, parseInt(slackVal)    || 0);
 
+    // One base point (sticker 0) per piece touched by any solving generator
+    const stickerToPieceBase = new Int32Array(k).fill(-1);
+    for (const info of pieceInfo.values())
+        for (let s = 0; s < info.m; s++)
+            stickerToPieceBase[info.base + s] = info.base;
+    const baseSet = new Set();
+    for (const perm of solvingPerms)
+        for (let s = 0; s < k; s++)
+            if (perm[s] !== s && stickerToPieceBase[s] !== -1)
+                baseSet.add(stickerToPieceBase[s]);
+    const basePoints = [...baseSet].sort((a, b) => a - b);
+
     setComputing(true);
-    worker.postMessage({ type: 'compute', k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack });
+    worker.postMessage({ type: 'compute', k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack, basePoints });
 }
 
 // ── Event listeners ───────────────────────────────────────────────────────────

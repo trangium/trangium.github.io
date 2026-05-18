@@ -24,8 +24,8 @@ self.onmessage = function ({ data }) {
         return;
     }
 
-    const { k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack } = data;
-    const tableKey = JSON.stringify({ k, targetGroups, solvingPerms, solvingAlgos });
+    const { k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack, basePoints } = data;
+    const tableKey = JSON.stringify({ k, targetGroups, solvingPerms, solvingAlgos, basePoints });
 
     try {
         if (tableKey === lastTableKey) {
@@ -62,8 +62,9 @@ self.onmessage = function ({ data }) {
         // ── Phase 1: build BSGSes (fast) ─────────────────────────────────────
 
         solver.reset(k);
+        for (const pt of basePoints) solver.addBasePoint(pt);
 
-        // First pass: GENERAL target groups — their generators feed the solving BSGS.
+        // First pass: GENERAL target groups.
         for (const group of targetGroups) {
             if (group.kind === 'orientperm') continue;
             solver.beginTargetGroup();
@@ -71,7 +72,6 @@ self.onmessage = function ({ data }) {
                 const v = new Module.VectorInt();
                 for (const x of perm) v.push_back(x);
                 solver.addTargetGenerator(v);
-                solver.addSolvingGenerator(v);
                 v.delete();
             }
             solver.buildTargetGroup(100);

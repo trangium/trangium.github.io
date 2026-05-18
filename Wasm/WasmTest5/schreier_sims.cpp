@@ -852,6 +852,12 @@ struct OrientPermSpec {
     long long orient_space = 0;
     long long total_states = 0;
 
+    // Precomputed in build() for state_to_index hot path.
+    // type_class_global[t][lci] = global class index of the lci-th class of type t.
+    std::vector<std::vector<int>> type_class_global;
+    // ci_local[global_ci] = local class index of that class within its type.
+    std::vector<int> ci_local;
+
     // Commit 3a: fixed piece detection (§2k).
     // Commit 3b: orientation constraint analysis (§2f) + orient_space.
     // Commit 3c: parity constraint analysis (§2l) + initial_multinomial, perm_space, total_states.
@@ -927,14 +933,307 @@ struct OrientPermSpec {
             types[t].effective_count = eff;
         }
 
-        // Remaining fields populated in subsequent commits (3b, 3c)
+        // ── §2f: Orientation constraint analysis ──────────────────────────────
+
+        // Virtual domain: type t occupies [type_offset[t], type_offset[t+1])
+        std::vector<int> type_offset(n_types + 1, 0);
+        for (int t = 0; t < n_types; t++)
+            type_offset[t + 1] = type_offset[t] + types[t].m;
+        const int total_virtual = type_offset[n_types];
+
+        std::vector<Perm> virtual_perms;
+
+        // One virtual perm per solving generator (§2f Step 1)
+        for (int gi = 0; gi < (int)generators.size(); gi++) {
+            std::vector<int> deltas(n_types, 0);
+            for (int t = 0; t < n_types; t++) {
+                int base = types[t].base, m = types[t].m, n_t = types[t].count;
+                int d = 0;
+                for (int p = 0; p < n_t; p++)
+                    d += (compact_gens[gi][t][p] - base) % m;
+                deltas[t] = ((d % m) + m) % m;
+            }
+            Perm vp(total_virtual);
+            std::iota(vp.begin(), vp.end(), 0);
+            bool nontrivial = false;
+            for (int t = 0; t < n_types; t++) {
+                if (deltas[t] == 0) continue;
+                nontrivial = true;
+                int off = type_offset[t], m = types[t].m, d = deltas[t];
+                for (int i = 0; i < m; i++)
+                    vp[off + i] = off + (i + d) % m;
+            }
+            if (nontrivial) virtual_perms.push_back(std::move(vp));
+        }
+
+        // One virtual perm per knockdown delta from each class (§2f Step 2)
+        for (int ci = 0; ci < (int)classes.size(); ci++) {
+            int t = classes[ci].type_idx, d = classes[ci].orientation_mod;
+            int m = types[t].m;
+            if (d <= 0 || d % m == 0) continue;
+            int off = type_offset[t];
+            Perm vp(total_virtual);
+            std::iota(vp.begin(), vp.end(), 0);
+            for (int i = 0; i < m; i++)
+                vp[off + i] = off + (i + d) % m;
+            virtual_perms.push_back(std::move(vp));
+        }
+
+        // §2f Steps 3–4: joint BSGS on virtual permutation group
         orient_step.assign(n_types, 0);
+        if (total_virtual > 0 && !virtual_perms.empty()) {
+            BSGS vbsgs = randomized_schreier_sims(total_virtual, virtual_perms, 100);
+            // §2f Step 5: read orbit sizes → orient_step
+            for (const auto& lev : vbsgs.chain) {
+                int bp = lev.base_point;
+                for (int t = 0; t < n_types; t++) {
+                    if (bp >= type_offset[t] && bp < type_offset[t + 1]) {
+                        int orbit_size = (int)lev.transversal.size();
+                        orient_step[t] = types[t].m / orbit_size;
+                        break;
+                    }
+                }
+            }
+        }
+        // Types not in any chain level: orbit_size = 1 → sum is fixed → orient_step = m
+        for (int t = 0; t < n_types; t++)
+            if (orient_step[t] == 0)
+                orient_step[t] = types[t].m;
+
+        // §2f Step 6: compute orient_space
+        orient_space = 1;
+        for (int t = 0; t < n_types; t++) {
+            int n_t = types[t].count;
+            // Carrier: last non-fixed position with d_p > 1
+            int carrier = -1;
+            for (int p = n_t - 1; p >= 0; p--) {
+                if (is_fixed[t][p]) continue;
+                int ci = piece_class[t][p];
+                if (ci >= 0 && classes[ci].orientation_mod > 1) { carrier = p; break; }
+            }
+            if (carrier == -1) continue;
+            int orbit_size_t = types[t].m / orient_step[t];
+            long long type_contrib = orbit_size_t;
+            for (int p = 0; p < n_t; p++) {
+                if (p == carrier || is_fixed[t][p]) continue;
+                int ci = piece_class[t][p];
+                if (ci >= 0 && classes[ci].orientation_mod > 1)
+                    type_contrib *= classes[ci].orientation_mod;
+            }
+            orient_space *= type_contrib;
+        }
+
+        // ── §2l: Parity constraint analysis ───────────────────────────────────
+
+        // A type is restricted if any of its classes (after fixed-piece filtering) has > 1 piece.
+        std::vector<bool> restricted(n_types, false);
+        for (const auto& cls : classes)
+            if ((int)cls.pieces.size() > 1)
+                restricted[cls.type_idx] = true;
+
+        // Build non-fixed position list and re-index map per type.
+        std::vector<std::vector<int>> non_fixed_pos(n_types);
+        std::vector<std::vector<int>> reindex(n_types);
+        for (int t = 0; t < n_types; t++) {
+            reindex[t].assign(types[t].count, -1);
+            for (int p = 0; p < types[t].count; p++) {
+                if (!is_fixed[t][p]) {
+                    reindex[t][p] = (int)non_fixed_pos[t].size();
+                    non_fixed_pos[t].push_back(p);
+                }
+            }
+        }
+
+        // Virtual parity domain: 2 pieces per type (Z/2Z).
+        const int parity_domain = 2 * n_types;
+        std::vector<Perm> parity_perms;
+
+        for (int gi = 0; gi < (int)generators.size(); gi++) {
+            std::vector<int> parity_delta(n_types, 0);
+            for (int t = 0; t < n_types; t++) {
+                if (restricted[t]) continue;
+                int base = types[t].base, m = types[t].m;
+                int eff = types[t].effective_count;
+                if (eff == 0) continue;
+                // Build re-indexed position permutation
+                std::vector<int> pos_perm(eff);
+                for (int i = 0; i < eff; i++) {
+                    int p = non_fixed_pos[t][i];
+                    int dest_orig = (compact_gens[gi][t][p] - base) / m;
+                    pos_perm[i] = reindex[t][dest_orig];
+                }
+                // Parity from cycle structure: parity = (eff - num_cycles) % 2
+                std::vector<bool> visited(eff, false);
+                int num_cycles = 0;
+                for (int i = 0; i < eff; i++) {
+                    if (!visited[i]) {
+                        num_cycles++;
+                        for (int j = i; !visited[j]; j = pos_perm[j])
+                            visited[j] = true;
+                    }
+                }
+                parity_delta[t] = (eff - num_cycles) % 2;
+            }
+            Perm vp(parity_domain);
+            std::iota(vp.begin(), vp.end(), 0);
+            bool nontrivial = false;
+            for (int t = 0; t < n_types; t++) {
+                if (parity_delta[t] == 0) continue;
+                nontrivial = true;
+                vp[2 * t]     = 2 * t + 1;
+                vp[2 * t + 1] = 2 * t;
+            }
+            if (nontrivial) parity_perms.push_back(std::move(vp));
+        }
+
+        // Start assuming all unrestricted types are parity-forced (orbit_size = 1).
+        // A chain level with orbit_size == 2 for type t means parity is free for t.
         is_parity_forced.assign(n_types, false);
+        for (int t = 0; t < n_types; t++)
+            is_parity_forced[t] = !restricted[t];
+        if (parity_domain > 0 && !parity_perms.empty()) {
+            BSGS pbsgs = randomized_schreier_sims(parity_domain, parity_perms, 100);
+            for (const auto& lev : pbsgs.chain) {
+                int t = lev.base_point / 2;
+                if (t < n_types && (int)lev.transversal.size() == 2)
+                    is_parity_forced[t] = false;
+            }
+        }
+
+        // ── §2g: initial_multinomial, perm_space, total_states ────────────────
+
+        auto factorial = [](int n) -> long long {
+            long long r = 1;
+            for (int i = 2; i <= n; i++) r *= i;
+            return r;
+        };
+
+        perm_space = 1;
+        for (int t = 0; t < n_types; t++) {
+            int eff = types[t].effective_count;
+            long long multi = factorial(eff);
+            // Divide by each class's size factorial
+            for (const auto& cls : classes) {
+                if (cls.type_idx != t) continue;
+                multi /= factorial((int)cls.pieces.size());
+            }
+            types[t].initial_multinomial = multi;
+            perm_space *= is_parity_forced[t] ? multi / 2 : multi;
+        }
+
+        total_states = perm_space * orient_space;
+
+        // Precompute per-type class index tables
+        type_class_global.assign(n_types, {});
+        for (int ci = 0; ci < (int)classes.size(); ci++)
+            type_class_global[classes[ci].type_idx].push_back(ci);
+        ci_local.resize(classes.size());
+        for (int t = 0; t < n_types; t++)
+            for (int lci = 0; lci < (int)type_class_global[t].size(); lci++)
+                ci_local[type_class_global[t][lci]] = lci;
     }
 
-    // Commit 4: PiecePerm scatter (step 1) + incremental ratio rank (step 2).
-    long long state_to_index(const Perm& S) const { return 0; }
-    long long state_to_index_compact(const std::vector<PiecePerm>& compact) const { return 0; }
+private:
+    // §2e shared implementation; get_val(t, src) returns the PiecePerm entry for type t, source pos src.
+    template<typename GetVal>
+    long long state_to_index_impl(GetVal get_val) const {
+        const int n_types = (int)types.size();
+
+        // Step 1: scatter — for each non-fixed source, record its destination and orientation.
+        std::vector<std::vector<int>> piece_at_p(n_types), orient_at_p(n_types);
+        for (int t = 0; t < n_types; t++) {
+            int n_t = types[t].count, base = types[t].base, m = types[t].m;
+            piece_at_p[t].assign(n_t, -1);
+            orient_at_p[t].assign(n_t, 0);
+            for (int src = 0; src < n_t; src++) {
+                if (piece_class[t][src] == -1) continue;  // fixed
+                int val = get_val(t, src) - base;
+                int dest = val / m, twist = val % m;
+                piece_at_p[t][dest] = src;
+                orient_at_p[t][dest] = (m - twist) % m;
+            }
+        }
+
+        // Step 2: permutation rank (incremental ratio method)
+        long long perm_idx = 0, perm_stride = 1;
+        for (int t = 0; t < n_types; t++) {
+            int n_t = types[t].count, eff = types[t].effective_count;
+            if (eff == 0) continue;
+            const auto& tcg = type_class_global[t];
+            int n_lc = (int)tcg.size();
+
+            std::vector<long long> remaining(n_lc);
+            for (int lci = 0; lci < n_lc; lci++)
+                remaining[lci] = (long long)classes[tcg[lci]].pieces.size();
+
+            long long rank = 0, current = types[t].initial_multinomial;
+            int pos = 0;
+            for (int p = 0; p < n_t && pos < eff; p++) {
+                if (piece_class[t][p] == -1) continue;  // fixed destination, skip
+                int piece = piece_at_p[t][p];
+                int label = ci_local[piece_class[t][piece]];
+                long long n_rem = eff - pos;
+                for (int lci = 0; lci < label; lci++)
+                    if (remaining[lci] > 0)
+                        rank += current * remaining[lci] / n_rem;
+                current = current * remaining[label] / n_rem;
+                remaining[label]--;
+                pos++;
+            }
+
+            long long index_t = is_parity_forced[t] ? rank / 2 : rank;
+            perm_idx += perm_stride * index_t;
+            perm_stride *= is_parity_forced[t] ? types[t].initial_multinomial / 2
+                                                : types[t].initial_multinomial;
+        }
+
+        // Step 3: orientation index (mixed-radix, carrier = last position with d_p > 1)
+        long long orient_idx = 0, orient_stride = 1;
+        for (int t = 0; t < n_types; t++) {
+            int n_t = types[t].count;
+            int orbit_size_t = types[t].m / orient_step[t];
+
+            int carrier = -1;
+            for (int p = n_t - 1; p >= 0; p--) {
+                int ci = piece_class[t][p];
+                if (ci != -1 && classes[ci].orientation_mod > 1) { carrier = p; break; }
+            }
+            if (carrier == -1) continue;
+
+            long long orient_idx_t = 0, stride = 1;
+            for (int p = 0; p < n_t; p++) {
+                int ci = piece_class[t][p];
+                if (ci == -1) continue;
+                int d_p = classes[ci].orientation_mod;
+                if (d_p == 1) continue;
+                if (p == carrier) {
+                    if (orbit_size_t > 1) {
+                        orient_idx_t += (orient_at_p[t][p] / orient_step[t]) * stride;
+                        stride *= orbit_size_t;
+                    }
+                } else {
+                    orient_idx_t += orient_at_p[t][p] * stride;
+                    stride *= d_p;
+                }
+            }
+            orient_idx += orient_stride * orient_idx_t;
+            orient_stride *= stride;
+        }
+
+        return perm_idx + perm_space * orient_idx;
+    }
+
+public:
+    long long state_to_index(const Perm& S) const {
+        return state_to_index_impl([&](int t, int src) {
+            return S[types[t].base + types[t].m * src];
+        });
+    }
+    long long state_to_index_compact(const std::vector<PiecePerm>& compact) const {
+        return state_to_index_impl([&](int t, int src) {
+            return compact[t][src];
+        });
+    }
 };
 
 // ─── Move-sequence pruning ────────────────────────────────────────────────────
@@ -1070,6 +1369,7 @@ class MultiTargetSolver {
     std::vector<Perm> solving_generators_;
     BSGS solving_bsgs_{0};
     std::vector<Perm> solving_moves_;
+    std::vector<int> base_;
     std::vector<int> solution_;
     emscripten::val js_callback_ = emscripten::val::undefined();
     emscripten::val depth_callback_ = emscripten::val::undefined();
@@ -1121,7 +1421,10 @@ public:
         solving_generators_.clear();
         solving_bsgs_ = BSGS(n);
         solving_moves_.clear();
+        base_.clear();
     }
+
+    void addBasePoint(int pt) { base_.push_back(pt); }
 
     // ── Target groups ─────────────────────────────────────────────────────────
 
@@ -1152,9 +1455,8 @@ public:
             {std::move(sticker_bases), m, orientation_mod, std::move(type_name)});
     }
 
-    // Must be called after all solving generators have been added (addSolvingGenerator /
-    // buildSolvingBSGS), because build() uses solving_generators_ for fixed-piece detection
-    // and later orientation analysis.
+    // Must be called after buildSolvingBSGS (i.e., after all addSolvingGenerator calls),
+    // because build() uses solving_generators_ for fixed-piece detection and orientation analysis.
     void buildOrientPermGroup() {
         auto& grp = groups_.back();
 
@@ -1242,7 +1544,7 @@ public:
 
         pruner_.build(solving_moves_);
 
-        const std::vector<int> base = solving_bsgs_.base();
+        const std::vector<int>& base = base_;
         const auto zobrist = makeZobrist((int)base.size(), n_);
 
         std::vector<Perm> invs;
@@ -1367,7 +1669,7 @@ public:
                            int min_moves, int max_moves, int slack) {
         solution_.clear();
         const Perm p(startPerm.begin(), startPerm.end());
-        const std::vector<int> base = solving_bsgs_.base();
+        const std::vector<int>& base = base_;
         const int t = (int)groups_.size();
 
         std::vector<int> state(t);
@@ -1430,6 +1732,7 @@ EMSCRIPTEN_BINDINGS(module) {
     emscripten::class_<MultiTargetSolver>("MultiTargetSolver")
         .constructor<>()
         .function("reset",               &MultiTargetSolver::reset)
+        .function("addBasePoint",        &MultiTargetSolver::addBasePoint)
         .function("beginTargetGroup",    &MultiTargetSolver::beginTargetGroup)
         .function("addTargetGenerator",  &MultiTargetSolver::addTargetGenerator)
         .function("buildTargetGroup",    &MultiTargetSolver::buildTargetGroup)
