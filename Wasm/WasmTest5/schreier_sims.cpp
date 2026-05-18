@@ -1349,7 +1349,7 @@ class MultiTargetSolver {
         std::vector<Perm> generators;
         BSGS bsgs{0};
         std::unordered_map<Hash128, int, Hash128Hasher> canon_id_table;
-        std::vector<std::vector<int>> transition_table; // [id][mi]
+        std::vector<int> transition_table; // flat: [id * nMoves + mi]
         std::vector<int> distance_table;
         int identity_id = -1;
         std::vector<std::vector<Hash128>> zobrist; // [pos][val]
@@ -1403,7 +1403,7 @@ class MultiTargetSolver {
         for (int mi = 0; mi < nMoves; mi++) {
             if (pruner_.prune(tail.mi, tail.count, mi)) continue;
             for (int i = 0; i < t; i++)
-                state[i] = groups_[i].transition_table[parent[i]][mi];
+                state[i] = groups_[i].transition_table[parent[i] * nMoves + mi];
             solution_.push_back(mi);
             MoveStreak new_tail{mi, mi == tail.mi ? tail.count + 1 : 1};
             int result = idaDfs(state, g + 1, threshold, new_tail);
@@ -1552,7 +1552,77 @@ public:
         for (const Perm& mv : solving_moves_) invs.push_back(inv(mv));
 
         for (auto& grp : groups_) {
-            if (grp.kind == TargetGroup::ORIENTPERM) continue;  // handled in commit 5
+            if (grp.kind == TargetGroup::ORIENTPERM) {
+                const auto& spec = grp.op_spec;
+                const long long total = spec.total_states;
+                if (total <= 0) continue;
+                const int n_types = (int)spec.types.size();
+
+                // Pre-extract compact reps of all solving moves
+                std::vector<std::vector<PiecePerm>> compact_move(
+                    nMoves, std::vector<PiecePerm>(n_types));
+                for (int mi = 0; mi < nMoves; mi++)
+                    for (int t = 0; t < n_types; t++)
+                        compact_move[mi][t] = extract_piece(
+                            solving_moves_[mi],
+                            spec.types[t].base, spec.types[t].m, spec.types[t].count);
+
+                // Identity compact perm (piece p at position p, zero twist)
+                std::vector<PiecePerm> id_compact(n_types);
+                for (int t = 0; t < n_types; t++) {
+                    int n_t = spec.types[t].count, base = spec.types[t].base, m = spec.types[t].m;
+                    id_compact[t].resize(n_t);
+                    for (int p = 0; p < n_t; p++) id_compact[t][p] = base + m * p;
+                }
+
+                long long id0 = spec.state_to_index_compact(id_compact);
+                grp.identity_id = (int)id0;
+                grp.transition_table.assign((int)total * nMoves, -1);
+                grp.distance_table.assign((int)total, -1);
+
+                // DFS: enumerate reachable states and fill transition_table
+                std::vector<bool> visited((int)total, false);
+                visited[(int)id0] = true;
+
+                struct Frame { std::vector<PiecePerm> perm; long long id; int mi; };
+                std::vector<Frame> dfs;
+                dfs.push_back({id_compact, id0, 0});
+
+                while (!dfs.empty()) {
+                    Frame& fr = dfs.back();
+                    if (fr.mi == nMoves) { dfs.pop_back(); continue; }
+                    int cur_mi = fr.mi++;
+
+                    std::vector<PiecePerm> next(n_types);
+                    for (int t = 0; t < n_types; t++)
+                        next[t] = compose_piece(fr.perm[t], compact_move[cur_mi][t],
+                                                spec.types[t].base, spec.types[t].m);
+                    long long nid = spec.state_to_index_compact(next);
+                    grp.transition_table[(int)fr.id * nMoves + cur_mi] = (int)nid;
+
+                    if (!visited[(int)nid]) {
+                        visited[(int)nid] = true;
+                        dfs.push_back({std::move(next), nid, 0});
+                    }
+                }
+
+                // BFS for distances
+                grp.distance_table[(int)id0] = 0;
+                std::queue<int> bq;
+                bq.push((int)id0);
+                while (!bq.empty()) {
+                    int id = bq.front(); bq.pop();
+                    int d = grp.distance_table[id];
+                    for (int mi = 0; mi < nMoves; mi++) {
+                        int nid = grp.transition_table[id * nMoves + mi];
+                        if (grp.distance_table[nid] == -1) {
+                            grp.distance_table[nid] = d + 1;
+                            bq.push(nid);
+                        }
+                    }
+                }
+                continue;
+            }
             grp.canon_id_table.clear();
             grp.zobrist = zobrist;
 
@@ -1580,7 +1650,7 @@ public:
 
             const int tableSize = (int)grp.canon_id_table.size();
             grp.identity_id = grp.canon_id_table.at(grp.hashPerm(identity(n_), base));
-            grp.transition_table.assign(tableSize, std::vector<int>(nMoves, -1));
+            grp.transition_table.assign(tableSize * nMoves, -1);
 
             // Phase 2: build transition_table
             std::vector<bool> visited(tableSize, false);
@@ -1590,7 +1660,7 @@ public:
             auto fillTransitions = [&](const Perm& c, int id) {
                 for (int mi = 0; mi < nMoves; mi++) {
                     Perm next = compose(c, solving_moves_[mi]);
-                    grp.transition_table[id][mi] = grp.canon_id_table.at(grp.hashPerm(next, base));
+                    grp.transition_table[id * nMoves + mi] = grp.canon_id_table.at(grp.hashPerm(next, base));
                 }
             };
             fillTransitions(cube, grp.identity_id);
@@ -1623,7 +1693,7 @@ public:
                 int id = q.front(); q.pop();
                 int d = grp.distance_table[id];
                 for (int mi = 0; mi < nMoves; mi++) {
-                    int nid = grp.transition_table[id][mi];
+                    int nid = grp.transition_table[id * nMoves + mi];
                     if (grp.distance_table[nid] == -1) {
                         grp.distance_table[nid] = d + 1;
                         q.push(nid);
@@ -1639,7 +1709,10 @@ public:
 
     int getGroupTableSize(int g) const {
         if (g < 0 || g >= (int)groups_.size()) return 0;
-        return (int)groups_[g].canon_id_table.size();
+        const auto& grp = groups_[g];
+        return grp.kind == TargetGroup::ORIENTPERM
+            ? (int)grp.op_spec.total_states
+            : (int)grp.canon_id_table.size();
     }
 
     std::vector<int> getSolvingOrbitSizes() const {
@@ -1674,9 +1747,15 @@ public:
 
         std::vector<int> state(t);
         for (int i = 0; i < t; i++) {
-            auto it = groups_[i].canon_id_table.find(groups_[i].hashPerm(p, base));
-            if (it == groups_[i].canon_id_table.end()) return {-1};
-            state[i] = it->second;
+            if (groups_[i].kind == TargetGroup::ORIENTPERM) {
+                long long idx = groups_[i].op_spec.state_to_index(p);
+                if (groups_[i].distance_table[(int)idx] == -1) return {-1};
+                state[i] = (int)idx;
+            } else {
+                auto it = groups_[i].canon_id_table.find(groups_[i].hashPerm(p, base));
+                if (it == groups_[i].canon_id_table.end()) return {-1};
+                state[i] = it->second;
+            }
         }
 
         int h = 0;
