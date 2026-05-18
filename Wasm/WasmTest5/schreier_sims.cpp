@@ -1193,18 +1193,24 @@ private:
             int n_t = types[t].count;
             int orbit_size_t = types[t].m / orient_step[t];
 
-            bool need_parity = true;
+            int carrier = -1;
+            for (int p = n_t - 1; p >= 0; p--) {
+                int ci = piece_class[t][p];
+                if (ci != -1 && classes[ci].orientation_mod > 1) { carrier = p; break; }
+            }
+            if (carrier == -1) continue;
+
             long long orient_idx_t = 0, stride = 1;
             for (int p = 0; p < n_t; p++) {
-                int piece = piece_at_p[t][p];
-                if (piece == -1) continue;
-                int ci = piece_class[t][piece];
+                int ci = piece_class[t][p];
+                if (ci == -1) continue;
                 int d_p = classes[ci].orientation_mod;
                 if (d_p == 1) continue;
-                if (need_parity) {
-                    orient_idx_t += (orient_at_p[t][p] / orient_step[t]) * stride;
-                    stride *= orbit_size_t;
-                    need_parity = false;
+                if (p == carrier) {
+                    if (orbit_size_t > 1) {
+                        orient_idx_t += (orient_at_p[t][p] / orient_step[t]) * stride;
+                        stride *= orbit_size_t;
+                    }
                 } else {
                     orient_idx_t += orient_at_p[t][p] * stride;
                     stride *= d_p;
