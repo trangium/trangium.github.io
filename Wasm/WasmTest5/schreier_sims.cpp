@@ -824,8 +824,9 @@ struct OrientPermSpec {
     struct PieceTypeMeta {
         int base;               // sticker index of piece 0's sticker 0
         int m;                  // stickers per piece
-        int count;              // pieces of this type
-        long long initial_multinomial;  // count! / (class_sizes[0]! * ...) — seed for rank loop
+        int count;              // pieces of this type (including fixed pieces)
+        int effective_count;    // count minus fixed pieces; used for multinomial and ranking
+        long long initial_multinomial;  // effective_count! / (class_sizes[0]! * ...) — seed for rank loop
     };
     std::vector<PieceTypeMeta> types;
 
@@ -838,20 +839,98 @@ struct OrientPermSpec {
 
     std::vector<std::vector<int>> piece_class;  // [type_idx][piece_within_type] → class idx
 
-    // Orientation constraints derived by Gaussian elimination in build().
-    std::vector<std::vector<int>> free_orient;                    // [type] → list of free positions
-    std::vector<std::vector<std::vector<int>>> forced_coeffs;     // [type][forced_pos][free_pos]
-    std::vector<std::vector<int>> forced_offsets;                 // [type][forced_pos]
+    // orient_step[t] = m_t / orbit_size_t, computed by joint BSGS on virtual permutations in build().
+    // orient_step[t] == 1  → no constraint; last tracked piece is fully free.
+    // orient_step[t] == m_t → sum is always 0; last tracked piece is forced (contributes nothing to index).
+    std::vector<int> orient_step;
+
+    // is_parity_forced[t]: true iff the permutation parity of type t is forced,
+    // given that all previous types' parities are already determined (commit 3c).
+    std::vector<bool> is_parity_forced;
 
     long long perm_space   = 0;
     long long orient_space = 0;
     long long total_states = 0;
 
-    // Commit 3: orientation constraint analysis + per-type initial_multinomial.
+    // Commit 3a: fixed piece detection (§2k).
+    // Commit 3b: orientation constraint analysis (§2f) + orient_space.
+    // Commit 3c: parity constraint analysis (§2l) + initial_multinomial, perm_space, total_states.
     void build(const std::vector<Class>& classes_in,
                const std::vector<PieceTypeMeta>& types_in,
                int n_in,
-               const std::vector<Perm>& generators) { /* stub */ }
+               const std::vector<Perm>& generators) {
+        n = n_in;
+        types = types_in;
+        classes = classes_in;
+
+        int n_types = (int)types.size();
+
+        // Build initial piece_class from classes_in
+        piece_class.assign(n_types, {});
+        for (int t = 0; t < n_types; t++)
+            piece_class[t].assign(types[t].count, -1);
+        for (int ci = 0; ci < (int)classes.size(); ci++)
+            for (int p : classes[ci].pieces)
+                piece_class[classes[ci].type_idx][p] = ci;
+
+        // ── §2k: Fixed piece detection ──────────────────────────────────────
+
+        // Extract compact PiecePerms for all solving generators (one per type per generator)
+        std::vector<std::vector<PiecePerm>> compact_gens(
+            generators.size(), std::vector<PiecePerm>(n_types));
+        for (int gi = 0; gi < (int)generators.size(); gi++)
+            for (int t = 0; t < n_types; t++)
+                compact_gens[gi][t] = extract_piece(
+                    generators[gi], types[t].base, types[t].m, types[t].count);
+
+        // Position p in type t is fixed iff every generator leaves it in place with zero twist.
+        std::vector<std::vector<bool>> is_fixed(n_types);
+        for (int t = 0; t < n_types; t++) {
+            int n_t = types[t].count, base = types[t].base, m = types[t].m;
+            is_fixed[t].assign(n_t, true);
+            for (int p = 0; p < n_t && !generators.empty(); p++)
+                for (int gi = 0; gi < (int)generators.size(); gi++)
+                    if (compact_gens[gi][t][p] != base + m * p) {
+                        is_fixed[t][p] = false;
+                        break;
+                    }
+        }
+
+        // Filter each class: remove fixed pieces; drop the class entirely if it becomes empty.
+        {
+            std::vector<Class> filtered;
+            for (auto& cls : classes) {
+                std::vector<int> kept;
+                for (int p : cls.pieces)
+                    if (!is_fixed[cls.type_idx][p])
+                        kept.push_back(p);
+                if (!kept.empty()) {
+                    cls.pieces = std::move(kept);
+                    filtered.push_back(std::move(cls));
+                }
+            }
+            classes = std::move(filtered);
+        }
+
+        // Rebuild piece_class with updated class indices after filtering
+        for (int t = 0; t < n_types; t++)
+            std::fill(piece_class[t].begin(), piece_class[t].end(), -1);
+        for (int ci = 0; ci < (int)classes.size(); ci++)
+            for (int p : classes[ci].pieces)
+                piece_class[classes[ci].type_idx][p] = ci;
+
+        // Set effective_count = non-fixed piece count for each type
+        for (int t = 0; t < n_types; t++) {
+            int eff = 0;
+            for (int p = 0; p < types[t].count; p++)
+                if (!is_fixed[t][p]) eff++;
+            types[t].effective_count = eff;
+        }
+
+        // Remaining fields populated in subsequent commits (3b, 3c)
+        orient_step.assign(n_types, 0);
+        is_parity_forced.assign(n_types, false);
+    }
 
     // Commit 4: PiecePerm scatter (step 1) + incremental ratio rank (step 2).
     long long state_to_index(const Perm& S) const { return 0; }
@@ -1071,9 +1150,70 @@ public:
         groups_.back().raw_classes.push_back({std::move(sticker_bases), m, orientation_mod});
     }
 
-    // Commit 3 will convert raw_classes → op_spec types/classes and call op_spec.build().
     void buildOrientPermGroup() {
-        groups_.back().raw_classes.clear();
+        auto& grp = groups_.back();
+
+        // ── Step 1: determine types from raw_classes ──────────────────────────
+        // Collect all (sticker_base, m) pairs, deduplicated and sorted by (m, sb).
+        struct SBEntry { int sb, m; };
+        std::vector<SBEntry> all_sb;
+        for (const auto& rc : grp.raw_classes)
+            for (int sb : rc.sticker_bases)
+                all_sb.push_back({sb, rc.m});
+        std::sort(all_sb.begin(), all_sb.end(), [](const SBEntry& a, const SBEntry& b) {
+            return a.m != b.m ? a.m < b.m : a.sb < b.sb;
+        });
+        all_sb.erase(std::unique(all_sb.begin(), all_sb.end(), [](const SBEntry& a, const SBEntry& b) {
+            return a.m == b.m && a.sb == b.sb;
+        }), all_sb.end());
+
+        // Split into contiguous runs of the same m; each run is one piece type.
+        std::vector<OrientPermSpec::PieceTypeMeta> types;
+        int i = 0;
+        while (i < (int)all_sb.size()) {
+            int m = all_sb[i].m;
+            int j = i;
+            while (j < (int)all_sb.size() && all_sb[j].m == m) j++;
+            // all_sb[i..j) share the same m, sorted by sb
+            int run_start = i;
+            for (int k = i + 1; k <= j; k++) {
+                if (k == j || all_sb[k].sb != all_sb[k-1].sb + m) {
+                    types.push_back({all_sb[run_start].sb, m, k - run_start, 0, 0LL});
+                    run_start = k;
+                }
+            }
+            i = j;
+        }
+        // Sort types by base for a consistent, puzzle-layout order
+        std::sort(types.begin(), types.end(),
+                  [](const OrientPermSpec::PieceTypeMeta& a,
+                     const OrientPermSpec::PieceTypeMeta& b) { return a.base < b.base; });
+
+        // ── Step 2: build OrientPermSpec::Class list ──────────────────────────
+        int n_types = (int)types.size();
+        auto find_type_idx = [&](int sb, int m) -> int {
+            for (int t = 0; t < n_types; t++)
+                if (types[t].m == m && sb >= types[t].base &&
+                    (sb - types[t].base) % m == 0 &&
+                    (sb - types[t].base) / m < types[t].count)
+                    return t;
+            return -1;
+        };
+
+        std::vector<OrientPermSpec::Class> classes;
+        for (const auto& rc : grp.raw_classes) {
+            if (rc.sticker_bases.empty()) continue;
+            OrientPermSpec::Class cls;
+            cls.type_idx = find_type_idx(rc.sticker_bases[0], rc.m);
+            cls.orientation_mod = rc.orientation_mod;
+            for (int sb : rc.sticker_bases)
+                cls.pieces.push_back((sb - types[cls.type_idx].base) / rc.m);
+            std::sort(cls.pieces.begin(), cls.pieces.end());
+            classes.push_back(std::move(cls));
+        }
+
+        grp.raw_classes.clear();
+        grp.op_spec.build(classes, types, n_, solving_generators_);
     }
 
     // ── Solving moves ─────────────────────────────────────────────────────────

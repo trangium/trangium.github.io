@@ -477,8 +477,7 @@ offset_t = 2 * t
 for each generator G with deltas [delta_0, ..., delta_{nTypes-1}]:
     virtual_perm[offset_t + i] = offset_t + (i + delta_t) % 2   for i in {0, 1}, all t
 ```
-One virtual permutation per solving generator, using the same base-forcing technique as §2f
-Step 4 (force base points `[offset_0, offset_1, ..., offset_{nTypes-1}]`).
+One virtual permutation per solving generator. No base-forcing technique needed, see §2f.
 
 **Joint BSGS and orbit sizes.** Run `randomized_schreier_sims` on these virtual permutations. No
 base forcing is required (same argument as §2f Step 4: any ordering is valid). After the BSGS
@@ -526,25 +525,34 @@ Pure JS, self-contained. Parses the OrientPerm textarea syntax, detects it via t
 #### Commit 2 — C++ scaffolding: structs + API bindings (2d, 2j) — **DONE**
 Defines PiecePerm, OrientPermSpec (all fields, `build()` is a stub), compose_piece, invert_piece, extract_piece, and the EMSCRIPTEN_BINDINGS for beginOrientPermGroup / addOrientPermClass / buildOrientPermGroup.
 
-#### Commit 3 — OrientPermSpec::build(): fixed-piece detection, parity + orientation analysis, initial multinomials (2f, 2g, 2k, 2l)
-Implement `build()` and `buildOrientPermGroup()`. Specifically:
-- Extract compact PiecePerms for each generator.
-- **Fixed piece detection (§2k):** identify positions that are stationary under all generators; remove them from classes; compute `effective_count` per type.
-- **Orientation constraint analysis (§2f):**
-  - Compute orientation sum-delta per type per generator.
-  - Add knockdown deltas from classes.
-  - Construct virtual cyclic-shift permutations and run joint BSGS.
-  - Store `orient_step[t]` from orbit sizes at each BSGS level.
-- **Parity constraint analysis (§2l):**
-  - For unrestricted types, compute parity delta per generator.
-  - Construct virtual Z/2Z permutations and run joint BSGS.
-  - Store `is_parity_forced[t]` from orbit sizes.
-- **Multinomials (§2g):** compute `initial_multinomial` per type from `effective_count` and filtered class sizes.
-- Set `perm_space` (accounting for parity halving), `orient_space`, `total_states`.
+#### Commit 3a — Fixed piece detection (2k) — **DONE**
+Inside `build()`, extract compact PiecePerms for all solving generators, then run §2k:
+- For each type `t` and position `p`, check all generators; mark `p` fixed if every generator leaves it in place with zero twist.
+- Filter each class's `pieces` list; drop empty classes.
+- Set `types[t].effective_count`.
+
+No BSGS work yet; purely array inspection. Prerequisite for 3b and 3c.
+
+#### Commit 3b — Orientation constraint analysis (2f, orient_space from 2g)
+Inside `build()`, after §2k:
+- Compute orientation sum-delta per type per generator (§2f Step 1).
+- Add knockdown deltas from classes (§2f Step 2).
+- Construct virtual cyclic-shift permutations and run joint BSGS with forced base (§2f Steps 3–4).
+- Store `orient_step[t]` from orbit sizes (§2f Step 5).
+- Compute and store `orient_space` (§2f Step 6).
 
 **Do NOT** compute per-type gcd of deltas in isolation — that misses cross-type dependencies through
-shared generators (see §2f pitfall section for the canonical counter-example). The same warning
-applies to parity: do not compute parity independence per type in isolation.
+shared generators (see §2f pitfall section for the canonical counter-example).
+
+#### Commit 3c — Parity constraint analysis + multinomials (2l, 2g)
+Inside `build()`, after §2k:
+- For each unrestricted type, compute parity delta per generator (§2l).
+- Construct virtual Z/2Z permutations and run joint BSGS with forced base (§2l).
+- Store `is_parity_forced[t]` from orbit sizes (§2l).
+- Compute `initial_multinomial` per type from `effective_count` and filtered class sizes (§2g).
+- Compute and store `perm_space` (using `initial_multinomial / 2` for parity-forced types) and `total_states = perm_space * orient_space` (§2g).
+
+**Do NOT** compute parity independence per type in isolation — same cross-type coupling pitfall as orientation.
 
 #### Commit 4 — state_to_index with PiecePerm scatter + incremental ratio (2e)
 Both overloads. Step 1: scatter to get piece_at_p and orient_at_p. Step 2: incremental ratio rank loop (current * count[c'] / n_rem). Step 3: mixed-radix orientation index using orient_step and carrier position.
@@ -663,7 +671,9 @@ Existing bindings unchanged.
 1. **DONE** — Piece-based puzzle expansion in JS
 2. **DONE** — OrientPerm JS parsing + worker message wiring (section 2a–2c)
 3. **DONE** — C++ scaffolding: PiecePerm, OrientPermSpec struct, API bindings (section 2d, 2j)
-4. `OrientPermSpec::build()` — fixed-piece detection, orientation analysis, parity analysis, initial_multinomial (section 2f, 2g, 2k, 2l)
+4a. `OrientPermSpec::build()` — fixed piece detection (§2k)
+4b. `OrientPermSpec::build()` — orientation constraint analysis, orient_step, orient_space (§2f, §2g)
+4c. `OrientPermSpec::build()` — parity constraint analysis, initial_multinomial, perm_space, total_states (§2l, §2g)
 5. `OrientPermSpec::state_to_index()` — PiecePerm scatter + incremental ratio + orient carrier (section 2e)
 6. OrientPerm table building in `buildTables()` — flat array, DFS, BFS (section 2h)
 7. OrientPerm IDA* lookup in `idaDfs` (section 2i)
