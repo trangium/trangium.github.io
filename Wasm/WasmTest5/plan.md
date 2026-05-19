@@ -397,3 +397,89 @@ These two commits are the natural split: A compiles and passes the existing test
   `number` (fine up to 2^53 ≈ 9 × 10^15, well above the 16 B limit).
 - **BFS vs sweep**: sweep is used for ALL product tables (including singletons), so the
   old BFS queue code is deleted entirely.
+
+---
+
+## Commit B implementation notes (from Commit A)
+
+### What was actually built vs. the plan
+
+The C++ API landed exactly as planned. Call order from JS must be:
+```
+beginProductDistanceTable() / addProductTableComponent() calls (if any)
+↓
+buildTables()    ← reads product_tables_, builds everything
+```
+
+### Default-vs-explicit product table specs in worker.js
+
+`buildTables()` checks `if (product_tables_.empty())` and auto-creates singletons only when
+**zero** product table API calls were made. The rule for worker.js:
+
+- If the user's "Distance Tables" field is **blank** → don't call any product table API at
+  all, let C++ default to singletons. This preserves backward compatibility with zero extra
+  code.
+- If the field has **any** content → call `beginProductDistanceTable()` +
+  `addProductTableComponent()` for every spec (including any singletons the user wrote
+  explicitly). C++ will NOT add automatic singletons — only the explicitly requested tables
+  are built.
+
+So pass `productTableSpecs` in the worker message only when it's non-empty.
+
+### `getProductTableSize` return type in JS
+
+Emscripten exposes `long long` as a JS `number` (NOT BigInt). Use
+`Number(solver.getProductTableSize(p))` or just `solver.getProductTableSize(p)` directly —
+values up to 16 billion fit in `number` (safe below 2^53).
+
+### Replacing `getGroupTableSize` with product table sizes in `tables_built` / `done`
+
+The old reporting loop was:
+```js
+const tableSizes = [];
+for (let i = 0; i < solver.getNumGroups(); i++)
+    tableSizes.push(solver.getGroupTableSize(i));
+```
+Replace with:
+```js
+const tableSizes = [];
+for (let p = 0; p < solver.getNumProductTables(); p++)
+    tableSizes.push(solver.getProductTableSize(p));
+```
+`getNumGroups()` and `getGroupTableSize()` still exist and still work for the `preview`
+message (individual group orders are needed there).
+
+### `tableKey` cache key in worker.js
+
+Current key: `JSON.stringify({ k, targetGroups, solvingPerms, solvingAlgos, basePoints })`
+
+Add `productTableSpecs` to this object so that changing the distance table layout
+invalidates the cache:
+```js
+const tableKey = JSON.stringify({ k, targetGroups, solvingPerms, solvingAlgos, basePoints, productTableSpecs });
+```
+
+### `parseDistanceTables` receives 0-indexed specs from the app
+
+`parseDistanceTables` in app.js converts 1-based UI references (`T1`, `T2` …) to 0-based
+indices. The resulting `productTableSpecs` array (e.g. `[[0,2],[1]]`) is passed directly to
+the worker, which passes group index `idx` (already 0-based) to `addProductTableComponent`.
+
+### Passing `productTableSpecs` through the message chain
+
+In `app.js compute()`:
+```js
+const productTableSpecs = parseDistanceTables($('dist-tables').value, targetGroups.length);
+worker.postMessage({ ..., productTableSpecs });
+```
+
+The `productTableSpecs` value is `null` / empty array when the field is blank (worker skips
+the API calls), or an array of arrays when explicit.
+
+### `preview` message: estimated product sizes
+
+The `preview` message is sent before `buildTables()`. At that point individual group sizes
+are not yet known precisely, but the worker already computes `predictedSize` per group. For
+product tables the preview can estimate: multiply `predictedSize` of each component. Skip
+the preview for product tables in the first implementation if it adds complexity — just show
+nothing or the sum of predicted sizes.
