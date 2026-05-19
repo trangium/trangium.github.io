@@ -224,6 +224,26 @@ function parseOrientPermBlock(lines, pieceInfo) {
 // Split textarea into blocks (separated by blank lines).
 // A block containing { or a /^\d+:/ line is one OrientPerm group.
 // Otherwise each non-blank line in the block is a separate generator group.
+function parseDistanceTables(text, numGroups) {
+    const trimmed = text.trim();
+    if (!trimmed) return null;
+    const specs = [];
+    for (const line of trimmed.split('\n')) {
+        for (const part of line.split(',')) {
+            const p = part.trim(); if (!p) continue;
+            const indices = p.split('*').map(s => {
+                const m = s.trim().match(/^T?(\d+)$/i);
+                if (!m) throw new Error(`Invalid group reference: "${s.trim()}"`);
+                const idx = parseInt(m[1]) - 1;
+                if (idx < 0 || idx >= numGroups) throw new Error(`T${idx + 1} out of range (only ${numGroups} groups)`);
+                return idx;
+            });
+            specs.push(indices);
+        }
+    }
+    return specs.length ? specs : null;
+}
+
 function parseTargetGroups(text, moves, k, tokenMap, pieceInfo) {
     const groups = [];
     for (const block of text.split(/\n[ \t]*\n/)) {
@@ -361,9 +381,10 @@ function compute() {
         return algos.map(algo => composeAlgo(algo, moves, k, tokenMap));
     }
 
-    let targetGroups, solvingAlgos, solvingPerms, startingPerm;
+    let targetGroups, solvingAlgos, solvingPerms, startingPerm, productTableSpecs;
     try {
         targetGroups = parseTargetGroups($('target-gens').value, moves, k, tokenMap, pieceInfo);
+        productTableSpecs = parseDistanceTables($('dist-tables').value, targetGroups.length);
         solvingAlgos = parseGenerators($('solving-gens').value);
         if (!solvingAlgos.length) throw new Error('No solving generators entered.');
         solvingPerms = solvingAlgos.map(algo => composeAlgo(algo, moves, k, tokenMap));
@@ -395,7 +416,7 @@ function compute() {
     const basePoints = [...baseSet].sort((a, b) => a - b);
 
     setComputing(true);
-    worker.postMessage({ type: 'compute', k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack, basePoints });
+    worker.postMessage({ type: 'compute', k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack, basePoints, productTableSpecs });
 }
 
 // ── Event listeners ───────────────────────────────────────────────────────────

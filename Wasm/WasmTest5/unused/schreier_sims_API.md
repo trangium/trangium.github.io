@@ -82,7 +82,7 @@ const runner = new Module.SchreierSimsRunner();
 |--------|-------------|
 | `reset(n)` | Set domain size to `n`, clear all generators and cached state. |
 | `addGenerator(v: VectorInt)` | Add one generator permutation of length `n`. |
-| `build(confidence: int)` | Run Monte Carlo Schreier-Sims; store BSGS internally.  `confidence` = consecutive trivial sifts before stopping; error ≤ 2^−confidence.  Use **40** in practice. |
+| `build(confidence: int)` | Run Monte Carlo Schreier-Sims; store BSGS internally.  `confidence` = consecutive trivial sifts before stopping; error ≤ 2^−confidence.  Use **80** in practice. |
 | `run(confidence: int) → string` | `build` + return JSON `{"base":[…],"orbitSizes":[…],"order":N}`. |
 | `getBase() → VectorInt` | Base points of the stored BSGS.  **Must call `build` first.** |
 | `canonicalizePerm(v: VectorInt) → VectorInt` | Canonicalize a permutation using the stored BSGS. Returns a new `VectorInt` — **call `.delete()` on it**. |

@@ -24,8 +24,8 @@ self.onmessage = function ({ data }) {
         return;
     }
 
-    const { k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack, basePoints } = data;
-    const tableKey = JSON.stringify({ k, targetGroups, solvingPerms, solvingAlgos, basePoints });
+    const { k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack, basePoints, productTableSpecs } = data;
+    const tableKey = JSON.stringify({ k, targetGroups, solvingPerms, solvingAlgos, basePoints, productTableSpecs });
 
     try {
         if (tableKey === lastTableKey) {
@@ -146,11 +146,18 @@ self.onmessage = function ({ data }) {
         // ── Phase 2: heavy work (deferred) ───────────────────────────────────
         setTimeout(() => {
             try {
+                if (productTableSpecs) {
+                    for (const spec of productTableSpecs) {
+                        solver.beginProductDistanceTable();
+                        for (const idx of spec)
+                            solver.addProductTableComponent(idx);
+                    }
+                }
                 solver.buildTables();
 
                 const tableSizes = [];
-                for (let g = 0; g < solver.getNumGroups(); g++)
-                    tableSizes.push(solver.getGroupTableSize(g));
+                for (let p = 0; p < solver.getNumProductTables(); p++)
+                    tableSizes.push(solver.getProductTableSize(p));
 
                 lastTableKey = tableKey;
                 cachedAllMoveNames = allMoveNames;
