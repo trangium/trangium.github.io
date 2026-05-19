@@ -144,9 +144,9 @@ static PiecePerm extract_piece(const Perm& full, int base, int m, int n_t) {
 
 struct Mod3Table {
     std::vector<uint8_t> data;
-    int sz = 0;
+    long long sz = 0;
 
-    void assign(int n, int fill_val) {
+    void assign(long long n, int fill_val) {
         sz = n;
         uint8_t byte = 0;
         int v = fill_val & 3;
@@ -154,12 +154,12 @@ struct Mod3Table {
         data.assign((n + 3) / 4, byte);
     }
 
-    int get(int i) const {
+    int get(long long i) const {
         return (data[i >> 2] >> ((i & 3) << 1)) & 3;
     }
 
-    void set(int i, int val) {
-        int sh = (i & 3) << 1;
+    void set(long long i, int val) {
+        int sh = (int)((i & 3) << 1);
         uint8_t& b = data[i >> 2];
         b = (b & ~(3 << sh)) | ((val & 3) << sh);
     }
@@ -1372,8 +1372,7 @@ class MultiTargetSolver {
         BSGS bsgs{0};
         std::unordered_map<Hash128, int, Hash128Hasher> canon_id_table;
         std::vector<int> transition_table; // flat: [id * nMoves + mi]
-        Mod3Table distance_table;
-        int identity_id = -1;
+        int identity_id = -1;             // set during buildTables(), used to seed product tables
         std::vector<std::vector<Hash128>> zobrist; // [pos][val]
 
         Hash128 hashPerm(const Perm& perm, const std::vector<int>& base) const {
@@ -1388,6 +1387,16 @@ class MultiTargetSolver {
     };
 
     std::vector<TargetGroup> groups_;
+
+    struct ProductDistanceTable {
+        std::vector<int>       component_ids;  // indices into groups_
+        std::vector<long long> strides;        // stride[j] = ∏ sizes[j+1..]
+        long long              total_states = 0;
+        Mod3Table              distance_table;
+        long long              identity_id = -1;
+    };
+    std::vector<ProductDistanceTable> product_tables_;
+
     std::vector<Perm> solving_generators_;
     BSGS solving_bsgs_{0};
     std::vector<Perm> solving_moves_;
@@ -1407,8 +1416,12 @@ class MultiTargetSolver {
     };
 
     // Returns the minimum f that exceeded threshold, or INT_MAX if no branch did.
-    // ss[g]/hs[g] hold state/h_vals at depth g; child is written to ss[g+1]/hs[g+1].
-    int idaDfs(std::vector<std::vector<int>>& ss, std::vector<std::vector<int>>& hs,
+    // ss[g]    = per-group state indices at depth g (for transition lookup)
+    // pd_ss[g] = per-product-table product state indices at depth g
+    // hs[g]    = per-product-table h values at depth g
+    int idaDfs(std::vector<std::vector<int>>&       ss,
+               std::vector<std::vector<long long>>& pd_ss,
+               std::vector<std::vector<int>>&       hs,
                int g, int threshold, MoveStreak tail) {
         const std::vector<int>& state  = ss[g];
         const std::vector<int>& h_vals = hs[g];
@@ -1429,49 +1442,115 @@ class MultiTargetSolver {
         if (f > threshold) return f;
 
         const int nMoves = (int)solving_moves_.size();
-        const int t = (int)groups_.size();
+        const int t  = (int)groups_.size();
+        const int np = (int)product_tables_.size();
         int minExceeded = INT_MAX;
 
         for (int mi = 0; mi < nMoves; mi++) {
             if (pruner_.prune(tail.mi, tail.count, mi)) continue;
-            for (int i = 0; i < t; i++) {
+            for (int i = 0; i < t; i++)
                 ss[g+1][i] = groups_[i].transition_table[state[i] * nMoves + mi];
-                hs[g+1][i] = h_vals[i] + kMod3Diff[h_vals[i] % 3][groups_[i].distance_table.get(ss[g+1][i])];
+            for (int p = 0; p < np; p++) {
+                long long new_pd = 0;
+                for (int j = 0; j < (int)product_tables_[p].component_ids.size(); j++) {
+                    int ci = product_tables_[p].component_ids[j];
+                    new_pd += (long long)ss[g+1][ci] * product_tables_[p].strides[j];
+                }
+                pd_ss[g+1][p] = new_pd;
+                hs[g+1][p] = h_vals[p] + kMod3Diff[h_vals[p] % 3][product_tables_[p].distance_table.get(new_pd)];
             }
             solution_.push_back(mi);
             MoveStreak new_tail{mi, mi == tail.mi ? tail.count + 1 : 1};
-            int result = idaDfs(ss, hs, g + 1, threshold, new_tail);
+            int result = idaDfs(ss, pd_ss, hs, g + 1, threshold, new_tail);
             solution_.pop_back();
             if (result < minExceeded) minExceeded = result;
         }
         return minExceeded;
     }
 
-    // Greedy walk: follows transitions decreasing dist mod 3 until distance == 0.
-    // Returns the exact distance for group grp_idx at state cur_state.
-    int computeExactH(int grp_idx, int cur_state) const {
-        const auto& grp = groups_[grp_idx];
+    // Greedy walk on a product distance table, decoding component states via strides.
+    int computeExactH(int pd_idx, long long s) const {
+        const auto& pdt = product_tables_[pd_idx];
         const int nMoves = (int)solving_moves_.size();
-        int s = cur_state;
+        const int nc = (int)pdt.component_ids.size();
         int distance = 0;
-        while (s != grp.identity_id) {
-            int d1m3 = grp.distance_table.get(s);
+        while (s != pdt.identity_id) {
+            int d1m3 = pdt.distance_table.get(s);
+            long long rem = s;
+            std::vector<int> comp(nc);
+            for (int j = 0; j < nc; j++) {
+                comp[j] = (int)(rem / pdt.strides[j]);
+                rem    %= pdt.strides[j];
+            }
             for (int mi = 0; mi < nMoves; mi++) {
-                int ns = grp.transition_table[s * nMoves + mi];
-                if (kMod3Diff[d1m3][grp.distance_table.get(ns)] == -1) {
-                    s = ns;
-                    distance++;
-                    break;
+                long long ns = 0;
+                for (int j = 0; j < nc; j++) {
+                    int new_c = groups_[pdt.component_ids[j]].transition_table[comp[j] * nMoves + mi];
+                    ns += (long long)new_c * pdt.strides[j];
+                }
+                if (kMod3Diff[d1m3][pdt.distance_table.get(ns)] == -1) {
+                    s = ns; distance++; break;
                 }
             }
         }
         return distance;
     }
 
+    // Sweep algorithm: fills product distance tables using O(max_depth * N) passes,
+    // zero extra memory beyond the distance table itself.
+    void buildProductDistanceTables() {
+        const int nMoves = (int)solving_moves_.size();
+        for (auto& pdt : product_tables_) {
+            const long long N = pdt.total_states;
+            if (N <= 0) continue;
+            const int nc = (int)pdt.component_ids.size();
+
+            // Component sizes: sizes[0] = N / strides[0], sizes[j] = strides[j-1] / strides[j]
+            std::vector<int> comp_sizes(nc);
+            comp_sizes[0] = (int)(N / pdt.strides[0]);
+            for (int j = 1; j < nc; j++)
+                comp_sizes[j] = (int)(pdt.strides[j-1] / pdt.strides[j]);
+
+            pdt.distance_table.assign(N, 3);
+            pdt.distance_table.set(pdt.identity_id, 0);
+
+            long long visited_count = 1;
+            int depth_mod3 = 0;
+            std::vector<int> comp(nc, 0);  // odometer: comp[j] = current state of component j
+
+            while (visited_count < N) {
+                std::fill(comp.begin(), comp.end(), 0);
+                for (long long s = 0; s < N; s++) {
+                    if (pdt.distance_table.get(s) == depth_mod3) {
+                        for (int mi = 0; mi < nMoves; mi++) {
+                            long long ns = 0;
+                            for (int j = 0; j < nc; j++) {
+                                int gid = pdt.component_ids[j];
+                                int new_c = groups_[gid].transition_table[comp[j] * nMoves + mi];
+                                ns += (long long)new_c * pdt.strides[j];
+                            }
+                            if (pdt.distance_table.get(ns) == 3) {
+                                pdt.distance_table.set(ns, (depth_mod3 + 1) % 3);
+                                ++visited_count;
+                            }
+                        }
+                    }
+                    // Increment odometer (amortized O(1))
+                    for (int j = nc - 1; j >= 0; j--) {
+                        if (++comp[j] < comp_sizes[j]) break;
+                        comp[j] = 0;
+                    }
+                }
+                depth_mod3 = (depth_mod3 + 1) % 3;
+            }
+        }
+    }
+
 public:
     void reset(int n) {
         n_ = n;
         groups_.clear();
+        product_tables_.clear();
         solving_generators_.clear();
         solving_bsgs_ = BSGS(n);
         solving_moves_.clear();
@@ -1565,6 +1644,19 @@ public:
         grp.op_spec.build(classes, types, n_, solving_generators_);
     }
 
+    // ── Product distance table specification ──────────────────────────────────
+    // Call beginProductDistanceTable() + addProductTableComponent() for each
+    // desired product table BEFORE buildTables().  If none are added, buildTables()
+    // defaults to one singleton product per group (backward-compatible).
+
+    void beginProductDistanceTable() {
+        product_tables_.emplace_back();
+    }
+
+    void addProductTableComponent(int grp_idx) {
+        product_tables_.back().component_ids.push_back(grp_idx);
+    }
+
     // ── Solving moves ─────────────────────────────────────────────────────────
 
     void addSolvingGenerator(const std::vector<int>& g) {
@@ -1632,7 +1724,6 @@ public:
                 long long id0 = spec.state_to_index_compact(id_compact);
                 grp.identity_id = (int)id0;
                 grp.transition_table.assign((int)total * nMoves, -1);
-                grp.distance_table.assign((int)total, 3);  // 3 = unvisited sentinel
 
                 // DFS: enumerate reachable states and fill transition_table
                 std::vector<bool> visited((int)total, false);
@@ -1657,21 +1748,6 @@ public:
                     if (!visited[(int)nid]) {
                         visited[(int)nid] = true;
                         dfs.push_back({std::move(next), nid, 0});
-                    }
-                }
-
-                // BFS for distances (mod 3)
-                grp.distance_table.set((int)id0, 0);
-                std::queue<std::pair<int,int>> bq;  // (id, exact_distance)
-                bq.push({(int)id0, 0});
-                while (!bq.empty()) {
-                    auto [id, d] = bq.front(); bq.pop();
-                    for (int mi = 0; mi < nMoves; mi++) {
-                        int nid = grp.transition_table[id * nMoves + mi];
-                        if (grp.distance_table.get(nid) == 3) {
-                            grp.distance_table.set(nid, (d + 1) % 3);
-                            bq.push({nid, d + 1});
-                        }
                     }
                 }
                 continue;
@@ -1737,27 +1813,57 @@ public:
                 }
             }
 
-            // Phase 3: BFS for distance_table (mod 3)
-            grp.distance_table.assign(tableSize, 3);  // 3 = unvisited sentinel
-            grp.distance_table.set(grp.identity_id, 0);
-            std::queue<std::pair<int,int>> q;  // (id, exact_distance)
-            q.push({grp.identity_id, 0});
-            while (!q.empty()) {
-                auto [id, d] = q.front(); q.pop();
-                for (int mi = 0; mi < nMoves; mi++) {
-                    int nid = grp.transition_table[id * nMoves + mi];
-                    if (grp.distance_table.get(nid) == 3) {
-                        grp.distance_table.set(nid, (d + 1) % 3);
-                        q.push({nid, d + 1});
-                    }
+        }
+
+        // ── Build product distance tables ─────────────────────────────────────
+
+        // Default: one singleton product table per group (backward-compatible)
+        if (product_tables_.empty()) {
+            for (int i = 0; i < (int)groups_.size(); i++) {
+                ProductDistanceTable pdt;
+                pdt.component_ids = {i};
+                pdt.strides       = {1LL};
+                long long sz = (groups_[i].kind == TargetGroup::ORIENTPERM)
+                             ? groups_[i].op_spec.total_states
+                             : (long long)groups_[i].canon_id_table.size();
+                pdt.total_states  = sz;
+                pdt.identity_id   = (long long)groups_[i].identity_id;
+                product_tables_.push_back(std::move(pdt));
+            }
+        } else {
+            for (auto& pdt : product_tables_) {
+                const int nc = (int)pdt.component_ids.size();
+                std::vector<long long> sizes(nc);
+                for (int j = 0; j < nc; j++) {
+                    int gid = pdt.component_ids[j];
+                    sizes[j] = (groups_[gid].kind == TargetGroup::ORIENTPERM)
+                             ? groups_[gid].op_spec.total_states
+                             : (long long)groups_[gid].canon_id_table.size();
                 }
+                pdt.strides.resize(nc);
+                pdt.strides[nc - 1] = 1LL;
+                for (int j = nc - 2; j >= 0; j--)
+                    pdt.strides[j] = pdt.strides[j + 1] * sizes[j + 1];
+                pdt.total_states = pdt.strides[0] * sizes[0];
+                pdt.identity_id  = 0;
+                for (int j = 0; j < nc; j++)
+                    pdt.identity_id += (long long)groups_[pdt.component_ids[j]].identity_id * pdt.strides[j];
             }
         }
+
+        buildProductDistanceTables();
     }
 
     // ── Query ─────────────────────────────────────────────────────────────────
 
     int getNumGroups() const { return (int)groups_.size(); }
+
+    int getNumProductTables() const { return (int)product_tables_.size(); }
+
+    long long getProductTableSize(int p) const {
+        if (p < 0 || p >= (int)product_tables_.size()) return 0;
+        return product_tables_[p].total_states;
+    }
 
     int getGroupTableSize(int g) const {
         if (g < 0 || g >= (int)groups_.size()) return 0;
@@ -1795,14 +1901,14 @@ public:
         solution_.clear();
         const Perm p(startPerm.begin(), startPerm.end());
         const std::vector<int>& base = base_;
-        const int t = (int)groups_.size();
+        const int t  = (int)groups_.size();
+        const int np = (int)product_tables_.size();
 
+        // Compute initial per-group state indices
         std::vector<int> state(t);
         for (int i = 0; i < t; i++) {
             if (groups_[i].kind == TargetGroup::ORIENTPERM) {
-                long long idx = groups_[i].op_spec.state_to_index(p);
-                if (groups_[i].distance_table.get((int)idx) == 3) return {-1};
-                state[i] = (int)idx;
+                state[i] = (int)groups_[i].op_spec.state_to_index(p);
             } else {
                 auto it = groups_[i].canon_id_table.find(groups_[i].hashPerm(p, base));
                 if (it == groups_[i].canon_id_table.end()) return {-1};
@@ -1810,9 +1916,21 @@ public:
             }
         }
 
-        std::vector<int> h_vals(t);
-        for (int i = 0; i < t; i++)
-            h_vals[i] = computeExactH(i, state[i]);
+        // Compute initial product state indices and check reachability
+        std::vector<long long> pd_state(np);
+        for (int pi = 0; pi < np; pi++) {
+            long long idx = 0;
+            for (int j = 0; j < (int)product_tables_[pi].component_ids.size(); j++) {
+                int ci = product_tables_[pi].component_ids[j];
+                idx += (long long)state[ci] * product_tables_[pi].strides[j];
+            }
+            pd_state[pi] = idx;
+            if (product_tables_[pi].distance_table.get(idx) == 3) return {-1};
+        }
+
+        std::vector<int> h_vals(np);
+        for (int pi = 0; pi < np; pi++)
+            h_vals[pi] = computeExactH(pi, pd_state[pi]);
         int h = *std::max_element(h_vals.begin(), h_vals.end());
         if (h == 0) {
             if (min_moves == 0 && !js_callback_.isUndefined() && !js_callback_.isNull())
@@ -1825,20 +1943,21 @@ public:
         int effective_max = max_moves;
         bool first_solution_found = false;
 
-        // State/h stacks: one slot per depth level, grown each iteration to avoid
-        // overflow when max_moves is INT_MAX.
-        std::vector<std::vector<int>> ss(1, state);
-        std::vector<std::vector<int>> hs(1, h_vals);
+        // Stacks: one slot per depth level, grown as needed.
+        std::vector<std::vector<int>>       ss(1, state);
+        std::vector<std::vector<long long>> pd_ss(1, pd_state);
+        std::vector<std::vector<int>>       hs(1, h_vals);
 
         while (threshold <= effective_max) {
             if ((int)ss.size() <= threshold) {
                 ss.resize(threshold + 1, std::vector<int>(t));
-                hs.resize(threshold + 1, std::vector<int>(t));
+                pd_ss.resize(threshold + 1, std::vector<long long>(np));
+                hs.resize(threshold + 1, std::vector<int>(np));
             }
             if (!depth_callback_.isUndefined() && !depth_callback_.isNull())
                 depth_callback_(threshold);
             found_any_solution_ = false;
-            int next = idaDfs(ss, hs, 0, threshold, {});
+            int next = idaDfs(ss, pd_ss, hs, 0, threshold, {});
             if (found_any_solution_ && !first_solution_found) {
                 first_solution_found = true;
                 effective_max = std::min(threshold + slack, max_moves);
@@ -1884,14 +2003,18 @@ EMSCRIPTEN_BINDINGS(module) {
         .function("buildSolvingBSGS",    &MultiTargetSolver::buildSolvingBSGS)
         .function("clearSolvingMoves",   &MultiTargetSolver::clearSolvingMoves)
         .function("addSolvingMove",      &MultiTargetSolver::addSolvingMove)
-        .function("buildTables",         &MultiTargetSolver::buildTables)
-        .function("getNumGroups",           &MultiTargetSolver::getNumGroups)
-        .function("getGroupTableSize",      &MultiTargetSolver::getGroupTableSize)
-        .function("getSolvingOrbitSizes",     &MultiTargetSolver::getSolvingOrbitSizes)
-        .function("getTargetGroupOrbitSizes", &MultiTargetSolver::getTargetGroupOrbitSizes)
-        .function("setCallback",            &MultiTargetSolver::setCallback)
-        .function("setDepthCallback",       &MultiTargetSolver::setDepthCallback)
-        .function("solve",                  &MultiTargetSolver::solve);
+        .function("buildTables",               &MultiTargetSolver::buildTables)
+        .function("beginProductDistanceTable", &MultiTargetSolver::beginProductDistanceTable)
+        .function("addProductTableComponent",  &MultiTargetSolver::addProductTableComponent)
+        .function("getNumGroups",              &MultiTargetSolver::getNumGroups)
+        .function("getNumProductTables",       &MultiTargetSolver::getNumProductTables)
+        .function("getProductTableSize",       &MultiTargetSolver::getProductTableSize)
+        .function("getGroupTableSize",         &MultiTargetSolver::getGroupTableSize)
+        .function("getSolvingOrbitSizes",      &MultiTargetSolver::getSolvingOrbitSizes)
+        .function("getTargetGroupOrbitSizes",  &MultiTargetSolver::getTargetGroupOrbitSizes)
+        .function("setCallback",               &MultiTargetSolver::setCallback)
+        .function("setDepthCallback",          &MultiTargetSolver::setDepthCallback)
+        .function("solve",                     &MultiTargetSolver::solve);
 }
 
 #else
