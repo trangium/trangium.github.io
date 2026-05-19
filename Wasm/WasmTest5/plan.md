@@ -533,7 +533,7 @@ Inside `build()`, extract compact PiecePerms for all solving generators, then ru
 
 No BSGS work yet; purely array inspection. Prerequisite for 3b and 3c.
 
-#### Commit 3b — Orientation constraint analysis (2f, orient_space from 2g)
+#### Commit 3b — Orientation constraint analysis (2f, orient_space from 2g)  — **DONE**
 Inside `build()`, after §2k:
 - Compute orientation sum-delta per type per generator (§2f Step 1).
 - Add knockdown deltas from classes (§2f Step 2).
@@ -544,7 +544,7 @@ Inside `build()`, after §2k:
 **Do NOT** compute per-type gcd of deltas in isolation — that misses cross-type dependencies through
 shared generators (see §2f pitfall section for the canonical counter-example).
 
-#### Commit 3c — Parity constraint analysis + multinomials (2l, 2g)
+#### Commit 3c — Parity constraint analysis + multinomials (2l, 2g)  — **DONE**
 Inside `build()`, after §2k:
 - For each unrestricted type, compute parity delta per generator (§2l).
 - Construct virtual Z/2Z permutations and run joint BSGS with forced base (§2l).
@@ -554,10 +554,10 @@ Inside `build()`, after §2k:
 
 **Do NOT** compute parity independence per type in isolation — same cross-type coupling pitfall as orientation.
 
-#### Commit 4 — state_to_index with PiecePerm scatter + incremental ratio (2e)
+#### Commit 4 — state_to_index with PiecePerm scatter + incremental ratio (2e) — **DONE**
 Both overloads. Step 1: scatter to get piece_at_p and orient_at_p. Step 2: incremental ratio rank loop (current * count[c'] / n_rem). Step 3: mixed-radix orientation index using orient_step and carrier position.
 
-#### Commit 5 — buildTables() DFS/BFS + IDA* integration (2h, 2i)
+#### Commit 5 — buildTables() DFS/BFS + IDA* integration (2h, 2i) — **DONE**
 Flat-array allocation, DFS with compact perm stack, BFS seeding from identity, and wiring state[i] initialization and lookup into idaDfs. First commit where end-to-end solving works for OrientPerm groups.
 
 ---
@@ -570,19 +570,42 @@ Each `TargetGroup` has a `TableMode` enum:
 enum TableMode { FULL, NO_TRANSITION, INCOMPLETE };
 ```
 
-`OrientPermSpec` groups also have a `compact_dist` bool: when true, store 2 bits per state (dist mod 3) in a packed array instead of `uint8_t[]`.
+All target groups (whether orientPerm or general) will now store 2 bits per state (dist mod 3) for its instance table in a packed array instead of `int[]`.
 
-### Full OrientPerm table
+### Full OrientPerm Groups
 
-`distance_table` is a flat `std::vector<uint8_t>` of size `total_states`. Direct array access replaces hash map lookup. `0xFF` is the sentinel for "not reachable within this group" (treated as distance 0 in IDA* heuristic to avoid incorrect pruning).
+`distance_table` is a flat `std::vector<int>` of size `total_states`. Direct array access replaces hash map lookup. This is the current implementation.
 
-### Compact (mod-3) distance table
+### No-Transition Groups
 
-Store `dist[state] mod 3` packed 4 entries per byte (2 bits each). During IDA*: at each node, the parent's exact distance is known. Since one move changes distance by at most 1, and we know `d_new mod 3`, exactly one of `{d_parent-1, d_parent, d_parent+1}` matches — that's `d_new`. The root's exact distance is recovered by IDA*'s iterative deepening, so no special case is needed.
+See section 4. Distances for all states still stored, but not transition tables.
 
 ### Incomplete table
 
-BFS from solved states up to `max_depth`. For GENERAL groups: `unordered_map<Hash128, uint8_t>`. For ORIENTPERM groups: flat `uint8_t[]` with `0xFF` sentinel. In IDA*: absent state → `h = max_depth + 1` (valid lower bound since distance > max_depth).
+BFS from solved states up to `max_depth`. For GENERAL and ORIENTPERM groups: `unordered_map<Hash128, uint8_t>`. In IDA*: absent state → `h = max_depth + 1` (valid lower bound since distance > max_depth).
+
+### Compact (mod-3) distance table
+
+Store `dist[state] mod 3` packed 4 entries per byte (2 bits each). During IDA*: at each node, the parent's exact distance is known. Since one move changes distance by at most 1, and we know `d_new mod 3`, exactly one of `{d_parent-1, d_parent, d_parent+1}` matches — that's `d_new`. To find the root's exact distance, search greedily from the root until you get to the identity coset. Pseudocode:
+
+Initialize: state = root
+Initialize: distance = 0
+while (state != identity coset) {
+    d1 = dist_mod_3(state)
+    for (move in moves) {
+        d2 = dist_mod_3(state.apply(move))
+        if ((d1-d2)%3 == 1) {
+            state = state.apply(move)
+            distance = distance + 1
+            break
+        }
+    }
+}
+return distance
+
+This is used for all groups.
+
+The BFS for distances (mod 3) will also have to be changed to actually have the extremely small memory footprint we're looking for, once we implement the general group without transition tables.
 
 ---
 
@@ -671,12 +694,12 @@ Existing bindings unchanged.
 1. **DONE** — Piece-based puzzle expansion in JS
 2. **DONE** — OrientPerm JS parsing + worker message wiring (section 2a–2c)
 3. **DONE** — C++ scaffolding: PiecePerm, OrientPermSpec struct, API bindings (section 2d, 2j)
-4a. `OrientPermSpec::build()` — fixed piece detection (§2k)
-4b. `OrientPermSpec::build()` — orientation constraint analysis, orient_step, orient_space (§2f, §2g)
-4c. `OrientPermSpec::build()` — parity constraint analysis, initial_multinomial, perm_space, total_states (§2l, §2g)
-5. `OrientPermSpec::state_to_index()` — PiecePerm scatter + incremental ratio + orient carrier (section 2e)
-6. OrientPerm table building in `buildTables()` — flat array, DFS, BFS (section 2h)
-7. OrientPerm IDA* lookup in `idaDfs` (section 2i)
+4a. **DONE** — `OrientPermSpec::build()` — fixed piece detection (§2k)
+4b. **DONE** — `OrientPermSpec::build()` — orientation constraint analysis, orient_step, orient_space (§2f, §2g)
+4c. **DONE** — `OrientPermSpec::build()` — parity constraint analysis, initial_multinomial, perm_space, total_states (§2l, §2g)
+5. **DONE** — `OrientPermSpec::state_to_index()` — PiecePerm scatter + incremental ratio + orient carrier (section 2e)
+6. **DONE** — OrientPerm table building in `buildTables()` — flat array, DFS, BFS (section 2h)
+7. **DONE** — OrientPerm IDA* lookup in `idaDfs` (section 2i)
 8. Multi-source BFS in C++ (section 5) — small change, high value
 9. Compact (mod-3) distance table (section 3)
 10. Incomplete table mode (section 3)

@@ -137,6 +137,34 @@ static PiecePerm extract_piece(const Perm& full, int base, int m, int n_t) {
     return cp;
 }
 
+// ─── Compact mod-3 distance table ────────────────────────────────────────────
+//
+// Packs 4 entries per byte (2 bits each). Values 0–2 are dist mod 3.
+// Value 3 (binary 11) is the "unvisited" sentinel.
+
+struct Mod3Table {
+    std::vector<uint8_t> data;
+    int sz = 0;
+
+    void assign(int n, int fill_val) {
+        sz = n;
+        uint8_t byte = 0;
+        int v = fill_val & 3;
+        for (int i = 0; i < 4; i++) byte |= v << (2 * i);
+        data.assign((n + 3) / 4, byte);
+    }
+
+    int get(int i) const {
+        return (data[i >> 2] >> ((i & 3) << 1)) & 3;
+    }
+
+    void set(int i, int val) {
+        int sh = (i & 3) << 1;
+        uint8_t& b = data[i >> 2];
+        b = (b & ~(3 << sh)) | ((val & 3) << sh);
+    }
+};
+
 // ─── Stabilizer level ────────────────────────────────────────────────────────
 
 struct Level {
@@ -1344,7 +1372,7 @@ class MultiTargetSolver {
         BSGS bsgs{0};
         std::unordered_map<Hash128, int, Hash128Hasher> canon_id_table;
         std::vector<int> transition_table; // flat: [id * nMoves + mi]
-        std::vector<int> distance_table;
+        Mod3Table distance_table;
         int identity_id = -1;
         std::vector<std::vector<Hash128>> zobrist; // [pos][val]
 
@@ -1370,11 +1398,22 @@ class MultiTargetSolver {
     bool found_any_solution_ = false;
     MovePruner pruner_;
 
+    // kMod3Diff[p][c]: exact change in distance when parent mod-3 is p and child mod-3 is c.
+    // One move changes distance by at most 1, so exactly one of {-1, 0, +1} matches.
+    static constexpr int kMod3Diff[3][3] = {
+        {  0, +1, -1 },
+        { -1,  0, +1 },
+        { +1, -1,  0 },
+    };
+
     // Returns the minimum f that exceeded threshold, or INT_MAX if no branch did.
-    int idaDfs(std::vector<int>& state, int g, int threshold, MoveStreak tail) {
-        int h = 0;
-        for (int i = 0; i < (int)groups_.size(); i++)
-            h = std::max(h, groups_[i].distance_table[state[i]]);
+    // ss[g]/hs[g] hold state/h_vals at depth g; child is written to ss[g+1]/hs[g+1].
+    int idaDfs(std::vector<std::vector<int>>& ss, std::vector<std::vector<int>>& hs,
+               int g, int threshold, MoveStreak tail) {
+        const std::vector<int>& state  = ss[g];
+        const std::vector<int>& h_vals = hs[g];
+
+        int h = *std::max_element(h_vals.begin(), h_vals.end());
         if (h == 0) {
             if (g == threshold) {
                 found_any_solution_ = true;
@@ -1389,23 +1428,44 @@ class MultiTargetSolver {
         int f = g + h;
         if (f > threshold) return f;
 
-        const std::vector<int> parent = state;
         const int nMoves = (int)solving_moves_.size();
         const int t = (int)groups_.size();
         int minExceeded = INT_MAX;
 
         for (int mi = 0; mi < nMoves; mi++) {
             if (pruner_.prune(tail.mi, tail.count, mi)) continue;
-            for (int i = 0; i < t; i++)
-                state[i] = groups_[i].transition_table[parent[i] * nMoves + mi];
+            for (int i = 0; i < t; i++) {
+                ss[g+1][i] = groups_[i].transition_table[state[i] * nMoves + mi];
+                hs[g+1][i] = h_vals[i] + kMod3Diff[h_vals[i] % 3][groups_[i].distance_table.get(ss[g+1][i])];
+            }
             solution_.push_back(mi);
             MoveStreak new_tail{mi, mi == tail.mi ? tail.count + 1 : 1};
-            int result = idaDfs(state, g + 1, threshold, new_tail);
+            int result = idaDfs(ss, hs, g + 1, threshold, new_tail);
             solution_.pop_back();
             if (result < minExceeded) minExceeded = result;
         }
-        state = parent;
         return minExceeded;
+    }
+
+    // Greedy walk: follows transitions decreasing dist mod 3 until distance == 0.
+    // Returns the exact distance for group grp_idx at state cur_state.
+    int computeExactH(int grp_idx, int cur_state) const {
+        const auto& grp = groups_[grp_idx];
+        const int nMoves = (int)solving_moves_.size();
+        int s = cur_state;
+        int distance = 0;
+        while (s != grp.identity_id) {
+            int d1m3 = grp.distance_table.get(s);
+            for (int mi = 0; mi < nMoves; mi++) {
+                int ns = grp.transition_table[s * nMoves + mi];
+                if (kMod3Diff[d1m3][grp.distance_table.get(ns)] == -1) {
+                    s = ns;
+                    distance++;
+                    break;
+                }
+            }
+        }
+        return distance;
     }
 
 public:
@@ -1572,7 +1632,7 @@ public:
                 long long id0 = spec.state_to_index_compact(id_compact);
                 grp.identity_id = (int)id0;
                 grp.transition_table.assign((int)total * nMoves, -1);
-                grp.distance_table.assign((int)total, -1);
+                grp.distance_table.assign((int)total, 3);  // 3 = unvisited sentinel
 
                 // DFS: enumerate reachable states and fill transition_table
                 std::vector<bool> visited((int)total, false);
@@ -1600,18 +1660,17 @@ public:
                     }
                 }
 
-                // BFS for distances
-                grp.distance_table[(int)id0] = 0;
-                std::queue<int> bq;
-                bq.push((int)id0);
+                // BFS for distances (mod 3)
+                grp.distance_table.set((int)id0, 0);
+                std::queue<std::pair<int,int>> bq;  // (id, exact_distance)
+                bq.push({(int)id0, 0});
                 while (!bq.empty()) {
-                    int id = bq.front(); bq.pop();
-                    int d = grp.distance_table[id];
+                    auto [id, d] = bq.front(); bq.pop();
                     for (int mi = 0; mi < nMoves; mi++) {
                         int nid = grp.transition_table[id * nMoves + mi];
-                        if (grp.distance_table[nid] == -1) {
-                            grp.distance_table[nid] = d + 1;
-                            bq.push(nid);
+                        if (grp.distance_table.get(nid) == 3) {
+                            grp.distance_table.set(nid, (d + 1) % 3);
+                            bq.push({nid, d + 1});
                         }
                     }
                 }
@@ -1678,19 +1737,18 @@ public:
                 }
             }
 
-            // Phase 3: BFS for distance_table
-            grp.distance_table.assign(tableSize, -1);
-            grp.distance_table[grp.identity_id] = 0;
-            std::queue<int> q;
-            q.push(grp.identity_id);
+            // Phase 3: BFS for distance_table (mod 3)
+            grp.distance_table.assign(tableSize, 3);  // 3 = unvisited sentinel
+            grp.distance_table.set(grp.identity_id, 0);
+            std::queue<std::pair<int,int>> q;  // (id, exact_distance)
+            q.push({grp.identity_id, 0});
             while (!q.empty()) {
-                int id = q.front(); q.pop();
-                int d = grp.distance_table[id];
+                auto [id, d] = q.front(); q.pop();
                 for (int mi = 0; mi < nMoves; mi++) {
                     int nid = grp.transition_table[id * nMoves + mi];
-                    if (grp.distance_table[nid] == -1) {
-                        grp.distance_table[nid] = d + 1;
-                        q.push(nid);
+                    if (grp.distance_table.get(nid) == 3) {
+                        grp.distance_table.set(nid, (d + 1) % 3);
+                        q.push({nid, d + 1});
                     }
                 }
             }
@@ -1743,7 +1801,7 @@ public:
         for (int i = 0; i < t; i++) {
             if (groups_[i].kind == TargetGroup::ORIENTPERM) {
                 long long idx = groups_[i].op_spec.state_to_index(p);
-                if (groups_[i].distance_table[(int)idx] == -1) return {-1};
+                if (groups_[i].distance_table.get((int)idx) == 3) return {-1};
                 state[i] = (int)idx;
             } else {
                 auto it = groups_[i].canon_id_table.find(groups_[i].hashPerm(p, base));
@@ -1752,9 +1810,10 @@ public:
             }
         }
 
-        int h = 0;
+        std::vector<int> h_vals(t);
         for (int i = 0; i < t; i++)
-            h = std::max(h, groups_[i].distance_table[state[i]]);
+            h_vals[i] = computeExactH(i, state[i]);
+        int h = *std::max_element(h_vals.begin(), h_vals.end());
         if (h == 0) {
             if (min_moves == 0 && !js_callback_.isUndefined() && !js_callback_.isNull())
                 js_callback_(emscripten::val::array());
@@ -1766,11 +1825,20 @@ public:
         int effective_max = max_moves;
         bool first_solution_found = false;
 
+        // State/h stacks: one slot per depth level, grown each iteration to avoid
+        // overflow when max_moves is INT_MAX.
+        std::vector<std::vector<int>> ss(1, state);
+        std::vector<std::vector<int>> hs(1, h_vals);
+
         while (threshold <= effective_max) {
+            if ((int)ss.size() <= threshold) {
+                ss.resize(threshold + 1, std::vector<int>(t));
+                hs.resize(threshold + 1, std::vector<int>(t));
+            }
             if (!depth_callback_.isUndefined() && !depth_callback_.isNull())
                 depth_callback_(threshold);
             found_any_solution_ = false;
-            int next = idaDfs(state, 0, threshold, {});
+            int next = idaDfs(ss, hs, 0, threshold, {});
             if (found_any_solution_ && !first_solution_found) {
                 first_solution_found = true;
                 effective_max = std::min(threshold + slack, max_moves);
