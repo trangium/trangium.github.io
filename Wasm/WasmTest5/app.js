@@ -447,9 +447,17 @@ L2: L L
 B2: B B    
 `;
 
-$('target-gens').value   = `R, U, F, B L B'
-R, U, B, F' L F
-R, U, D, L
-R, U, D2 L D2, L F L', L' B' L`;
+$('target-gens').value   = `R, U, L, D
+
+{UFR UFL UBL UBR DFR DFL DBL DBR}
+1: {UF UL UB UR DF DL DB DR FR FL BL BR}
+
+1: {UFR UFL UBL UBR DFR DFL DBL DBR} {UF UL UB UR DF DL DB DR} {FR FL BL BR}
+
+1: {UFR UFL UBL UBR DFR DFL DBL DBR} {UF UL UB UR DF DL DB DR} 
+{FR FL BL BR}`;
+$('dist-tables').value = `T1 * T3
+T2 * T4
+T1 * T2`
 $('solving-gens').value  = `U, U2, R, R2, F, F2, D, D2, L, L2, B, B2`;
-$('starting-algo').value = `R2 F R2 D' U F2 R F' B' D U R2 D R L' D U' L D' U' L2`;
+$('starting-algo').value = `F U' F2 D' B U R' F' L D' R' U' L U B' D2 R' F U2 D2`;
