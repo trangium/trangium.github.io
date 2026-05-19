@@ -1514,11 +1514,12 @@ class MultiTargetSolver {
             pdt.distance_table.assign(N, 3);
             pdt.distance_table.set(pdt.identity_id, 0);
 
-            long long visited_count = 1;
             int depth_mod3 = 0;
             std::vector<int> comp(nc, 0);  // odometer: comp[j] = current state of component j
 
-            while (visited_count < N) {
+            bool any_new = true;
+            while (any_new) {
+                any_new = false;
                 std::fill(comp.begin(), comp.end(), 0);
                 for (long long s = 0; s < N; s++) {
                     if (pdt.distance_table.get(s) == depth_mod3) {
@@ -1531,7 +1532,7 @@ class MultiTargetSolver {
                             }
                             if (pdt.distance_table.get(ns) == 3) {
                                 pdt.distance_table.set(ns, (depth_mod3 + 1) % 3);
-                                ++visited_count;
+                                any_new = true;
                             }
                         }
                     }
