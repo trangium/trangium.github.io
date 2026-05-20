@@ -1523,6 +1523,31 @@ class MultiTargetSolver {
         return distance;
     }
 
+    // Sweep: fill a single-group distance table from its own transition table.
+    // Same O(max_depth * N) sweep as product tables; no queue overhead.
+    static void buildSingleGroupDistTable(Mod3Table& dtable,
+                                          const std::vector<int>& ttable,
+                                          int n_states, int nMoves, int identity_id) {
+        dtable.assign(n_states, 3);
+        dtable.set(identity_id, 0);
+        int depth_mod3 = 0;
+        bool any_new = true;
+        while (any_new) {
+            any_new = false;
+            for (int s = 0; s < n_states; s++) {
+                if (dtable.get(s) != depth_mod3) continue;
+                for (int mi = 0; mi < nMoves; mi++) {
+                    int ns = ttable[s * nMoves + mi];
+                    if (dtable.get(ns) == 3) {
+                        dtable.set(ns, (depth_mod3 + 1) % 3);
+                        any_new = true;
+                    }
+                }
+            }
+            depth_mod3 = (depth_mod3 + 1) % 3;
+        }
+    }
+
     // Sweep algorithm: fills product distance tables using O(max_depth * N) passes,
     // zero extra memory beyond the distance table itself.
     void buildProductDistanceTables() {
@@ -1779,21 +1804,8 @@ public:
                     }
                 }
 
-                // BFS for distances (mod 3)
-                grp.distance_table.assign((int)total, 3);
-                grp.distance_table.set((int)id0, 0);
-                std::queue<std::pair<int,int>> bq;
-                bq.push({(int)id0, 0});
-                while (!bq.empty()) {
-                    auto [id, d] = bq.front(); bq.pop();
-                    for (int mi = 0; mi < nMoves; mi++) {
-                        int nid = grp.transition_table[id * nMoves + mi];
-                        if (grp.distance_table.get(nid) == 3) {
-                            grp.distance_table.set(nid, (d + 1) % 3);
-                            bq.push({nid, d + 1});
-                        }
-                    }
-                }
+                buildSingleGroupDistTable(grp.distance_table, grp.transition_table,
+                                          (int)total, nMoves, (int)id0);
                 continue;
             }
             grp.canon_id_table.clear();
@@ -1857,21 +1869,9 @@ public:
                 }
             }
 
-            // Phase 3: BFS for distances (mod 3)
-            grp.distance_table.assign(tableSize, 3);
-            grp.distance_table.set(grp.identity_id, 0);
-            std::queue<std::pair<int,int>> q;
-            q.push({grp.identity_id, 0});
-            while (!q.empty()) {
-                auto [id, d] = q.front(); q.pop();
-                for (int mi = 0; mi < nMoves; mi++) {
-                    int nid = grp.transition_table[id * nMoves + mi];
-                    if (grp.distance_table.get(nid) == 3) {
-                        grp.distance_table.set(nid, (d + 1) % 3);
-                        q.push({nid, d + 1});
-                    }
-                }
-            }
+            // Phase 3: distance table (mod 3)
+            buildSingleGroupDistTable(grp.distance_table, grp.transition_table,
+                                      tableSize, nMoves, grp.identity_id);
         }
 
         // ── Build product distance tables ─────────────────────────────────────
