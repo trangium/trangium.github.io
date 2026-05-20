@@ -156,6 +156,8 @@ self.onmessage = function ({ data }) {
                 solver.buildTables();
 
                 const tableSizes = [];
+                for (let i = 0; i < solver.getNumGroups(); i++)
+                    tableSizes.push(solver.getGroupTableSize(i));
                 for (let p = 0; p < solver.getNumProductTables(); p++)
                     tableSizes.push(solver.getProductTableSize(p));
 

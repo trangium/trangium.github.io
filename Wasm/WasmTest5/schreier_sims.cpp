@@ -1372,7 +1372,8 @@ class MultiTargetSolver {
         BSGS bsgs{0};
         std::unordered_map<Hash128, int, Hash128Hasher> canon_id_table;
         std::vector<int> transition_table; // flat: [id * nMoves + mi]
-        int identity_id = -1;             // set during buildTables(), used to seed product tables
+        Mod3Table distance_table;
+        int identity_id = -1;
         std::vector<std::vector<Hash128>> zobrist; // [pos][val]
 
         Hash128 hashPerm(const Perm& perm, const std::vector<int>& base) const {
@@ -1416,17 +1417,20 @@ class MultiTargetSolver {
     };
 
     // Returns the minimum f that exceeded threshold, or INT_MAX if no branch did.
-    // ss[g]    = per-group state indices at depth g (for transition lookup)
-    // pd_ss[g] = per-product-table product state indices at depth g
-    // hs[g]    = per-product-table h values at depth g
-    int idaDfs(std::vector<std::vector<int>>&       ss,
-               std::vector<std::vector<long long>>& pd_ss,
-               std::vector<std::vector<int>>&       hs,
+    // ss[g][i]      = state index in group i at depth g
+    // hs[g][i]      = h value for group i at depth g  (singleton heuristic)
+    // prod_hs[g][p] = h value for product table p at depth g  (product heuristic)
+    int idaDfs(std::vector<std::vector<int>>& ss,
+               std::vector<std::vector<int>>& hs,
+               std::vector<std::vector<int>>& prod_hs,
                int g, int threshold, MoveStreak tail) {
-        const std::vector<int>& state  = ss[g];
-        const std::vector<int>& h_vals = hs[g];
+        const std::vector<int>& state     = ss[g];
+        const std::vector<int>& h_vals    = hs[g];
+        const std::vector<int>& ph_vals   = prod_hs[g];
 
         int h = *std::max_element(h_vals.begin(), h_vals.end());
+        for (int p = 0; p < (int)ph_vals.size(); p++) h = std::max(h, ph_vals[p]);
+
         if (h == 0) {
             if (g == threshold) {
                 found_any_solution_ = true;
@@ -1442,34 +1446,57 @@ class MultiTargetSolver {
         if (f > threshold) return f;
 
         const int nMoves = (int)solving_moves_.size();
-        const int t  = (int)groups_.size();
-        const int np = (int)product_tables_.size();
+        const int t      = (int)groups_.size();
+        const int np     = (int)product_tables_.size();
         int minExceeded = INT_MAX;
 
         for (int mi = 0; mi < nMoves; mi++) {
             if (pruner_.prune(tail.mi, tail.count, mi)) continue;
-            for (int i = 0; i < t; i++)
+
+            // Singleton groups: tight loop, same as original pre-product code.
+            for (int i = 0; i < t; i++) {
                 ss[g+1][i] = groups_[i].transition_table[state[i] * nMoves + mi];
+                hs[g+1][i] = h_vals[i] + kMod3Diff[h_vals[i] % 3][groups_[i].distance_table.get(ss[g+1][i])];
+            }
+
+            // Product groups: separate loop, zero iterations when np==0.
             for (int p = 0; p < np; p++) {
                 long long new_pd = 0;
                 for (int j = 0; j < (int)product_tables_[p].component_ids.size(); j++) {
                     int ci = product_tables_[p].component_ids[j];
                     new_pd += (long long)ss[g+1][ci] * product_tables_[p].strides[j];
                 }
-                pd_ss[g+1][p] = new_pd;
-                hs[g+1][p] = h_vals[p] + kMod3Diff[h_vals[p] % 3][product_tables_[p].distance_table.get(new_pd)];
+                prod_hs[g+1][p] = ph_vals[p] + kMod3Diff[ph_vals[p] % 3][product_tables_[p].distance_table.get(new_pd)];
             }
+
             solution_.push_back(mi);
             MoveStreak new_tail{mi, mi == tail.mi ? tail.count + 1 : 1};
-            int result = idaDfs(ss, pd_ss, hs, g + 1, threshold, new_tail);
+            int result = idaDfs(ss, hs, prod_hs, g + 1, threshold, new_tail);
             solution_.pop_back();
             if (result < minExceeded) minExceeded = result;
         }
         return minExceeded;
     }
 
+    // Greedy walk: follows the singleton group's distance table toward identity.
+    int computeExactH(int grp_idx, int s) const {
+        const auto& grp = groups_[grp_idx];
+        const int nMoves = (int)solving_moves_.size();
+        int distance = 0;
+        while (s != grp.identity_id) {
+            int d1m3 = grp.distance_table.get(s);
+            for (int mi = 0; mi < nMoves; mi++) {
+                int ns = grp.transition_table[s * nMoves + mi];
+                if (kMod3Diff[d1m3][grp.distance_table.get(ns)] == -1) {
+                    s = ns; distance++; break;
+                }
+            }
+        }
+        return distance;
+    }
+
     // Greedy walk on a product distance table, decoding component states via strides.
-    int computeExactH(int pd_idx, long long s) const {
+    int computeExactH_product(int pd_idx, long long s) const {
         const auto& pdt = product_tables_[pd_idx];
         const int nMoves = (int)solving_moves_.size();
         const int nc = (int)pdt.component_ids.size();
@@ -1751,6 +1778,22 @@ public:
                         dfs.push_back({std::move(next), nid, 0});
                     }
                 }
+
+                // BFS for distances (mod 3)
+                grp.distance_table.assign((int)total, 3);
+                grp.distance_table.set((int)id0, 0);
+                std::queue<std::pair<int,int>> bq;
+                bq.push({(int)id0, 0});
+                while (!bq.empty()) {
+                    auto [id, d] = bq.front(); bq.pop();
+                    for (int mi = 0; mi < nMoves; mi++) {
+                        int nid = grp.transition_table[id * nMoves + mi];
+                        if (grp.distance_table.get(nid) == 3) {
+                            grp.distance_table.set(nid, (d + 1) % 3);
+                            bq.push({nid, d + 1});
+                        }
+                    }
+                }
                 continue;
             }
             grp.canon_id_table.clear();
@@ -1814,42 +1857,42 @@ public:
                 }
             }
 
+            // Phase 3: BFS for distances (mod 3)
+            grp.distance_table.assign(tableSize, 3);
+            grp.distance_table.set(grp.identity_id, 0);
+            std::queue<std::pair<int,int>> q;
+            q.push({grp.identity_id, 0});
+            while (!q.empty()) {
+                auto [id, d] = q.front(); q.pop();
+                for (int mi = 0; mi < nMoves; mi++) {
+                    int nid = grp.transition_table[id * nMoves + mi];
+                    if (grp.distance_table.get(nid) == 3) {
+                        grp.distance_table.set(nid, (d + 1) % 3);
+                        q.push({nid, d + 1});
+                    }
+                }
+            }
         }
 
         // ── Build product distance tables ─────────────────────────────────────
 
-        // Default: one singleton product table per group (backward-compatible)
-        if (product_tables_.empty()) {
-            for (int i = 0; i < (int)groups_.size(); i++) {
-                ProductDistanceTable pdt;
-                pdt.component_ids = {i};
-                pdt.strides       = {1LL};
-                long long sz = (groups_[i].kind == TargetGroup::ORIENTPERM)
-                             ? groups_[i].op_spec.total_states
-                             : (long long)groups_[i].canon_id_table.size();
-                pdt.total_states  = sz;
-                pdt.identity_id   = (long long)groups_[i].identity_id;
-                product_tables_.push_back(std::move(pdt));
+        for (auto& pdt : product_tables_) {
+            const int nc = (int)pdt.component_ids.size();
+            std::vector<long long> sizes(nc);
+            for (int j = 0; j < nc; j++) {
+                int gid = pdt.component_ids[j];
+                sizes[j] = (groups_[gid].kind == TargetGroup::ORIENTPERM)
+                         ? groups_[gid].op_spec.total_states
+                         : (long long)groups_[gid].canon_id_table.size();
             }
-        } else {
-            for (auto& pdt : product_tables_) {
-                const int nc = (int)pdt.component_ids.size();
-                std::vector<long long> sizes(nc);
-                for (int j = 0; j < nc; j++) {
-                    int gid = pdt.component_ids[j];
-                    sizes[j] = (groups_[gid].kind == TargetGroup::ORIENTPERM)
-                             ? groups_[gid].op_spec.total_states
-                             : (long long)groups_[gid].canon_id_table.size();
-                }
-                pdt.strides.resize(nc);
-                pdt.strides[nc - 1] = 1LL;
-                for (int j = nc - 2; j >= 0; j--)
-                    pdt.strides[j] = pdt.strides[j + 1] * sizes[j + 1];
-                pdt.total_states = pdt.strides[0] * sizes[0];
-                pdt.identity_id  = 0;
-                for (int j = 0; j < nc; j++)
-                    pdt.identity_id += (long long)groups_[pdt.component_ids[j]].identity_id * pdt.strides[j];
-            }
+            pdt.strides.resize(nc);
+            pdt.strides[nc - 1] = 1LL;
+            for (int j = nc - 2; j >= 0; j--)
+                pdt.strides[j] = pdt.strides[j + 1] * sizes[j + 1];
+            pdt.total_states = pdt.strides[0] * sizes[0];
+            pdt.identity_id  = 0;
+            for (int j = 0; j < nc; j++)
+                pdt.identity_id += (long long)groups_[pdt.component_ids[j]].identity_id * pdt.strides[j];
         }
 
         buildProductDistanceTables();
@@ -1917,22 +1960,29 @@ public:
             }
         }
 
-        // Compute initial product state indices and check reachability
-        std::vector<long long> pd_state(np);
+        // Check singleton reachability and compute initial h values
+        for (int i = 0; i < t; i++)
+            if (groups_[i].distance_table.get(state[i]) == 3) return {-1};
+
+        std::vector<int> h_vals(t);
+        for (int i = 0; i < t; i++)
+            h_vals[i] = computeExactH(i, state[i]);
+
+        // Compute initial product state indices, check reachability, compute h values
+        std::vector<int> prod_h_vals(np);
         for (int pi = 0; pi < np; pi++) {
             long long idx = 0;
             for (int j = 0; j < (int)product_tables_[pi].component_ids.size(); j++) {
                 int ci = product_tables_[pi].component_ids[j];
                 idx += (long long)state[ci] * product_tables_[pi].strides[j];
             }
-            pd_state[pi] = idx;
             if (product_tables_[pi].distance_table.get(idx) == 3) return {-1};
+            prod_h_vals[pi] = computeExactH_product(pi, idx);
         }
 
-        std::vector<int> h_vals(np);
-        for (int pi = 0; pi < np; pi++)
-            h_vals[pi] = computeExactH(pi, pd_state[pi]);
         int h = *std::max_element(h_vals.begin(), h_vals.end());
+        for (int pi = 0; pi < np; pi++) h = std::max(h, prod_h_vals[pi]);
+
         if (h == 0) {
             if (min_moves == 0 && !js_callback_.isUndefined() && !js_callback_.isNull())
                 js_callback_(emscripten::val::array());
@@ -1945,20 +1995,20 @@ public:
         bool first_solution_found = false;
 
         // Stacks: one slot per depth level, grown as needed.
-        std::vector<std::vector<int>>       ss(1, state);
-        std::vector<std::vector<long long>> pd_ss(1, pd_state);
-        std::vector<std::vector<int>>       hs(1, h_vals);
+        std::vector<std::vector<int>> ss(1, state);
+        std::vector<std::vector<int>> hs(1, h_vals);
+        std::vector<std::vector<int>> prod_hs(1, prod_h_vals);
 
         while (threshold <= effective_max) {
             if ((int)ss.size() <= threshold) {
                 ss.resize(threshold + 1, std::vector<int>(t));
-                pd_ss.resize(threshold + 1, std::vector<long long>(np));
-                hs.resize(threshold + 1, std::vector<int>(np));
+                hs.resize(threshold + 1, std::vector<int>(t));
+                prod_hs.resize(threshold + 1, std::vector<int>(np));
             }
             if (!depth_callback_.isUndefined() && !depth_callback_.isNull())
                 depth_callback_(threshold);
             found_any_solution_ = false;
-            int next = idaDfs(ss, pd_ss, hs, 0, threshold, {});
+            int next = idaDfs(ss, hs, prod_hs, 0, threshold, {});
             if (found_any_solution_ && !first_solution_found) {
                 first_solution_found = true;
                 effective_max = std::min(threshold + slack, max_moves);
