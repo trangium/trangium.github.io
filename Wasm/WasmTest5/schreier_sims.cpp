@@ -1398,6 +1398,34 @@ class MultiTargetSolver {
     };
     std::vector<ProductDistanceTable> product_tables_;
 
+    struct IncompleteGroup {
+        enum GroupKind { GENERAL, ORIENTPERM };
+        GroupKind kind = GENERAL;
+        int max_depth = 0;
+
+        // GENERAL fields
+        std::vector<Perm> generators;
+        BSGS bsgs{0};
+        std::vector<std::vector<Hash128>> zobrist;  // [pos][val]
+
+        // ORIENTPERM fields
+        OrientPermSpec op_spec;
+        struct RawOPClass {
+            std::vector<int> sticker_bases; int m; int orientation_mod; std::string type_name;
+        };
+        std::vector<RawOPClass> raw_classes;
+        // [global_pos][class_id * max_orient_mod + reduced_orient] → random uint64_t
+        std::vector<std::vector<uint64_t>> zobrist_op;
+        int max_orient_mod = 0;
+        std::vector<std::vector<int>> piece_to_class;  // [type_idx][piece_within_type] → class idx
+        std::vector<std::vector<PiecePerm>> compact_moves;  // [mi][t], precomputed in buildTables
+
+        // Hashmap: state_hash → actual distance (0..max_depth). Missing means ≥ max_depth+1.
+        std::unordered_map<uint64_t, uint8_t> dist_map;
+        uint64_t identity_hash = 0;
+    };
+    std::vector<IncompleteGroup> incomplete_groups_;
+
     std::vector<Perm> solving_generators_;
     BSGS solving_bsgs_{0};
     std::vector<Perm> solving_moves_;
@@ -1416,20 +1444,58 @@ class MultiTargetSolver {
         { +1, -1,  0 },
     };
 
+    uint64_t hashPerm64(const Perm& perm, const IncompleteGroup& incg) const {
+        Perm c = incg.bsgs.canonicalize(perm);
+        uint64_t h = 0;
+        for (int i = 0; i < (int)base_.size(); ++i)
+            h ^= incg.zobrist[i][c[base_[i]]].first;
+        return h;
+    }
+
+    // Class-invariant Zobrist hash of a compact ORIENTPERM state.
+    // Hashes by (class_id, twist % orientation_mod) per position,
+    // so swapping pieces within the same class doesn't change the hash.
+    uint64_t hashCompact(const std::vector<PiecePerm>& cp, const IncompleteGroup& incg) const {
+        const auto& spec = incg.op_spec;
+        uint64_t h = 0;
+        int gpos = 0;
+        for (int t = 0; t < (int)spec.types.size(); t++) {
+            const auto& ty = spec.types[t];
+            for (int p = 0; p < ty.count; p++) {
+                int val     = cp[t][p];
+                int piece   = (val - ty.base) / ty.m;
+                int twist   = (val - ty.base) % ty.m;
+                int cls     = incg.piece_to_class[t][piece];
+                int reduced = twist % spec.classes[cls].orientation_mod;
+                h ^= incg.zobrist_op[gpos][cls * incg.max_orient_mod + reduced];
+                gpos++;
+            }
+        }
+        return h;
+    }
+
     // Returns the minimum f that exceeded threshold, or INT_MAX if no branch did.
     // ss[g][i]      = state index in group i at depth g
     // hs[g][i]      = h value for group i at depth g  (singleton heuristic)
     // prod_hs[g][p] = h value for product table p at depth g  (product heuristic)
+    // ihs[g][i]     = h value for incomplete group i at depth g  (direct lookup)
+    // cube_stack[g] = full cube perm at depth g (non-empty iff GENERAL incomplete groups exist)
+    // op_stacks     = per-ORIENTPERM-incomplete-group compact perm stacks (populated in Commit B)
     int idaDfs(std::vector<std::vector<int>>& ss,
                std::vector<std::vector<int>>& hs,
                std::vector<std::vector<int>>& prod_hs,
+               std::vector<std::vector<int>>& ihs,
+               std::vector<Perm>& cube_stack,
+               std::vector<std::vector<std::vector<PiecePerm>>>& op_stacks,
                int g, int threshold, MoveStreak tail) {
         const std::vector<int>& state     = ss[g];
         const std::vector<int>& h_vals    = hs[g];
         const std::vector<int>& ph_vals   = prod_hs[g];
+        const std::vector<int>& ih_vals   = ihs[g];
 
         int h = *std::max_element(h_vals.begin(), h_vals.end());
         for (int p = 0; p < (int)ph_vals.size(); p++) h = std::max(h, ph_vals[p]);
+        for (int i = 0; i < (int)ih_vals.size(); i++) h = std::max(h, ih_vals[i]);
 
         if (h == 0) {
             if (g == threshold) {
@@ -1448,6 +1514,7 @@ class MultiTargetSolver {
         const int nMoves = (int)solving_moves_.size();
         const int t      = (int)groups_.size();
         const int np     = (int)product_tables_.size();
+        const int ni     = (int)incomplete_groups_.size();
         int minExceeded = INT_MAX;
 
         for (int mi = 0; mi < nMoves; mi++) {
@@ -1469,9 +1536,32 @@ class MultiTargetSolver {
                 prod_hs[g+1][p] = ph_vals[p] + kMod3Diff[ph_vals[p] % 3][product_tables_[p].distance_table.get(new_pd)];
             }
 
+            // Incomplete groups: advance state and hash-lookup; zero iterations when ni==0.
+            if (!cube_stack.empty())
+                cube_stack[g+1] = compose(cube_stack[g], solving_moves_[mi]);
+            for (int i = 0; i < ni; i++) {
+                const auto& incg = incomplete_groups_[i];
+                uint64_t sh;
+                if (incg.kind == IncompleteGroup::GENERAL) {
+                    sh = hashPerm64(cube_stack[g+1], incg);
+                } else {
+                    const int nt = (int)incg.op_spec.types.size();
+                    auto& ncp = op_stacks[i][g+1];
+                    for (int tt = 0; tt < nt; tt++)
+                        ncp[tt] = compose_piece(op_stacks[i][g][tt], incg.compact_moves[mi][tt],
+                                                incg.op_spec.types[tt].base,
+                                                incg.op_spec.types[tt].m);
+                    sh = hashCompact(ncp, incg);
+                }
+                auto it = incg.dist_map.find(sh);
+                ihs[g+1][i] = (it != incg.dist_map.end())
+                              ? (int)it->second
+                              : incg.max_depth + 1;
+            }
+
             solution_.push_back(mi);
             MoveStreak new_tail{mi, mi == tail.mi ? tail.count + 1 : 1};
-            int result = idaDfs(ss, hs, prod_hs, g + 1, threshold, new_tail);
+            int result = idaDfs(ss, hs, prod_hs, ihs, cube_stack, op_stacks, g + 1, threshold, new_tail);
             solution_.pop_back();
             if (result < minExceeded) minExceeded = result;
         }
@@ -1604,6 +1694,7 @@ public:
         n_ = n;
         groups_.clear();
         product_tables_.clear();
+        incomplete_groups_.clear();
         solving_generators_.clear();
         solving_bsgs_ = BSGS(n);
         solving_moves_.clear();
@@ -1708,6 +1799,77 @@ public:
 
     void addProductTableComponent(int grp_idx) {
         product_tables_.back().component_ids.push_back(grp_idx);
+    }
+
+    // ── Incomplete groups ─────────────────────────────────────────────────────
+
+    void beginIncompleteGroup() {
+        incomplete_groups_.emplace_back();
+        incomplete_groups_.back().bsgs = BSGS(n_);
+    }
+
+    void addIncompleteGroupGenerator(const std::vector<int>& g) {
+        incomplete_groups_.back().generators.emplace_back(g.begin(), g.end());
+    }
+
+    void buildIncompleteGroup(int confidence, int max_depth) {
+        auto& incg = incomplete_groups_.back();
+        incg.bsgs = randomized_schreier_sims(n_, incg.generators, confidence);
+        incg.max_depth = max_depth;
+    }
+
+    void beginIncompleteOrientPermGroup() {
+        incomplete_groups_.emplace_back();
+        incomplete_groups_.back().kind = IncompleteGroup::ORIENTPERM;
+    }
+
+    void addIncompleteOrientPermClass(std::vector<int> sticker_bases, int m,
+                                      int orientation_mod, std::string type_name) {
+        incomplete_groups_.back().raw_classes.push_back(
+            {std::move(sticker_bases), m, orientation_mod, std::move(type_name)});
+    }
+
+    // Must be called after buildSolvingBSGS.
+    void buildIncompleteOrientPermGroup(int max_depth) {
+        auto& incg = incomplete_groups_.back();
+        incg.max_depth = max_depth;
+
+        struct TypeInfo { std::string type_name; int m, base, count; };
+        std::vector<TypeInfo> type_infos;
+        std::unordered_map<std::string, int> type_key_idx;
+        for (const auto& rc : incg.raw_classes) {
+            if (rc.sticker_bases.empty()) continue;
+            const std::string key = rc.type_name + "|" + std::to_string(rc.m);
+            if (!type_key_idx.count(key)) {
+                type_key_idx[key] = (int)type_infos.size();
+                type_infos.push_back({rc.type_name, rc.m, INT_MAX, 0});
+            }
+            TypeInfo& ti = type_infos[type_key_idx[key]];
+            for (int sb : rc.sticker_bases) { ti.base = std::min(ti.base, sb); ti.count++; }
+        }
+        std::sort(type_infos.begin(), type_infos.end(),
+                  [](const TypeInfo& a, const TypeInfo& b) { return a.base < b.base; });
+        type_key_idx.clear();
+        for (int t = 0; t < (int)type_infos.size(); t++)
+            type_key_idx[type_infos[t].type_name + "|" + std::to_string(type_infos[t].m)] = t;
+        std::vector<OrientPermSpec::PieceTypeMeta> types;
+        for (const auto& ti : type_infos)
+            types.push_back({ti.base, ti.m, ti.count, 0, 0LL});
+        std::vector<OrientPermSpec::Class> classes;
+        for (const auto& rc : incg.raw_classes) {
+            if (rc.sticker_bases.empty()) continue;
+            const std::string key = rc.type_name + "|" + std::to_string(rc.m);
+            int t = type_key_idx.at(key);
+            OrientPermSpec::Class cls;
+            cls.type_idx = t;
+            cls.orientation_mod = rc.orientation_mod;
+            for (int sb : rc.sticker_bases)
+                cls.pieces.push_back((sb - types[t].base) / rc.m);
+            std::sort(cls.pieces.begin(), cls.pieces.end());
+            classes.push_back(std::move(cls));
+        }
+        incg.raw_classes.clear();
+        incg.op_spec.build(classes, types, n_, solving_generators_);
     }
 
     // ── Solving moves ─────────────────────────────────────────────────────────
@@ -1896,6 +2058,91 @@ public:
         }
 
         buildProductDistanceTables();
+
+        // ── Build incomplete group hashmaps ───────────────────────────────────
+        int incg_idx = 0;
+        for (auto& incg : incomplete_groups_) {
+            incg.dist_map.clear();
+            if (incg.kind == IncompleteGroup::GENERAL) {
+                incg.zobrist = zobrist;
+                const Perm id = identity(n_);
+                incg.identity_hash = hashPerm64(id, incg);
+                incg.dist_map[incg.identity_hash] = 0;
+                std::queue<Perm> q;
+                q.push(id);
+                while (!q.empty()) {
+                    Perm cur = std::move(q.front()); q.pop();
+                    uint8_t d = incg.dist_map.at(hashPerm64(cur, incg));
+                    if (d >= (uint8_t)incg.max_depth) continue;
+                    for (const Perm& mv : solving_moves_) {
+                        Perm next = compose(cur, mv);
+                        uint64_t h = hashPerm64(next, incg);
+                        if (!incg.dist_map.count(h)) {
+                            incg.dist_map[h] = d + 1;
+                            q.push(std::move(next));
+                        }
+                    }
+                }
+            } else {
+                const auto& spec = incg.op_spec;
+                const int nt = (int)spec.types.size();
+
+                // Precompute compact_moves[mi][t]
+                incg.compact_moves.assign(nMoves, std::vector<PiecePerm>(nt));
+                for (int mi = 0; mi < nMoves; mi++)
+                    for (int t = 0; t < nt; t++)
+                        incg.compact_moves[mi][t] = extract_piece(
+                            solving_moves_[mi], spec.types[t].base,
+                            spec.types[t].m, spec.types[t].count);
+
+                // Build id_compact
+                std::vector<PiecePerm> id_compact(nt);
+                for (int t = 0; t < nt; t++) {
+                    int n_t = spec.types[t].count, b = spec.types[t].base, m = spec.types[t].m;
+                    id_compact[t].resize(n_t);
+                    for (int pp = 0; pp < n_t; pp++) id_compact[t][pp] = b + m * pp;
+                }
+
+                // Copy piece_to_class and compute max_orient_mod
+                incg.piece_to_class = spec.piece_class;
+                incg.max_orient_mod = 0;
+                for (const auto& cls : spec.classes)
+                    incg.max_orient_mod = std::max(incg.max_orient_mod, cls.orientation_mod);
+
+                // Build zobrist_op: each position gets a random vector indexed by class/orientation
+                int total_pos = 0;
+                for (const auto& ty : spec.types) total_pos += ty.count;
+                std::mt19937_64 rng_op(0xcafe1234deadbeefULL + (uint64_t)incg_idx);
+                const int n_classes = (int)spec.classes.size();
+                incg.zobrist_op.assign(total_pos,
+                    std::vector<uint64_t>((size_t)n_classes * incg.max_orient_mod));
+                for (auto& row : incg.zobrist_op)
+                    for (auto& v : row) v = rng_op();
+
+                // BFS up to max_depth
+                incg.identity_hash = hashCompact(id_compact, incg);
+                incg.dist_map[incg.identity_hash] = 0;
+                std::queue<std::vector<PiecePerm>> q;
+                q.push(id_compact);
+                while (!q.empty()) {
+                    auto cur = std::move(q.front()); q.pop();
+                    uint8_t d = incg.dist_map.at(hashCompact(cur, incg));
+                    if (d >= (uint8_t)incg.max_depth) continue;
+                    for (int mi = 0; mi < nMoves; mi++) {
+                        std::vector<PiecePerm> next(nt);
+                        for (int t = 0; t < nt; t++)
+                            next[t] = compose_piece(cur[t], incg.compact_moves[mi][t],
+                                                    spec.types[t].base, spec.types[t].m);
+                        uint64_t h = hashCompact(next, incg);
+                        if (!incg.dist_map.count(h)) {
+                            incg.dist_map[h] = d + 1;
+                            q.push(std::move(next));
+                        }
+                    }
+                }
+            }
+            incg_idx++;
+        }
     }
 
     // ── Query ─────────────────────────────────────────────────────────────────
@@ -1915,6 +2162,13 @@ public:
         return grp.kind == TargetGroup::ORIENTPERM
             ? (int)grp.op_spec.total_states
             : (int)grp.canon_id_table.size();
+    }
+
+    int getNumIncompleteGroups() const { return (int)incomplete_groups_.size(); }
+
+    int getIncompleteGroupTableSize(int i) const {
+        if (i < 0 || i >= (int)incomplete_groups_.size()) return 0;
+        return (int)incomplete_groups_[i].dist_map.size();
     }
 
     std::vector<int> getSolvingOrbitSizes() const {
@@ -1947,6 +2201,7 @@ public:
         const std::vector<int>& base = base_;
         const int t  = (int)groups_.size();
         const int np = (int)product_tables_.size();
+        const int ni = (int)incomplete_groups_.size();
 
         // Compute initial per-group state indices
         std::vector<int> state(t);
@@ -1980,8 +2235,34 @@ public:
             prod_h_vals[pi] = computeExactH_product(pi, idx);
         }
 
+        // Extract initial compact perms for ORIENTPERM incomplete groups
+        std::vector<std::vector<PiecePerm>> inc_op_cp0(ni);
+        for (int i = 0; i < ni; i++) {
+            if (incomplete_groups_[i].kind != IncompleteGroup::ORIENTPERM) continue;
+            const auto& incg = incomplete_groups_[i];
+            const int nt = (int)incg.op_spec.types.size();
+            inc_op_cp0[i].resize(nt);
+            for (int tt = 0; tt < nt; tt++)
+                inc_op_cp0[i][tt] = extract_piece(p, incg.op_spec.types[tt].base,
+                                                  incg.op_spec.types[tt].m,
+                                                  incg.op_spec.types[tt].count);
+        }
+
+        // Compute initial incomplete group h values
+        std::vector<int> inc_h_vals(ni);
+        for (int i = 0; i < ni; i++) {
+            uint64_t sh = (incomplete_groups_[i].kind == IncompleteGroup::GENERAL)
+                          ? hashPerm64(p, incomplete_groups_[i])
+                          : hashCompact(inc_op_cp0[i], incomplete_groups_[i]);
+            auto it = incomplete_groups_[i].dist_map.find(sh);
+            inc_h_vals[i] = (it != incomplete_groups_[i].dist_map.end())
+                           ? (int)it->second
+                           : incomplete_groups_[i].max_depth + 1;
+        }
+
         int h = *std::max_element(h_vals.begin(), h_vals.end());
         for (int pi = 0; pi < np; pi++) h = std::max(h, prod_h_vals[pi]);
+        for (int i  = 0; i  < ni; i++)  h = std::max(h, inc_h_vals[i]);
 
         if (h == 0) {
             if (min_moves == 0 && !js_callback_.isUndefined() && !js_callback_.isNull())
@@ -1998,17 +2279,36 @@ public:
         std::vector<std::vector<int>> ss(1, state);
         std::vector<std::vector<int>> hs(1, h_vals);
         std::vector<std::vector<int>> prod_hs(1, prod_h_vals);
+        std::vector<std::vector<int>> ihs(1, inc_h_vals);
+        // cube_stack: only when GENERAL incomplete groups exist
+        std::vector<Perm> cube_stack;
+        for (int i = 0; i < ni; i++)
+            if (incomplete_groups_[i].kind == IncompleteGroup::GENERAL) { cube_stack.assign(1, p); break; }
+        // op_stacks[i]: parallel to incomplete_groups_; non-empty only for ORIENTPERM groups
+        std::vector<std::vector<std::vector<PiecePerm>>> op_stacks(ni);
+        for (int i = 0; i < ni; i++)
+            if (incomplete_groups_[i].kind == IncompleteGroup::ORIENTPERM)
+                op_stacks[i].assign(1, inc_op_cp0[i]);
 
         while (threshold <= effective_max) {
             if ((int)ss.size() <= threshold) {
                 ss.resize(threshold + 1, std::vector<int>(t));
                 hs.resize(threshold + 1, std::vector<int>(t));
                 prod_hs.resize(threshold + 1, std::vector<int>(np));
+                ihs.resize(threshold + 1, std::vector<int>(ni));
+                if (!cube_stack.empty())
+                    cube_stack.resize(threshold + 1, Perm(n_));
+                for (int i = 0; i < ni; i++) {
+                    if (incomplete_groups_[i].kind != IncompleteGroup::ORIENTPERM) continue;
+                    const int nt = (int)incomplete_groups_[i].op_spec.types.size();
+                    if ((int)op_stacks[i].size() <= threshold)
+                        op_stacks[i].resize(threshold + 1, std::vector<PiecePerm>(nt));
+                }
             }
             if (!depth_callback_.isUndefined() && !depth_callback_.isNull())
                 depth_callback_(threshold);
             found_any_solution_ = false;
-            int next = idaDfs(ss, hs, prod_hs, 0, threshold, {});
+            int next = idaDfs(ss, hs, prod_hs, ihs, cube_stack, op_stacks, 0, threshold, {});
             if (found_any_solution_ && !first_solution_found) {
                 first_solution_found = true;
                 effective_max = std::min(threshold + slack, max_moves);
@@ -2057,10 +2357,18 @@ EMSCRIPTEN_BINDINGS(module) {
         .function("buildTables",               &MultiTargetSolver::buildTables)
         .function("beginProductDistanceTable", &MultiTargetSolver::beginProductDistanceTable)
         .function("addProductTableComponent",  &MultiTargetSolver::addProductTableComponent)
+        .function("beginIncompleteGroup",             &MultiTargetSolver::beginIncompleteGroup)
+        .function("addIncompleteGroupGenerator",      &MultiTargetSolver::addIncompleteGroupGenerator)
+        .function("buildIncompleteGroup",             &MultiTargetSolver::buildIncompleteGroup)
+        .function("beginIncompleteOrientPermGroup",   &MultiTargetSolver::beginIncompleteOrientPermGroup)
+        .function("addIncompleteOrientPermClass",     &MultiTargetSolver::addIncompleteOrientPermClass)
+        .function("buildIncompleteOrientPermGroup",   &MultiTargetSolver::buildIncompleteOrientPermGroup)
         .function("getNumGroups",              &MultiTargetSolver::getNumGroups)
         .function("getNumProductTables",       &MultiTargetSolver::getNumProductTables)
         .function("getProductTableSize",       &MultiTargetSolver::getProductTableSize)
         .function("getGroupTableSize",         &MultiTargetSolver::getGroupTableSize)
+        .function("getNumIncompleteGroups",      &MultiTargetSolver::getNumIncompleteGroups)
+        .function("getIncompleteGroupTableSize", &MultiTargetSolver::getIncompleteGroupTableSize)
         .function("getSolvingOrbitSizes",      &MultiTargetSolver::getSolvingOrbitSizes)
         .function("getTargetGroupOrbitSizes",  &MultiTargetSolver::getTargetGroupOrbitSizes)
         .function("setCallback",               &MultiTargetSolver::setCallback)
