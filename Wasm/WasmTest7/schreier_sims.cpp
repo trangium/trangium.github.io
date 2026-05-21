@@ -144,9 +144,9 @@ static PiecePerm extract_piece(const Perm& full, int base, int m, int n_t) {
 
 struct Mod3Table {
     std::vector<uint8_t> data;
-    long long sz = 0;
+    int sz = 0;
 
-    void assign(long long n, int fill_val) {
+    void assign(int n, int fill_val) {
         sz = n;
         uint8_t byte = 0;
         int v = fill_val & 3;
@@ -154,12 +154,12 @@ struct Mod3Table {
         data.assign((n + 3) / 4, byte);
     }
 
-    int get(long long i) const {
+    int get(int i) const {
         return (data[i >> 2] >> ((i & 3) << 1)) & 3;
     }
 
-    void set(long long i, int val) {
-        int sh = (int)((i & 3) << 1);
+    void set(int i, int val) {
+        int sh = (i & 3) << 1;
         uint8_t& b = data[i >> 2];
         b = (b & ~(3 << sh)) | ((val & 3) << sh);
     }
@@ -1389,15 +1389,6 @@ class MultiTargetSolver {
 
     std::vector<TargetGroup> groups_;
 
-    struct ProductDistanceTable {
-        std::vector<int>       component_ids;  // indices into groups_
-        std::vector<long long> strides;        // stride[j] = ∏ sizes[j+1..]
-        long long              total_states = 0;
-        Mod3Table              distance_table;
-        long long              identity_id = -1;
-    };
-    std::vector<ProductDistanceTable> product_tables_;
-
     struct IncompleteGroup {
         enum GroupKind { GENERAL, ORIENTPERM };
         GroupKind kind = GENERAL;
@@ -1452,9 +1443,6 @@ class MultiTargetSolver {
         return h;
     }
 
-    // Class-invariant Zobrist hash of a compact ORIENTPERM state.
-    // Hashes by (class_id, twist % orientation_mod) per current position,
-    // so swapping pieces within the same class doesn't change the hash.
     uint64_t hashCompact(const std::vector<PiecePerm>& cp, const IncompleteGroup& incg) const {
         const auto& spec = incg.op_spec;
         uint64_t h = 0;
@@ -1477,28 +1465,21 @@ class MultiTargetSolver {
     }
 
     // Returns the minimum f that exceeded threshold, or INT_MAX if no branch did.
-    // ss[g][i]      = state index in group i at depth g
-    // hs[g][i]      = h value for group i at depth g  (singleton heuristic)
-    // prod_hs[g][p] = h value for product table p at depth g  (product heuristic)
-    // ihs[g][i]     = h value for incomplete group i at depth g  (direct lookup)
+    // ss[g]/hs[g] hold state/h_vals at depth g; child is written to ss[g+1]/hs[g+1].
+    // ihs[g][i]     = h value for incomplete group i at depth g
     // cube_stack[g] = full cube perm at depth g (non-empty iff GENERAL incomplete groups exist)
-    // op_stacks     = per-ORIENTPERM-incomplete-group compact perm stacks (populated in Commit B)
-    int idaDfs(std::vector<std::vector<int>>& ss,
-               std::vector<std::vector<int>>& hs,
-               std::vector<std::vector<int>>& prod_hs,
+    // op_stacks     = per-ORIENTPERM-incomplete-group compact perm stacks
+    int idaDfs(std::vector<std::vector<int>>& ss, std::vector<std::vector<int>>& hs,
                std::vector<std::vector<int>>& ihs,
                std::vector<Perm>& cube_stack,
                std::vector<std::vector<std::vector<PiecePerm>>>& op_stacks,
                int g, int threshold, MoveStreak tail) {
-        const std::vector<int>& state     = ss[g];
-        const std::vector<int>& h_vals    = hs[g];
-        const std::vector<int>& ph_vals   = prod_hs[g];
-        const std::vector<int>& ih_vals   = ihs[g];
+        const std::vector<int>& state  = ss[g];
+        const std::vector<int>& h_vals = hs[g];
+        const std::vector<int>& ih_vals = ihs[g];
 
         int h = h_vals.empty() ? 0 : *std::max_element(h_vals.begin(), h_vals.end());
-        for (int p = 0; p < (int)ph_vals.size(); p++) h = std::max(h, ph_vals[p]);
         for (int i = 0; i < (int)ih_vals.size(); i++) h = std::max(h, ih_vals[i]);
-
         if (h == 0) {
             if (g == threshold) {
                 found_any_solution_ = true;
@@ -1514,31 +1495,18 @@ class MultiTargetSolver {
         if (f > threshold) return f;
 
         const int nMoves = (int)solving_moves_.size();
-        const int t      = (int)groups_.size();
-        const int np     = (int)product_tables_.size();
-        const int ni     = (int)incomplete_groups_.size();
+        const int t = (int)groups_.size();
+        const int ni = (int)incomplete_groups_.size();
         int minExceeded = INT_MAX;
 
         for (int mi = 0; mi < nMoves; mi++) {
             if (pruner_.prune(tail.mi, tail.count, mi)) continue;
-
-            // Singleton groups: tight loop, same as original pre-product code.
             for (int i = 0; i < t; i++) {
                 ss[g+1][i] = groups_[i].transition_table[state[i] * nMoves + mi];
                 hs[g+1][i] = h_vals[i] + kMod3Diff[h_vals[i] % 3][groups_[i].distance_table.get(ss[g+1][i])];
             }
 
-            // Product groups: separate loop, zero iterations when np==0.
-            for (int p = 0; p < np; p++) {
-                long long new_pd = 0;
-                for (int j = 0; j < (int)product_tables_[p].component_ids.size(); j++) {
-                    int ci = product_tables_[p].component_ids[j];
-                    new_pd += (long long)ss[g+1][ci] * product_tables_[p].strides[j];
-                }
-                prod_hs[g+1][p] = ph_vals[p] + kMod3Diff[ph_vals[p] % 3][product_tables_[p].distance_table.get(new_pd)];
-            }
-
-            // Incomplete groups: advance state and hash-lookup; zero iterations when ni==0.
+            // Incomplete groups: advance state and hash-lookup.
             if (!cube_stack.empty())
                 cube_stack[g+1] = compose(cube_stack[g], solving_moves_[mi]);
             for (int i = 0; i < ni; i++) {
@@ -1563,139 +1531,38 @@ class MultiTargetSolver {
 
             solution_.push_back(mi);
             MoveStreak new_tail{mi, mi == tail.mi ? tail.count + 1 : 1};
-            int result = idaDfs(ss, hs, prod_hs, ihs, cube_stack, op_stacks, g + 1, threshold, new_tail);
+            int result = idaDfs(ss, hs, ihs, cube_stack, op_stacks, g + 1, threshold, new_tail);
             solution_.pop_back();
             if (result < minExceeded) minExceeded = result;
         }
         return minExceeded;
     }
 
-    // Greedy walk: follows the singleton group's distance table toward identity.
-    int computeExactH(int grp_idx, int s) const {
+    // Greedy walk: follows transitions decreasing dist mod 3 until distance == 0.
+    // Returns the exact distance for group grp_idx at state cur_state.
+    int computeExactH(int grp_idx, int cur_state) const {
         const auto& grp = groups_[grp_idx];
         const int nMoves = (int)solving_moves_.size();
+        int s = cur_state;
         int distance = 0;
         while (s != grp.identity_id) {
             int d1m3 = grp.distance_table.get(s);
             for (int mi = 0; mi < nMoves; mi++) {
                 int ns = grp.transition_table[s * nMoves + mi];
                 if (kMod3Diff[d1m3][grp.distance_table.get(ns)] == -1) {
-                    s = ns; distance++; break;
+                    s = ns;
+                    distance++;
+                    break;
                 }
             }
         }
         return distance;
-    }
-
-    // Greedy walk on a product distance table, decoding component states via strides.
-    int computeExactH_product(int pd_idx, long long s) const {
-        const auto& pdt = product_tables_[pd_idx];
-        const int nMoves = (int)solving_moves_.size();
-        const int nc = (int)pdt.component_ids.size();
-        int distance = 0;
-        while (s != pdt.identity_id) {
-            int d1m3 = pdt.distance_table.get(s);
-            long long rem = s;
-            std::vector<int> comp(nc);
-            for (int j = 0; j < nc; j++) {
-                comp[j] = (int)(rem / pdt.strides[j]);
-                rem    %= pdt.strides[j];
-            }
-            for (int mi = 0; mi < nMoves; mi++) {
-                long long ns = 0;
-                for (int j = 0; j < nc; j++) {
-                    int new_c = groups_[pdt.component_ids[j]].transition_table[comp[j] * nMoves + mi];
-                    ns += (long long)new_c * pdt.strides[j];
-                }
-                if (kMod3Diff[d1m3][pdt.distance_table.get(ns)] == -1) {
-                    s = ns; distance++; break;
-                }
-            }
-        }
-        return distance;
-    }
-
-    // Sweep: fill a single-group distance table from its own transition table.
-    // Same O(max_depth * N) sweep as product tables; no queue overhead.
-    static void buildSingleGroupDistTable(Mod3Table& dtable,
-                                          const std::vector<int>& ttable,
-                                          int n_states, int nMoves, int identity_id) {
-        dtable.assign(n_states, 3);
-        dtable.set(identity_id, 0);
-        int depth_mod3 = 0;
-        bool any_new = true;
-        while (any_new) {
-            any_new = false;
-            for (int s = 0; s < n_states; s++) {
-                if (dtable.get(s) != depth_mod3) continue;
-                for (int mi = 0; mi < nMoves; mi++) {
-                    int ns = ttable[s * nMoves + mi];
-                    if (dtable.get(ns) == 3) {
-                        dtable.set(ns, (depth_mod3 + 1) % 3);
-                        any_new = true;
-                    }
-                }
-            }
-            depth_mod3 = (depth_mod3 + 1) % 3;
-        }
-    }
-
-    // Sweep algorithm: fills product distance tables using O(max_depth * N) passes,
-    // zero extra memory beyond the distance table itself.
-    void buildProductDistanceTables() {
-        const int nMoves = (int)solving_moves_.size();
-        for (auto& pdt : product_tables_) {
-            const long long N = pdt.total_states;
-            if (N <= 0) continue;
-            const int nc = (int)pdt.component_ids.size();
-
-            // Component sizes: sizes[0] = N / strides[0], sizes[j] = strides[j-1] / strides[j]
-            std::vector<int> comp_sizes(nc);
-            comp_sizes[0] = (int)(N / pdt.strides[0]);
-            for (int j = 1; j < nc; j++)
-                comp_sizes[j] = (int)(pdt.strides[j-1] / pdt.strides[j]);
-
-            pdt.distance_table.assign(N, 3);
-            pdt.distance_table.set(pdt.identity_id, 0);
-
-            int depth_mod3 = 0;
-            std::vector<int> comp(nc, 0);  // odometer: comp[j] = current state of component j
-
-            bool any_new = true;
-            while (any_new) {
-                any_new = false;
-                std::fill(comp.begin(), comp.end(), 0);
-                for (long long s = 0; s < N; s++) {
-                    if (pdt.distance_table.get(s) == depth_mod3) {
-                        for (int mi = 0; mi < nMoves; mi++) {
-                            long long ns = 0;
-                            for (int j = 0; j < nc; j++) {
-                                int gid = pdt.component_ids[j];
-                                int new_c = groups_[gid].transition_table[comp[j] * nMoves + mi];
-                                ns += (long long)new_c * pdt.strides[j];
-                            }
-                            if (pdt.distance_table.get(ns) == 3) {
-                                pdt.distance_table.set(ns, (depth_mod3 + 1) % 3);
-                                any_new = true;
-                            }
-                        }
-                    }
-                    // Increment odometer (amortized O(1))
-                    for (int j = nc - 1; j >= 0; j--) {
-                        if (++comp[j] < comp_sizes[j]) break;
-                        comp[j] = 0;
-                    }
-                }
-                depth_mod3 = (depth_mod3 + 1) % 3;
-            }
-        }
     }
 
 public:
     void reset(int n) {
         n_ = n;
         groups_.clear();
-        product_tables_.clear();
         incomplete_groups_.clear();
         solving_generators_.clear();
         solving_bsgs_ = BSGS(n);
@@ -1788,19 +1655,6 @@ public:
 
         grp.raw_classes.clear();
         grp.op_spec.build(classes, types, n_, solving_generators_);
-    }
-
-    // ── Product distance table specification ──────────────────────────────────
-    // Call beginProductDistanceTable() + addProductTableComponent() for each
-    // desired product table BEFORE buildTables().  If none are added, buildTables()
-    // defaults to one singleton product per group (backward-compatible).
-
-    void beginProductDistanceTable() {
-        product_tables_.emplace_back();
-    }
-
-    void addProductTableComponent(int grp_idx) {
-        product_tables_.back().component_ids.push_back(grp_idx);
     }
 
     // ── Incomplete groups ─────────────────────────────────────────────────────
@@ -1941,6 +1795,7 @@ public:
                 long long id0 = spec.state_to_index_compact(id_compact);
                 grp.identity_id = (int)id0;
                 grp.transition_table.assign((int)total * nMoves, -1);
+                grp.distance_table.assign((int)total, 3);  // 3 = unvisited sentinel
 
                 // DFS: enumerate reachable states and fill transition_table
                 std::vector<bool> visited((int)total, false);
@@ -1968,8 +1823,20 @@ public:
                     }
                 }
 
-                buildSingleGroupDistTable(grp.distance_table, grp.transition_table,
-                                          (int)total, nMoves, (int)id0);
+                // BFS for distances (mod 3)
+                grp.distance_table.set((int)id0, 0);
+                std::queue<std::pair<int,int>> bq;  // (id, exact_distance)
+                bq.push({(int)id0, 0});
+                while (!bq.empty()) {
+                    auto [id, d] = bq.front(); bq.pop();
+                    for (int mi = 0; mi < nMoves; mi++) {
+                        int nid = grp.transition_table[id * nMoves + mi];
+                        if (grp.distance_table.get(nid) == 3) {
+                            grp.distance_table.set(nid, (d + 1) % 3);
+                            bq.push({nid, d + 1});
+                        }
+                    }
+                }
                 continue;
             }
             grp.canon_id_table.clear();
@@ -2033,33 +1900,22 @@ public:
                 }
             }
 
-            // Phase 3: distance table (mod 3)
-            buildSingleGroupDistTable(grp.distance_table, grp.transition_table,
-                                      tableSize, nMoves, grp.identity_id);
-        }
-
-        // ── Build product distance tables ─────────────────────────────────────
-
-        for (auto& pdt : product_tables_) {
-            const int nc = (int)pdt.component_ids.size();
-            std::vector<long long> sizes(nc);
-            for (int j = 0; j < nc; j++) {
-                int gid = pdt.component_ids[j];
-                sizes[j] = (groups_[gid].kind == TargetGroup::ORIENTPERM)
-                         ? groups_[gid].op_spec.total_states
-                         : (long long)groups_[gid].canon_id_table.size();
+            // Phase 3: BFS for distance_table (mod 3)
+            grp.distance_table.assign(tableSize, 3);  // 3 = unvisited sentinel
+            grp.distance_table.set(grp.identity_id, 0);
+            std::queue<std::pair<int,int>> q;  // (id, exact_distance)
+            q.push({grp.identity_id, 0});
+            while (!q.empty()) {
+                auto [id, d] = q.front(); q.pop();
+                for (int mi = 0; mi < nMoves; mi++) {
+                    int nid = grp.transition_table[id * nMoves + mi];
+                    if (grp.distance_table.get(nid) == 3) {
+                        grp.distance_table.set(nid, (d + 1) % 3);
+                        q.push({nid, d + 1});
+                    }
+                }
             }
-            pdt.strides.resize(nc);
-            pdt.strides[nc - 1] = 1LL;
-            for (int j = nc - 2; j >= 0; j--)
-                pdt.strides[j] = pdt.strides[j + 1] * sizes[j + 1];
-            pdt.total_states = pdt.strides[0] * sizes[0];
-            pdt.identity_id  = 0;
-            for (int j = 0; j < nc; j++)
-                pdt.identity_id += (long long)groups_[pdt.component_ids[j]].identity_id * pdt.strides[j];
         }
-
-        buildProductDistanceTables();
 
         // ── Build incomplete group hashmaps ───────────────────────────────────
         int incg_idx = 0;
@@ -2111,7 +1967,7 @@ public:
                 for (const auto& cls : spec.classes)
                     incg.max_orient_mod = std::max(incg.max_orient_mod, cls.orientation_mod);
 
-                // Build zobrist_op: each position gets a random vector indexed by class/orientation
+                // Build zobrist_op
                 int total_pos = 0;
                 for (const auto& ty : spec.types) total_pos += ty.count;
                 std::mt19937_64 rng_op(0xcafe1234deadbeefULL + (uint64_t)incg_idx);
@@ -2150,13 +2006,6 @@ public:
     // ── Query ─────────────────────────────────────────────────────────────────
 
     int getNumGroups() const { return (int)groups_.size(); }
-
-    int getNumProductTables() const { return (int)product_tables_.size(); }
-
-    long long getProductTableSize(int p) const {
-        if (p < 0 || p >= (int)product_tables_.size()) return 0;
-        return product_tables_[p].total_states;
-    }
 
     int getGroupTableSize(int g) const {
         if (g < 0 || g >= (int)groups_.size()) return 0;
@@ -2202,14 +2051,14 @@ public:
         const Perm p(startPerm.begin(), startPerm.end());
         const std::vector<int>& base = base_;
         const int t  = (int)groups_.size();
-        const int np = (int)product_tables_.size();
         const int ni = (int)incomplete_groups_.size();
 
-        // Compute initial per-group state indices
         std::vector<int> state(t);
         for (int i = 0; i < t; i++) {
             if (groups_[i].kind == TargetGroup::ORIENTPERM) {
-                state[i] = (int)groups_[i].op_spec.state_to_index(p);
+                long long idx = groups_[i].op_spec.state_to_index(p);
+                if (groups_[i].distance_table.get((int)idx) == 3) return {-1};
+                state[i] = (int)idx;
             } else {
                 auto it = groups_[i].canon_id_table.find(groups_[i].hashPerm(p, base));
                 if (it == groups_[i].canon_id_table.end()) return {-1};
@@ -2217,25 +2066,9 @@ public:
             }
         }
 
-        // Check singleton reachability and compute initial h values
-        for (int i = 0; i < t; i++)
-            if (groups_[i].distance_table.get(state[i]) == 3) return {-1};
-
         std::vector<int> h_vals(t);
         for (int i = 0; i < t; i++)
             h_vals[i] = computeExactH(i, state[i]);
-
-        // Compute initial product state indices, check reachability, compute h values
-        std::vector<int> prod_h_vals(np);
-        for (int pi = 0; pi < np; pi++) {
-            long long idx = 0;
-            for (int j = 0; j < (int)product_tables_[pi].component_ids.size(); j++) {
-                int ci = product_tables_[pi].component_ids[j];
-                idx += (long long)state[ci] * product_tables_[pi].strides[j];
-            }
-            if (product_tables_[pi].distance_table.get(idx) == 3) return {-1};
-            prod_h_vals[pi] = computeExactH_product(pi, idx);
-        }
 
         // Extract initial compact perms for ORIENTPERM incomplete groups
         std::vector<std::vector<PiecePerm>> inc_op_cp0(ni);
@@ -2263,9 +2096,7 @@ public:
         }
 
         int h = h_vals.empty() ? 0 : *std::max_element(h_vals.begin(), h_vals.end());
-        for (int pi = 0; pi < np; pi++) h = std::max(h, prod_h_vals[pi]);
-        for (int i  = 0; i  < ni; i++)  h = std::max(h, inc_h_vals[i]);
-
+        for (int i = 0; i < ni; i++) h = std::max(h, inc_h_vals[i]);
         if (h == 0) {
             if (min_moves == 0 && !js_callback_.isUndefined() && !js_callback_.isNull())
                 js_callback_(emscripten::val::array());
@@ -2277,16 +2108,14 @@ public:
         int effective_max = max_moves;
         bool first_solution_found = false;
 
-        // Stacks: one slot per depth level, grown as needed.
         std::vector<std::vector<int>> ss(1, state);
         std::vector<std::vector<int>> hs(1, h_vals);
-        std::vector<std::vector<int>> prod_hs(1, prod_h_vals);
         std::vector<std::vector<int>> ihs(1, inc_h_vals);
         // cube_stack: only when GENERAL incomplete groups exist
         std::vector<Perm> cube_stack;
         for (int i = 0; i < ni; i++)
             if (incomplete_groups_[i].kind == IncompleteGroup::GENERAL) { cube_stack.assign(1, p); break; }
-        // op_stacks[i]: parallel to incomplete_groups_; non-empty only for ORIENTPERM groups
+        // op_stacks[i]: non-empty only for ORIENTPERM incomplete groups
         std::vector<std::vector<std::vector<PiecePerm>>> op_stacks(ni);
         for (int i = 0; i < ni; i++)
             if (incomplete_groups_[i].kind == IncompleteGroup::ORIENTPERM)
@@ -2296,7 +2125,6 @@ public:
             if ((int)ss.size() <= threshold) {
                 ss.resize(threshold + 1, std::vector<int>(t));
                 hs.resize(threshold + 1, std::vector<int>(t));
-                prod_hs.resize(threshold + 1, std::vector<int>(np));
                 ihs.resize(threshold + 1, std::vector<int>(ni));
                 if (!cube_stack.empty())
                     cube_stack.resize(threshold + 1, Perm(n_));
@@ -2310,7 +2138,7 @@ public:
             if (!depth_callback_.isUndefined() && !depth_callback_.isNull())
                 depth_callback_(threshold);
             found_any_solution_ = false;
-            int next = idaDfs(ss, hs, prod_hs, ihs, cube_stack, op_stacks, 0, threshold, {});
+            int next = idaDfs(ss, hs, ihs, cube_stack, op_stacks, 0, threshold, {});
             if (found_any_solution_ && !first_solution_found) {
                 first_solution_found = true;
                 effective_max = std::min(threshold + slack, max_moves);
@@ -2352,30 +2180,26 @@ EMSCRIPTEN_BINDINGS(module) {
         .function("beginOrientPermGroup",  &MultiTargetSolver::beginOrientPermGroup)
         .function("addOrientPermClass",    &MultiTargetSolver::addOrientPermClass)
         .function("buildOrientPermGroup",  &MultiTargetSolver::buildOrientPermGroup)
-        .function("addSolvingGenerator", &MultiTargetSolver::addSolvingGenerator)
-        .function("buildSolvingBSGS",    &MultiTargetSolver::buildSolvingBSGS)
-        .function("clearSolvingMoves",   &MultiTargetSolver::clearSolvingMoves)
-        .function("addSolvingMove",      &MultiTargetSolver::addSolvingMove)
-        .function("buildTables",               &MultiTargetSolver::buildTables)
-        .function("beginProductDistanceTable", &MultiTargetSolver::beginProductDistanceTable)
-        .function("addProductTableComponent",  &MultiTargetSolver::addProductTableComponent)
         .function("beginIncompleteGroup",             &MultiTargetSolver::beginIncompleteGroup)
         .function("addIncompleteGroupGenerator",      &MultiTargetSolver::addIncompleteGroupGenerator)
         .function("buildIncompleteGroup",             &MultiTargetSolver::buildIncompleteGroup)
         .function("beginIncompleteOrientPermGroup",   &MultiTargetSolver::beginIncompleteOrientPermGroup)
         .function("addIncompleteOrientPermClass",     &MultiTargetSolver::addIncompleteOrientPermClass)
         .function("buildIncompleteOrientPermGroup",   &MultiTargetSolver::buildIncompleteOrientPermGroup)
-        .function("getNumGroups",              &MultiTargetSolver::getNumGroups)
-        .function("getNumProductTables",       &MultiTargetSolver::getNumProductTables)
-        .function("getProductTableSize",       &MultiTargetSolver::getProductTableSize)
-        .function("getGroupTableSize",         &MultiTargetSolver::getGroupTableSize)
+        .function("addSolvingGenerator", &MultiTargetSolver::addSolvingGenerator)
+        .function("buildSolvingBSGS",    &MultiTargetSolver::buildSolvingBSGS)
+        .function("clearSolvingMoves",   &MultiTargetSolver::clearSolvingMoves)
+        .function("addSolvingMove",      &MultiTargetSolver::addSolvingMove)
+        .function("buildTables",         &MultiTargetSolver::buildTables)
+        .function("getNumGroups",           &MultiTargetSolver::getNumGroups)
+        .function("getGroupTableSize",      &MultiTargetSolver::getGroupTableSize)
         .function("getNumIncompleteGroups",      &MultiTargetSolver::getNumIncompleteGroups)
         .function("getIncompleteGroupTableSize", &MultiTargetSolver::getIncompleteGroupTableSize)
-        .function("getSolvingOrbitSizes",      &MultiTargetSolver::getSolvingOrbitSizes)
-        .function("getTargetGroupOrbitSizes",  &MultiTargetSolver::getTargetGroupOrbitSizes)
-        .function("setCallback",               &MultiTargetSolver::setCallback)
-        .function("setDepthCallback",          &MultiTargetSolver::setDepthCallback)
-        .function("solve",                     &MultiTargetSolver::solve);
+        .function("getSolvingOrbitSizes",     &MultiTargetSolver::getSolvingOrbitSizes)
+        .function("getTargetGroupOrbitSizes", &MultiTargetSolver::getTargetGroupOrbitSizes)
+        .function("setCallback",            &MultiTargetSolver::setCallback)
+        .function("setDepthCallback",       &MultiTargetSolver::setDepthCallback)
+        .function("solve",                  &MultiTargetSolver::solve);
 }
 
 #else
