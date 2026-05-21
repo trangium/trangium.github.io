@@ -1,0 +1,14 @@
+initialize mod-3 distance table to all 3s
+initialize running state to identity
+
+void ida_star(state, curr_depth, total_depth, moveStreak) {
+    if (curr_depth == total_depth && distance_table[state] == 3) {
+        distance_table[state.id] = (total_depth) % 3
+        return
+    }
+    if (distance_table[state.id] != curr_depth % 3) return
+    for (neighbor_state, move in state.neighbors()) {
+        if pruner.prune(moveStreak, move) continue // avoid searching stuff like U U'
+        ida_star(neighbor_state, curr_depth+1, total_depth, moveStreak)
+    }
+}
