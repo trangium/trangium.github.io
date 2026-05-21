@@ -1493,7 +1493,7 @@ class MultiTargetSolver {
         const std::vector<int>& ph_vals   = prod_hs[g];
         const std::vector<int>& ih_vals   = ihs[g];
 
-        int h = *std::max_element(h_vals.begin(), h_vals.end());
+        int h = h_vals.empty() ? 0 : *std::max_element(h_vals.begin(), h_vals.end());
         for (int p = 0; p < (int)ph_vals.size(); p++) h = std::max(h, ph_vals[p]);
         for (int i = 0; i < (int)ih_vals.size(); i++) h = std::max(h, ih_vals[i]);
 
@@ -1901,7 +1901,7 @@ public:
     // for every target group. Must be called after buildSolvingBSGS.
     void buildTables() {
         const int nMoves = (int)solving_moves_.size();
-        if (nMoves == 0 || groups_.empty()) return;
+        if (nMoves == 0 || (groups_.empty() && incomplete_groups_.empty())) return;
 
         pruner_.build(solving_moves_);
 
@@ -2260,7 +2260,7 @@ public:
                            : incomplete_groups_[i].max_depth + 1;
         }
 
-        int h = *std::max_element(h_vals.begin(), h_vals.end());
+        int h = h_vals.empty() ? 0 : *std::max_element(h_vals.begin(), h_vals.end());
         for (int pi = 0; pi < np; pi++) h = std::max(h, prod_h_vals[pi]);
         for (int i  = 0; i  < ni; i++)  h = std::max(h, inc_h_vals[i]);
 

@@ -34,8 +34,10 @@ States beyond M moves from solved get heuristic value M+1 (valid lower bound).
 ### Commit C — JS + HTML + worker.js
 - `[M]` syntax in `parseTargetGroups`: strip from line/block before parsing, attach `maxDepth` to group object
 - `compute()`: pass `incompleteGroupSpecs` (array of maxDepth per group, null if complete) to worker
-- `worker.js`: route each group to complete vs. incomplete API based on `maxDepth`; grow `tableKey` with `incompleteGroupSpecs`; report incomplete group sizes
+- `worker.js`: route each group to complete vs. incomplete API based on `maxDepth`; grow `tableKey` with `incompleteGroupSpecs`
+- Group sizes will be dealt with in a future commit
 - `index.html`: update the Target Subgroups hint text to mention `[M]` syntax
+- Fix order of distance table specification to be order of appearance in Target Subgroups (current example is wrong)
 
 ---
 
