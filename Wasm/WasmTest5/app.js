@@ -247,16 +247,30 @@ function parseDistanceTables(text, numGroups) {
 function parseTargetGroups(text, moves, k, tokenMap, pieceInfo) {
     const groups = [];
     for (const block of text.split(/\n[ \t]*\n/)) {
-        const lines = block.split('\n').map(s => s.trim()).filter(Boolean);
-        if (lines.length === 0) continue;
+        const rawLines = block.split('\n').map(s => s.trim()).filter(Boolean);
+        if (rawLines.length === 0) continue;
 
-        if (lines.some(l => l.includes('{') || /^\d+:/.test(l))) {
-            groups.push({ kind: 'orientperm', classes: parseOrientPermBlock(lines, pieceInfo) });
+        const isOrientPerm = rawLines.some(l => l.includes('{') || /^\d+:/.test(l));
+
+        if (isOrientPerm) {
+            // [M] may appear on any line in the block.
+            let maxDepth = null;
+            const lines = rawLines.map(l => {
+                const m = l.match(/\[(\d+)\]/);
+                if (m) { maxDepth = parseInt(m[1]); return l.replace(/\[(\d+)\]/, '').trim(); }
+                return l;
+            }).filter(Boolean);
+            groups.push({ kind: 'orientperm', classes: parseOrientPermBlock(lines, pieceInfo), maxDepth });
         } else {
-            for (const line of lines) {
+            // Each line is a separate group; [M] is per-line.
+            for (const rawLine of rawLines) {
+                const tagMatch = rawLine.match(/\[(\d+)\]/);
+                const maxDepth = tagMatch ? parseInt(tagMatch[1]) : null;
+                const line = rawLine.replace(/\[(\d+)\]/, '').trim();
+                if (!line) continue;
                 const algos = parseGenerators(line);
                 if (algos.length === 0) continue;
-                groups.push({ kind: 'generator', perms: algos.map(algo => composeAlgo(algo, moves, k, tokenMap)) });
+                groups.push({ kind: 'generator', perms: algos.map(algo => composeAlgo(algo, moves, k, tokenMap)), maxDepth });
             }
         }
     }
@@ -415,8 +429,10 @@ function compute() {
                 baseSet.add(stickerToPieceBase[s]);
     const basePoints = [...baseSet].sort((a, b) => a - b);
 
+    const incompleteGroupSpecs = targetGroups.map(g => g.maxDepth ?? null);
+
     setComputing(true);
-    worker.postMessage({ type: 'compute', k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack, basePoints, productTableSpecs });
+    worker.postMessage({ type: 'compute', k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack, basePoints, productTableSpecs, incompleteGroupSpecs });
 }
 
 // ── Event listeners ───────────────────────────────────────────────────────────
@@ -456,7 +472,7 @@ $('target-gens').value   = `R, U, L, D
 1: {UF UL UB UR DR FR BR FL BL}
 
 R, U, D2 L D2, L F L', L' B L, F2 B2 L2 F2 B2`;
-$('dist-tables').value = `T1 * T2
-T3 * T4`
+$('dist-tables').value = `T1 * T4
+T2 * T3`
 $('solving-gens').value  = `U, U2, R, R2, F, F2, D, D2, L, L2, B, B2`;
 $('starting-algo').value = `R2 F R2 D' U F2 R F' B' D U R2 D R L' D U' L D' U' L2`;

@@ -24,8 +24,8 @@ self.onmessage = function ({ data }) {
         return;
     }
 
-    const { k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack, basePoints, productTableSpecs } = data;
-    const tableKey = JSON.stringify({ k, targetGroups, solvingPerms, solvingAlgos, basePoints, productTableSpecs });
+    const { k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack, basePoints, productTableSpecs, incompleteGroupSpecs } = data;
+    const tableKey = JSON.stringify({ k, targetGroups, solvingPerms, solvingAlgos, basePoints, productTableSpecs, incompleteGroupSpecs });
 
     try {
         if (tableKey === lastTableKey) {
@@ -61,12 +61,20 @@ self.onmessage = function ({ data }) {
 
         // ── Phase 1: build BSGSes (fast) ─────────────────────────────────────
 
+        // appearanceSolverIdx[i] = solver group index for complete group i,
+        // or -1 if group i is incomplete (no solver group slot).
+        const appearanceSolverIdx = new Array(targetGroups.length).fill(-1);
+        const totalCompleteGen = targetGroups.filter(g => g.kind !== 'orientperm' && g.maxDepth == null).length;
+
         solver.reset(k);
         for (const pt of basePoints) solver.addBasePoint(pt);
 
-        // First pass: GENERAL target groups.
-        for (const group of targetGroups) {
-            if (group.kind === 'orientperm') continue;
+        // Pass 1a: complete GENERAL target groups.
+        let solverGenCount = 0;
+        for (let i = 0; i < targetGroups.length; i++) {
+            const group = targetGroups[i];
+            if (group.kind === 'orientperm' || group.maxDepth != null) continue;
+            appearanceSolverIdx[i] = solverGenCount++;
             solver.beginTargetGroup();
             for (const perm of group.perms) {
                 const v = new Module.VectorInt();
@@ -77,6 +85,20 @@ self.onmessage = function ({ data }) {
             solver.buildTargetGroup(100);
         }
 
+        // Pass 1b: incomplete GENERAL groups.
+        for (let i = 0; i < targetGroups.length; i++) {
+            const group = targetGroups[i];
+            if (group.kind === 'orientperm' || group.maxDepth == null) continue;
+            solver.beginIncompleteGroup();
+            for (const perm of group.perms) {
+                const v = new Module.VectorInt();
+                for (const x of perm) v.push_back(x);
+                solver.addIncompleteGroupGenerator(v);
+                v.delete();
+            }
+            solver.buildIncompleteGroup(100, group.maxDepth);
+        }
+
         for (const perm of solvingPerms) {
             const v = new Module.VectorInt();
             for (const x of perm) v.push_back(x);
@@ -84,20 +106,6 @@ self.onmessage = function ({ data }) {
             v.delete();
         }
         solver.buildSolvingBSGS(100);
-
-        // Second pass: ORIENTPERM groups — must come after buildSolvingBSGS so that
-        // solving_generators_ is complete when buildOrientPermGroup() calls build().
-        for (const group of targetGroups) {
-            if (group.kind !== 'orientperm') continue;
-            solver.beginOrientPermGroup();
-            for (const cls of group.classes) {
-                const v = new Module.VectorInt();
-                for (const b of cls.bases) v.push_back(b);
-                solver.addOrientPermClass(v, cls.m, cls.orientation_mod, cls.typeName);
-                v.delete();
-            }
-            solver.buildOrientPermGroup();
-        }
 
         // Build solving move list and parallel name list
         const permStr = p => p.join(',');
@@ -146,18 +154,54 @@ self.onmessage = function ({ data }) {
         // ── Phase 2: heavy work (deferred) ───────────────────────────────────
         setTimeout(() => {
             try {
+                // Pass 2a: complete ORIENTPERM groups — must come after buildSolvingBSGS.
+                let solverOpCount = 0;
+                for (let i = 0; i < targetGroups.length; i++) {
+                    const group = targetGroups[i];
+                    if (group.kind !== 'orientperm' || group.maxDepth != null) continue;
+                    appearanceSolverIdx[i] = totalCompleteGen + solverOpCount++;
+                    solver.beginOrientPermGroup();
+                    for (const cls of group.classes) {
+                        const v = new Module.VectorInt();
+                        for (const b of cls.bases) v.push_back(b);
+                        solver.addOrientPermClass(v, cls.m, cls.orientation_mod, cls.typeName);
+                        v.delete();
+                    }
+                    solver.buildOrientPermGroup();
+                }
+
+                // Pass 2b: incomplete ORIENTPERM groups.
+                for (let i = 0; i < targetGroups.length; i++) {
+                    const group = targetGroups[i];
+                    if (group.kind !== 'orientperm' || group.maxDepth == null) continue;
+                    solver.beginIncompleteOrientPermGroup();
+                    for (const cls of group.classes) {
+                        const v = new Module.VectorInt();
+                        for (const b of cls.bases) v.push_back(b);
+                        solver.addIncompleteOrientPermClass(v, cls.m, cls.orientation_mod, cls.typeName);
+                        v.delete();
+                    }
+                    solver.buildIncompleteOrientPermGroup(group.maxDepth);
+                }
+
                 if (productTableSpecs) {
                     for (const spec of productTableSpecs) {
                         solver.beginProductDistanceTable();
-                        for (const idx of spec)
-                            solver.addProductTableComponent(idx);
+                        for (const idx of spec) {
+                            const si = appearanceSolverIdx[idx];
+                            if (si === -1) throw new Error(`T${idx + 1} is an incomplete group and cannot be used in product tables.`);
+                            solver.addProductTableComponent(si);
+                        }
                     }
                 }
                 solver.buildTables();
 
+                // Report table sizes in appearance order (complete groups only).
                 const tableSizes = [];
-                for (let i = 0; i < solver.getNumGroups(); i++)
-                    tableSizes.push(solver.getGroupTableSize(i));
+                for (let i = 0; i < targetGroups.length; i++) {
+                    const si = appearanceSolverIdx[i];
+                    if (si !== -1) tableSizes.push(solver.getGroupTableSize(si));
+                }
                 for (let p = 0; p < solver.getNumProductTables(); p++)
                     tableSizes.push(solver.getProductTableSize(p));
 
