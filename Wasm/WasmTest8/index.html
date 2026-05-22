@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simultaneous Subgroup Solver</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Courier New', Courier, monospace; background: #fff; color: #eee; padding: 24px; max-width: 820px; }
+        h1 { font-size: 1.5rem; margin-bottom: 20px; color: #234; letter-spacing: 0.02em; }
+        section { background: #eee; border-radius: 8px; padding: 16px; margin-bottom: 14px; }
+        h2 { font-size: 1rem; color: #333; margin-bottom: 8px; }
+        p.hint { font-size: 0.75rem; color: #555; margin-bottom: 8px; }
+        textarea, input.full {
+            width: 100%; background: #fff; border: 1px solid #bbb; border-radius: 4px;
+            color: #123; font-size: 0.85rem; font-family: monospace; padding: 10px 12px;
+            resize: vertical; line-height: 1.6;
+        }
+        input.full { resize: none; height: 38px; padding: 8px 12px; }
+        textarea:focus, input.full:focus { outline: none; border-color: #3b82f6; }
+        input.num {
+            width: 72px; background: #fff; border: 1px solid #bbb; border-radius: 4px;
+            color: #123; font-size: 0.85rem; font-family: monospace; padding: 6px 8px; height: 34px;
+        }
+        input.num:focus { outline: none; border-color: #333; }
+        label.num-label { font-size: 0.78rem; color: #6b7280; }
+        button {
+            background: #bbbbbb; border: 2px solid #333; border-radius: 4px;
+            padding: 8px 18px; cursor: pointer; font-size: 0.88rem; font-family: 'Courier New', Courier, monospace
+        }
+        button:hover { background: #c2c2c2; }
+        .row { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+        #status { font-size: 0.78rem; color: #789; display: block; margin-top: 10px; font-family: 'Courier New', Courier, monospace; min-height: 1.2em; }
+        #result { margin-top: 10px; }
+        .id-display { font-size: 0.78rem; font-weight: 700; font-family: monospace; color: #333; }
+        #hint-enter { font-size: 0.72rem; color: #89a; }
+    </style>
+</head>
+<body>
+    <section>
+        <h2>Puzzle</h2>
+        <textarea id="puzzle" rows="10" spellcheck="false" autocomplete="off"></textarea>
+    </section>
+
+    <section>
+        <h2>Target Subgroups</h2>
+        <p class="hint">One group per line (generators) or blank-line-separated block (OrientPerm). Append [M] to use an incomplete table up to depth M, e.g. <code>R, U, L, D [10]</code>.</p>
+        <textarea id="target-gens" rows="5" spellcheck="false" autocomplete="off"></textarea>
+    </section>
+
+    <section>
+        <h2>Solving Subgroup</h2>
+        <textarea id="solving-gens" rows="2" spellcheck="false" autocomplete="off"></textarea>
+    </section>
+
+    <section>
+        <h2>Distance Tables</h2>
+        <p class="hint">One product table per line; combine exactly 2 groups with <code>*</code>. E.g. <code>T1 * T4</code> combines the 1st and 4th complete target groups. Leave blank to skip.</p>
+        <textarea id="dist-tables" rows="2" spellcheck="false" autocomplete="off"></textarea>
+    </section>
+
+    <section>
+        <h2>Scramble</h2>
+        <input id="starting-algo" class="full" type="text" spellcheck="false" autocomplete="off">
+    </section>
+
+    <section>
+        <h2>Solutions</h2>
+        <div class="row">
+            <label class="num-label">Min. Moves</label>
+            <input id="min-moves" class="num" type="number" min="0" placeholder="0">
+            <label class="num-label">Max. Moves</label>
+            <input id="max-moves" class="num" type="number" min="0" placeholder="∞">
+            <label class="num-label">Slack</label>
+            <input id="slack" class="num" type="number" min="0" placeholder="0">
+        </div>
+        <div class="row">
+            <button id="compute-btn">Compute</button>
+        </div>
+        <span id="status" style="white-space: pre-line;"></span>
+        <div id="result"></div>
+    </section>
+
+    <script src="app.js"></script>
+</body>
+</html>
