@@ -24,8 +24,8 @@ self.onmessage = function ({ data }) {
         return;
     }
 
-    const { k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack, basePoints, incompleteGroupSpecs } = data;
-    const tableKey = JSON.stringify({ k, targetGroups, solvingPerms, solvingAlgos, basePoints, incompleteGroupSpecs });
+    const { k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack, basePoints, incompleteGroupSpecs, productTableSpecs } = data;
+    const tableKey = JSON.stringify({ k, targetGroups, solvingPerms, solvingAlgos, basePoints, incompleteGroupSpecs, productTableSpecs });
 
     try {
         if (tableKey === lastTableKey) {
@@ -170,6 +170,7 @@ self.onmessage = function ({ data }) {
                         v.delete();
                     }
                     solver.buildOrientPermGroup();
+                    if (group.noTransition) solver.setNoTransitionGroup();
                 }
 
                 // Pass 2b: incomplete ORIENTPERM groups.
@@ -186,9 +187,23 @@ self.onmessage = function ({ data }) {
                     solver.buildIncompleteOrientPermGroup(group.maxDepth);
                 }
 
+                // Product distance tables: register component groups by solver index.
+                if (productTableSpecs && productTableSpecs.length > 0) {
+                    const completeGroupAppearances = [];
+                    for (let i = 0; i < targetGroups.length; i++)
+                        if (targetGroups[i].maxDepth == null) completeGroupAppearances.push(i);
+                    for (const tableSpec of productTableSpecs) {
+                        solver.beginProductDistanceTable();
+                        for (const tNum of tableSpec) {
+                            const solverIdx = appearanceSolverIdx[completeGroupAppearances[tNum - 1]];
+                            solver.addProductTableComponent(solverIdx);
+                        }
+                    }
+                }
+
                 solver.buildTables();
 
-                // Report table sizes in appearance order (complete groups only).
+                // Report table sizes in appearance order (complete groups, incomplete groups, product tables).
                 const tableSizes = [];
                 for (let i = 0; i < targetGroups.length; i++) {
                     const si = appearanceSolverIdx[i];
@@ -196,6 +211,8 @@ self.onmessage = function ({ data }) {
                 }
                 for (let i = 0; i < solver.getNumIncompleteGroups(); i++)
                     tableSizes.push(solver.getIncompleteGroupTableSize(i));
+                for (let p = 0; p < solver.getNumProductTables(); p++)
+                    tableSizes.push(solver.getProductTableSize(p));
 
                 lastTableKey = tableKey;
                 cachedAllMoveNames = allMoveNames;

@@ -233,14 +233,16 @@ function parseTargetGroups(text, moves, k, tokenMap, pieceInfo) {
         const isOrientPerm = rawLines.some(l => l.includes('{') || /^\d+:/.test(l));
 
         if (isOrientPerm) {
-            // [M] may appear on any line in the block.
+            // [M] may appear on any line in the block; NO_TRANSITION opts out of transition table.
             let maxDepth = null;
+            let noTransition = false;
             const lines = rawLines.map(l => {
+                if (l === 'NO_TRANSITION') { noTransition = true; return ''; }
                 const m = l.match(/\[(\d+)\]/);
                 if (m) { maxDepth = parseInt(m[1]); return l.replace(/\[(\d+)\]/, '').trim(); }
                 return l;
             }).filter(Boolean);
-            groups.push({ kind: 'orientperm', classes: parseOrientPermBlock(lines, pieceInfo), maxDepth });
+            groups.push({ kind: 'orientperm', classes: parseOrientPermBlock(lines, pieceInfo), maxDepth, noTransition });
         } else {
             // Each line is a separate group; [M] is per-line.
             for (const rawLine of rawLines) {
@@ -256,6 +258,18 @@ function parseTargetGroups(text, moves, k, tokenMap, pieceInfo) {
     }
     if (groups.length === 0) throw new Error('No target groups entered.');
     return groups;
+}
+
+// Parse "T1 * T4\nT2" into [[1,4],[2]] (1-indexed T-numbers referencing complete groups).
+function parseDistanceTables(text) {
+    if (!text.trim()) return [];
+    return text.trim().split('\n')
+        .map(line => line.trim()).filter(Boolean)
+        .map(line => line.split('*').map(s => {
+            const m = s.trim().match(/^T(\d+)$/i);
+            if (!m) throw new Error(`Invalid table reference: "${s.trim()}" — use T1, T2, etc.`);
+            return parseInt(m[1]);
+        }));
 }
 
 function composeAlgo(algo, moves, k, tokenMap) {
@@ -375,7 +389,7 @@ function compute() {
         return algos.map(algo => composeAlgo(algo, moves, k, tokenMap));
     }
 
-    let targetGroups, solvingAlgos, solvingPerms, startingPerm;
+    let targetGroups, solvingAlgos, solvingPerms, startingPerm, productTableSpecs;
     try {
         targetGroups = parseTargetGroups($('target-gens').value, moves, k, tokenMap, pieceInfo);
         solvingAlgos = parseGenerators($('solving-gens').value);
@@ -384,6 +398,7 @@ function compute() {
         const startAlgo = [...$('starting-algo').value.matchAll(/\([^)]*\)|\S+/g)].map(m => m[0]);
         if (!startAlgo.length) throw new Error('No starting algorithm entered.');
         startingPerm = composeAlgo(startAlgo, moves, k, tokenMap);
+        productTableSpecs = parseDistanceTables($('dist-tables').value);
     } catch (e) {
         setStatus('Input error: ' + e.message, '#ee2727');
         return;
@@ -411,7 +426,7 @@ function compute() {
     const incompleteGroupSpecs = targetGroups.map(g => g.maxDepth ?? null);
 
     setComputing(true);
-    worker.postMessage({ type: 'compute', k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack, basePoints, incompleteGroupSpecs });
+    worker.postMessage({ type: 'compute', k, targetGroups, startingPerm, solvingPerms, solvingAlgos, minMoves, maxMoves, slack, basePoints, incompleteGroupSpecs, productTableSpecs });
 }
 
 // ── Event listeners ───────────────────────────────────────────────────────────
