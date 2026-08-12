@@ -608,7 +608,7 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
         function cubeImage(fc, setup="", yawOffset=0) {
             let imgType = document.getElementById("img-select").value;
             let cube;
-            if (imgType == "4x4x4") {
+            if (imgType === "4x4x4" || imgType === "4x4x4-top") {
                 for (let replacer of [
                 ["2R'", "r' R"], ["2R2", "r2 R2"], ["2R", "r R'"], 
                 ["2L'", "l' L"], ["2L2", "l2 L2"], ["2L", "l L'"], 
