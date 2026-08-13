@@ -25,6 +25,8 @@
         }
 
         #game {
+            position: relative;
+
             width: min(1100px, 96vw);
             height: 100vh;
             margin: auto;
@@ -244,10 +246,16 @@
 
         #game-over {
             display: none;
-            flex-shrink: 0;
+
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
 
             text-align: center;
-            padding: 8px 0 0;
+            padding: 0;
+
+            z-index: 10;
         }
 
         #game-over h2 {
