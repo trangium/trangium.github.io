@@ -1128,19 +1128,6 @@ function submitWord() {
         `+${totalImprovement} (${word})`
     );
 
-
-    /* ========================================================
-       6. END IF ALL PUZZLES HAVE BEEN SOLVED
-       ======================================================== */
-
-    if (
-        puzzles.every(
-            puzzle => puzzle.solved
-        )
-    ) {
-
-        endGame();
-    }
 }
 
 
