@@ -333,7 +333,7 @@
     <div id="puzzles"></div>
 
     <div id="game-over">
-        <h2>TIME'S UP</h2>
+        <h2>Time's Up!</h2>
         <div id="final-score"></div>
         <button id="restart">Play Again</button>
     </div>
@@ -444,28 +444,10 @@ function generatePuzzles() {
             const ans = answers(rack);
 
             /*
-                Need at least 10 possible answers, all of which are 6+ letters.
+                Need at least 15 possible answers, all of which are 6+ letters.
             */
 
-            if (ans.length < 10 || ans.some(word => word.length < 6) ) {
-                continue;
-            }
-
-            /*
-                Require at least TWO letters to be added.
-
-                In other words, the shortest possible answer
-                must be at least two letters longer than the rack.
-            */
-
-            let shortestLength = Infinity;
-
-            for (const word of ans) {
-                shortestLength =
-                    Math.min(shortestLength, word.length);
-            }
-
-            if (shortestLength - rack.length < 2) {
+            if (ans.length < 15 || ans.some(word => word.length < 6) ) {
                 continue;
             }
 
