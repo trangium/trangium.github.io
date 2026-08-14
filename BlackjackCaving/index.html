@@ -28,7 +28,8 @@
             position: relative;
 
             width: min(1100px, 96vw);
-            height: 100vh;
+            height: 100dvh;
+            min-height: 0;
             margin: auto;
             padding: 0 0 12px;
 
@@ -321,13 +322,16 @@
         #game-over {
             display: none;
 
-            position: absolute;
-            top: 8px;
-            left: 50%;
-            transform: translateX(-50%);
+            position: static;
+            flex-shrink: 0;
 
             text-align: center;
-            padding: 0;
+            margin: 10px 0;
+
+            background: white;
+            border: 1px solid #bbb;
+            border-radius: 6px;
+            padding: 10px;
 
             z-index: 10;
         }
@@ -385,17 +389,27 @@
                 font-size: 14px;
             }
 
-            /* On mobile the game-over panel stays in normal flow
-               so it doesn't cover the puzzles. */
-            #game-over {
-                position: static;
-                transform: none;
-                margin: 10px 0;
-                background: white;
-                border: 1px solid #bbb;
-                border-radius: 6px;
-                padding: 10px;
+            #game {
+                padding-bottom: calc(12px + env(safe-area-inset-bottom));
             }
+
+            #puzzles {
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: repeat(5, minmax(180px, 1fr));
+            }
+
+            #stats {
+                gap: 15px;
+            }
+
+            #current-word:empty::before {
+                content: "tap here & type";
+                color: #aaa;
+                font-weight: normal;
+                letter-spacing: 0;
+                font-size: 14px;
+            }
+        
         }
     </style>
 </head>
@@ -1306,14 +1320,22 @@ const hiddenInput =
 
 function focusHiddenInput() {
 
-    if (gameActive) {
-
-        hiddenInput.focus({
-            preventScroll: true
-        });
+    if (!gameActive) {
+        return;
     }
-}
 
+    const scrollTop =
+        document.getElementById("game").scrollTop;
+
+    hiddenInput.focus({
+        preventScroll: true
+    });
+
+    requestAnimationFrame(() => {
+        document.getElementById("game").scrollTop =
+            scrollTop;
+    });
+}
 
 /*
     Tapping/clicking anywhere in the game area
