@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>Blackjack Caving</title>
 
     <style>
@@ -72,6 +72,7 @@
             height: 45px;
             flex-shrink: 0;
             text-align: center;
+            cursor: pointer;
         }
 
         #current-word {
@@ -81,9 +82,60 @@
             letter-spacing: 3px;
         }
 
+        #current-word:empty::before {
+            content: "tap here & type";
+            color: #aaa;
+            font-weight: normal;
+            letter-spacing: 0;
+            font-size: 14px;
+        }
+
         #message {
             height: 17px;
             font-size: 13px;
+        }
+
+        /* Hidden text input used to summon the mobile keyboard.
+           Must stay in-flow (not display:none / visibility:hidden)
+           or mobile browsers won't focus it / show a keyboard. */
+        #hidden-input {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: 0;
+            border: none;
+            outline: none;
+            opacity: 0;
+            font-size: 16px; /* prevents iOS auto-zoom on focus */
+            pointer-events: none;
+        }
+
+        #mobile-controls {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 4px;
+        }
+
+        #mobile-controls button {
+            font-family: monospace;
+            font-size: 12px;
+            background: #eee;
+            color: #111;
+            border: 1px solid #aaa;
+            border-radius: 4px;
+            padding: 4px 12px;
+            cursor: pointer;
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        #mobile-controls button:hover {
+            background: #ddd;
         }
 
         /* =========================
@@ -358,7 +410,25 @@
     <div id="current-word-container">
         <div id="current-word"></div>
         <div id="message"></div>
+        <div id="mobile-controls">
+            <button id="mobile-backspace" type="button">⌫</button>
+            <button id="mobile-enter" type="button">ENTER</button>
+        </div>
     </div>
+
+    <!-- Hidden input used only to summon the on-screen keyboard on mobile. -->
+    <input
+        id="hidden-input"
+        type="text"
+        autocomplete="off"
+        autocapitalize="off"
+        autocorrect="off"
+        spellcheck="false"
+        inputmode="text"
+        enterkeyhint="done"
+        maxlength="30"
+        tabindex="-1"
+    >
 
     <div id="puzzles"></div>
 
@@ -1152,70 +1222,146 @@ function submitWord() {
 }
 
 /* ============================================================
-   KEYBOARD INPUT
+   KEYBOARD / TEXT INPUT (desktop + mobile)
    ============================================================
 
-   There is intentionally no input box.
+   There is intentionally no visible text box. Instead, a 1px
+   offscreen <input> is kept focused, so that:
 
-   The document receives the keyboard events regardless of
-   which part of the page is focused.
+     - On desktop, physical key presses land on it and behave
+       exactly like typing into any input field.
+     - On mobile, focusing it pops up the on-screen keyboard,
+       which otherwise has nothing to attach to.
+
+   All letters/backspaces are read from this input's `input`
+   event rather than `keydown`, because mobile virtual keyboards
+   (especially Android IMEs) do not reliably fire correct
+   `keydown` key values, but they do reliably update the
+   input's value. Enter/Space (submit) are handled via `keydown`
+   since they don't otherwise change the input's value.
 */
 
-document.addEventListener("keydown", event => {
+const hiddenInput = document.getElementById("hidden-input");
+
+
+function focusHiddenInput() {
+    if (gameActive) {
+        hiddenInput.focus();
+    }
+}
+
+
+/*
+    Tapping/clicking anywhere in the game area (while playing)
+    brings the keyboard back if it was dismissed. This also
+    satisfies the "user gesture" requirement some mobile
+    browsers impose before showing a keyboard.
+*/
+
+document.getElementById("game")
+    .addEventListener("click", focusHiddenInput);
+
+
+/*
+    If focus is lost for any reason while the game is still
+    active, try to reclaim it so mobile users don't lose their
+    keyboard mid-game.
+*/
+
+hiddenInput.addEventListener("blur", () => {
+    if (gameActive) {
+        setTimeout(focusHiddenInput, 0);
+    }
+});
+
+
+/*
+    Letters and backspaces: read from the input's live value,
+    strip anything that isn't a letter, and mirror that back
+    into both currentWord and the input itself.
+*/
+
+hiddenInput.addEventListener("input", () => {
+
+    if (!gameActive) {
+        hiddenInput.value = "";
+        return;
+    }
+
+    const filtered =
+        hiddenInput.value
+            .replace(/[^a-zA-Z]/g, "")
+            .toUpperCase();
+
+    if (hiddenInput.value !== filtered) {
+        hiddenInput.value = filtered;
+    }
+
+    currentWord = filtered;
+
+    updateCurrentWord();
+});
+
+
+/*
+    Enter or Space submits, matching the original desktop
+    behavior. Both are prevented from being inserted as
+    characters.
+*/
+
+hiddenInput.addEventListener("keydown", event => {
 
     if (!gameActive) {
         return;
     }
 
-
-    /*
-        ENTER or SPACE = submit.
-    */
-
-    if (
-        event.key === "Enter" ||
-        event.key === " "
-    ) {
+    if (event.key === "Enter" || event.key === " ") {
 
         event.preventDefault();
 
         submitWord();
 
-        return;
-    }
-
-
-    /*
-        BACKSPACE = delete last letter.
-    */
-
-    if (event.key === "Backspace") {
-
-        event.preventDefault();
-
-        currentWord =
-            currentWord.slice(0, -1);
-
-        updateCurrentWord();
-
-        return;
-    }
-
-
-    /*
-        Only accept letters.
-    */
-
-    if (/^[a-zA-Z]$/.test(event.key)) {
-
-        event.preventDefault();
-
-        currentWord +=
-            event.key.toUpperCase();
-
-        updateCurrentWord();
+        hiddenInput.value = "";
     }
 });
+
+
+/*
+    On-screen buttons as a mobile-friendly fallback/backup for
+    submit and backspace, in case a given virtual keyboard
+    doesn't send a clean Enter key.
+*/
+
+document.getElementById("mobile-enter")
+    .addEventListener("click", () => {
+
+        if (!gameActive) {
+            return;
+        }
+
+        submitWord();
+
+        hiddenInput.value = "";
+
+        focusHiddenInput();
+    });
+
+
+document.getElementById("mobile-backspace")
+    .addEventListener("click", () => {
+
+        if (!gameActive) {
+            return;
+        }
+
+        currentWord = currentWord.slice(0, -1);
+
+        hiddenInput.value = currentWord;
+
+        updateCurrentWord();
+
+        focusHiddenInput();
+    });
 
 
 /* ============================================================
@@ -1291,6 +1437,9 @@ function endGame() {
     currentWord = "";
 
     updateCurrentWord();
+
+    hiddenInput.value = "";
+    hiddenInput.blur();
 
 
     /*
@@ -1382,6 +1531,9 @@ async function startGame() {
     renderPuzzles();
 
     startTimer();
+
+    hiddenInput.value = "";
+    focusHiddenInput();
 }
 
 
