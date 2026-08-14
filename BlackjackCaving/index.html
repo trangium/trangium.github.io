@@ -1249,7 +1249,7 @@ const hiddenInput = document.getElementById("hidden-input");
 
 function focusHiddenInput() {
     if (gameActive) {
-        hiddenInput.focus();
+        hiddenInput.focus({ preventScroll: true });
     }
 }
 
