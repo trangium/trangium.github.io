@@ -28,15 +28,13 @@
             position: relative;
 
             width: min(1100px, 96vw);
-            height: 100dvh;
-            min-height: 0;
+            min-height: 100vh;
             margin: auto;
             padding: 0 0 12px;
 
             display: flex;
             flex-direction: column;
 
-            overflow-y: auto;
             overflow-x: hidden;
         }
 
@@ -389,7 +387,18 @@
                 font-size: 14px;
             }
 
+            html,
+            body {
+                height: auto;
+                min-height: 100%;
+                overflow-x: hidden;
+                overflow-y: auto;
+            }
+
             #game {
+                min-height: 100vh;
+                height: auto;
+                overflow: visible;
                 padding-bottom: calc(12px + env(safe-area-inset-bottom));
             }
 
@@ -1319,22 +1328,11 @@ const hiddenInput =
 
 
 function focusHiddenInput() {
-
-    if (!gameActive) {
-        return;
+    if (gameActive) {
+        hiddenInput.focus({
+            preventScroll: true
+        });
     }
-
-    const scrollTop =
-        document.getElementById("game").scrollTop;
-
-    hiddenInput.focus({
-        preventScroll: true
-    });
-
-    requestAnimationFrame(() => {
-        document.getElementById("game").scrollTop =
-            scrollTop;
-    });
 }
 
 /*
