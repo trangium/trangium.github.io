@@ -117,31 +117,6 @@
             pointer-events: none;
         }
 
-        #mobile-controls {
-            display: flex;
-            justify-content: center;
-            gap: 8px;
-            margin-top: 4px;
-        }
-
-        #mobile-controls button {
-            font-family: monospace;
-            font-size: 12px;
-            background: #eee;
-            color: #111;
-            border: 1px solid #aaa;
-            border-radius: 4px;
-            padding: 4px 12px;
-            cursor: pointer;
-            touch-action: manipulation;
-            -webkit-user-select: none;
-            user-select: none;
-        }
-
-        #mobile-controls button:hover {
-            background: #ddd;
-        }
-
         /* =========================
            PUZZLES
            ========================= */
@@ -441,10 +416,6 @@
         <div id="current-word-container">
             <div id="current-word"></div>
             <div id="message"></div>
-            <div id="mobile-controls">
-                <button id="mobile-backspace" type="button">⌫</button>
-                <button id="mobile-enter" type="button">ENTER</button>
-            </div>
         </div>
     </div>
 
@@ -1356,44 +1327,6 @@ hiddenInput.addEventListener("keydown", event => {
         hiddenInput.value = "";
     }
 });
-
-
-/*
-    On-screen buttons as a mobile-friendly fallback/backup for
-    submit and backspace, in case a given virtual keyboard
-    doesn't send a clean Enter key.
-*/
-
-document.getElementById("mobile-enter")
-    .addEventListener("click", () => {
-
-        if (!gameActive) {
-            return;
-        }
-
-        submitWord();
-
-        hiddenInput.value = "";
-
-        focusHiddenInput();
-    });
-
-
-document.getElementById("mobile-backspace")
-    .addEventListener("click", () => {
-
-        if (!gameActive) {
-            return;
-        }
-
-        currentWord = currentWord.slice(0, -1);
-
-        hiddenInput.value = currentWord;
-
-        updateCurrentWord();
-
-        focusHiddenInput();
-    });
 
 
 /* ============================================================
