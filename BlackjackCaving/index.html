@@ -19,7 +19,7 @@
 
         body {
             font-family: monospace;
-            background: #f5f5f5;
+            background: #f4f4f4;
             color: #111;
             overflow: hidden;
         }
@@ -118,6 +118,36 @@
 
         .puzzle.solved {
             background: #e8e8e8;
+        }
+
+        .puzzle.bonus {
+            background: #f7f7f7;
+        }
+
+        .bonus-container {
+            margin-top: 6px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bonus-word {
+            font-size: 13px;
+            font-weight: bold;
+            letter-spacing: 0;
+            margin-top: 4px;
+            margin: 0 0;
+            flex-shrink: 0;
+            display: block;
+            text-align: center;
+        }
+
+        .bonus-label {
+            font-size: 10px;
+            font-weight: normal;
+            letter-spacing: 0;
+            margin: 0 0;
+            display: block;
+            text-align: center;
         }
 
         .puzzle-number {
@@ -466,7 +496,8 @@ function generatePuzzles() {
                 */
                 points: 0,
 
-                solved: false
+                solved: false,
+                bonusWord: null
             });
 
             break;
@@ -549,6 +580,8 @@ function renderPuzzles() {
 
         if (puzzle.solved) {
             div.classList.add("solved");
+        } else if (puzzle.bonusWord) {
+            div.classList.add("bonus");
         }
 
 
@@ -591,9 +624,26 @@ function renderPuzzles() {
 
         status.className = "puzzle-status";
 
-        status.textContent = `${puzzle.answers.length} answers`;
+        status.textContent = `${puzzle.answers.length} words`;
 
         div.appendChild(status);
+
+        if (puzzle.bonusWord) {
+            const bonus = document.createElement("div");
+            bonus.className = "bonus-container";
+
+            const bonusWord = document.createElement("span");
+            bonusWord.className = "bonus-word";
+            bonusWord.textContent = puzzle.bonusWord;
+
+            const bonusLabel = document.createElement("span");
+            bonusLabel.className = "bonus-label";
+            bonusLabel.textContent = "(bonus word)";
+
+            bonus.appendChild(bonusWord);
+            bonus.appendChild(bonusLabel);
+            div.appendChild(bonus);
+        }
 
 
         /*
@@ -878,8 +928,8 @@ function calculatePoints(puzzle, word) {
     */
 
     const base =
-        Math.round(
-            100 * Math.max(
+        25 * Math.round(
+            4 * Math.max(
                 1,
                 8 - Math.log2(puzzle.answers.length)
             )
@@ -936,7 +986,7 @@ function calculatePoints(puzzle, word) {
     */
 
     const time =
-        Math.round(
+        Math.ceil(
             20 * timeRemaining / 120
         );
 
@@ -1008,128 +1058,98 @@ function submitWord() {
        2. IS IT AN ANSWER TO ANY PUZZLE?
        ======================================================== */
 
-    let isAnswer = false;
+    let isCommonAnswer = false;
 
     for (const puzzle of puzzles) {
-
         if (puzzle.answers.includes(word)) {
-
-            isAnswer = true;
-
+            isCommonAnswer = true;
             break;
         }
     }
 
+    /* Rare = in words_alpha.txt but not in CEL22. */
+    const isRareWord = !wordList.includes(word);
 
-    if (!isAnswer) {
+    /* Bonus words solve a puzzle using the same subsequence rule. */
+    const bonusPuzzles = isRareWord
+        ? puzzles.filter(puzzle =>
+            word.length >= puzzle.rack.length &&
+            substr(puzzle.rack, word)
+        )
+        : [];
 
-        showMessage("Not an answer");
+    if (bonusPuzzles.length > 0) {
+        let showedBonus = false;
+
+        for (const puzzle of bonusPuzzles) {
+            // Don't show a bonus word on a puzzle that already has
+            // a correct answer.
+            if (puzzle.solved) {
+                continue;
+            }
+
+            puzzle.bonusWord = word;
+            showedBonus = true;
+        }
+
+        if (showedBonus) {
+            renderPuzzles();
+
+            showMessage(
+                `(${word}) bonus word`
+            );
+        } else {
+            showMessage(
+                "No improvement (bonus word)"
+            );
+        }
 
         return;
     }
 
+    if (!isCommonAnswer) {
+        showMessage("Not an answer");
+        return;
+    }
 
     /* ========================================================
        3. UPDATE EVERY PUZZLE THAT THIS WORD IMPROVES
        ======================================================== */
 
     let totalImprovement = 0;
-
     let improvedAny = false;
 
-
     for (const puzzle of puzzles) {
-
-        /*
-            The word has to be an answer to THIS puzzle.
-        */
-
         if (!puzzle.answers.includes(word)) {
             continue;
         }
 
-
-        /*
-            Calculate the complete score this word would have
-            on this particular puzzle.
-        */
-
-        const newPoints =
-            calculatePoints(
-                puzzle,
-                word
-            );
-
-
-        /*
-            Existing solution is worth zero if unsolved.
-        */
-
-        const oldTotal =
-            puzzle.points === 0
-                ? 0
-                : puzzle.points.total;
-
-
-        const improvement =
-            newPoints.total - oldTotal;
-
-
-        /*
-            Only update if it is actually better.
-        */
+        const newPoints = calculatePoints(puzzle, word);
+        const oldTotal = puzzle.points === 0 ? 0 : puzzle.points.total;
+        const improvement = newPoints.total - oldTotal;
 
         if (improvement > 0) {
-
-            puzzle.solution =
-                word;
-
-            puzzle.points =
-                newPoints;
-
-            puzzle.solved =
-                true;
-
-
-            totalImprovement +=
-                improvement;
-
-            improvedAny =
-                true;
+            puzzle.solution = word;
+            puzzle.points = newPoints;
+            puzzle.solved = true;
+            puzzle.bonusWord = null;
+            totalImprovement += improvement;
+            improvedAny = true;
         }
     }
 
-
-    /* ========================================================
-       4. VALID ANSWER, BUT NO IMPROVEMENT
-       ======================================================== */
-
     if (!improvedAny) {
-
         showMessage("No improvement");
-
         return;
     }
 
-
-    /* ========================================================
-       5. ADD ALL IMPROVEMENTS TO GLOBAL SCORE
-       ======================================================== */
-
-    score +=
-        totalImprovement;
-
+    score += totalImprovement;
     updateScore();
-
     renderPuzzles();
 
-
-    showMessage(
-        `+${totalImprovement} (${word})`
-    );
+    showMessage(`+${totalImprovement} (${word})`);
 
 }
-
 
 /* ============================================================
    KEYBOARD INPUT
@@ -1302,51 +1322,30 @@ async function startGame() {
 
     if (wordList.length === 0) {
 
-        const response =
-            await fetch("CEL22.txt");
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                "Could not load CEL22.txt"
-            );
+        const commonResponse = await fetch("CEL22.txt");
+        if (!commonResponse.ok) {
+            throw new Error("Could not load CEL22.txt");
         }
 
+        const rareResponse = await fetch("words_alpha.txt");
+        if (!rareResponse.ok) {
+            throw new Error("Could not load words_alpha.txt");
+        }
 
-        const text =
-            await response.text();
+        const commonText = await commonResponse.text();
+        const rareText = await rareResponse.text();
 
+        wordList = [...new Set(
+            commonText.split(/\r?\n/)
+                .map(word => word.trim().toUpperCase())
+                .filter(word => /^[A-Z]+$/.test(word))
+        )];
 
-        /*
-            One word per line.
-        */
-
-        wordList =
-            text
-                .split(/\r?\n/)
-                .map(word =>
-                    word.trim().toUpperCase()
-                )
-                .filter(word =>
-                    /^[A-Z]+$/.test(word)
-                );
-
-
-        /*
-            Remove duplicate words.
-        */
-
-        wordList =
-            [...new Set(wordList)];
-
-
-        /*
-            Set gives us fast "is this a word?" checks.
-        */
-
-        wordSet =
-            new Set(wordList);
+        wordSet = new Set(
+            rareText.split(/\r?\n/)
+                .map(word => word.trim().toUpperCase())
+                .filter(word => /^[A-Z]+$/.test(word))
+        );
     }
 
 
@@ -1401,7 +1400,7 @@ document.getElementById("restart")
 
                 document.getElementById("message")
                     .textContent =
-                    "Error loading CEL22.txt";
+                    "Error loading word lists";
             });
         }
     );
@@ -1417,7 +1416,7 @@ startGame().catch(error => {
 
     document.getElementById("message")
         .textContent =
-        "Error loading CEL22.txt";
+        "Error loading word lists";
 });
 </script>
 
