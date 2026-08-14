@@ -30,9 +30,13 @@
             width: min(1100px, 96vw);
             height: 100vh;
             margin: auto;
-            padding: 12px 0;
+            padding: 0 0 12px;
+
             display: flex;
             flex-direction: column;
+
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         /* =========================
@@ -42,8 +46,11 @@
         #top-bar {
             position: sticky;
             top: 0;
+            padding-top: 12px;
             z-index: 20;
+
             background: #f4f4f4;
+
             flex-shrink: 0;
         }
 
@@ -96,24 +103,31 @@
         }
 
         /* Hidden text input used to summon the mobile keyboard.
-           Must stay in-flow (not display:none / visibility:hidden)
-           or mobile browsers won't focus it / show a keyboard. */
+           It is fixed to the viewport so focusing it cannot scroll
+           the page back to the top. */
         #hidden-input {
-            position: absolute;
-            top: 0;
+            position: fixed;
             left: 0;
+            bottom: 0;
+
             width: 1px;
             height: 1px;
+
             padding: 0;
             margin: 0;
             border: none;
             outline: none;
             box-shadow: none;
             background: transparent;
+
             caret-color: transparent;
             -webkit-tap-highlight-color: transparent;
+
             opacity: 0;
-            font-size: 16px; /* prevents iOS auto-zoom on focus */
+
+            /* prevents iOS auto-zoom on focus */
+            font-size: 16px;
+
             pointer-events: none;
         }
 
@@ -165,8 +179,7 @@
             font-size: 13px;
             font-weight: bold;
             letter-spacing: 0;
-            margin-top: 4px;
-            margin: 0 0;
+            margin: 0;
             flex-shrink: 0;
             display: block;
             text-align: center;
@@ -176,7 +189,7 @@
             font-size: 10px;
             font-weight: normal;
             letter-spacing: 0;
-            margin: 0 0;
+            margin: 0;
             display: block;
             text-align: center;
         }
@@ -352,14 +365,6 @@
            ========================= */
 
         @media (max-width: 800px) {
-            body {
-                overflow: auto;
-            }
-
-            #game {
-                height: auto;
-                min-height: 100vh;
-            }
 
             #puzzles {
                 grid-template-columns: repeat(2, 1fr);
@@ -380,12 +385,8 @@
                 font-size: 14px;
             }
 
-            /* On desktop this is a small floating overlay near
-               the top, which works fine since there's plenty of
-               room around it. On mobile the screen is too narrow
-               for that and it ends up overlapping puzzle 1, so
-               instead let it sit inline in the normal document
-               flow, pushing content down instead of covering it. */
+            /* On mobile the game-over panel stays in normal flow
+               so it doesn't cover the puzzles. */
             #game-over {
                 position: static;
                 transform: none;
@@ -458,16 +459,7 @@ let wordSet = new Set();
 
 /* ============================================================
    SUBSEQUENCE TEST
-   ============================================================
-
-   Returns true iff every character of small appears in big
-   in the same order.
-
-   Example:
-
-       substr("CAT", "CHART") = true
-       substr("CAT", "ACT")   = false
-*/
+   ============================================================ */
 
 function substr(small, big) {
     let j = 0;
@@ -510,10 +502,6 @@ function answers(sub) {
 
 function randomRack() {
 
-    /*
-        3 or 4 letters.
-    */
-
     const length = Math.min(
         4,
         Math.floor(Math.random() * 3) + 3
@@ -547,10 +535,14 @@ function generatePuzzles() {
             const ans = answers(rack);
 
             /*
-                Need at least 15 possible answers, all of which are 6+ letters.
+                Need at least 15 possible answers,
+                all of which are 6+ letters.
             */
 
-            if (ans.length < 15 || ans.some(word => word.length < 6) ) {
+            if (
+                ans.length < 15 ||
+                ans.some(word => word.length < 6)
+            ) {
                 continue;
             }
 
@@ -558,15 +550,8 @@ function generatePuzzles() {
                 rack: rack,
                 answers: ans,
 
-                /*
-                    Current best solution for this puzzle.
-                */
                 solution: null,
 
-                /*
-                    Total points currently earned by that
-                    solution.
-                */
                 points: 0,
 
                 solved: false,
@@ -624,9 +609,11 @@ function updateCurrentWord() {
 
 function updateTimer() {
 
-    const minutes = Math.floor(timeRemaining / 60);
+    const minutes =
+        Math.floor(timeRemaining / 60);
 
-    const seconds = timeRemaining % 60;
+    const seconds =
+        timeRemaining % 60;
 
     document.getElementById("timer").textContent =
         `${minutes}:${seconds.toString().padStart(2, "0")}`;
@@ -665,7 +652,8 @@ function renderPuzzles() {
         const number =
             document.createElement("div");
 
-        number.className = "puzzle-number";
+        number.className =
+            "puzzle-number";
 
         number.textContent =
             `PUZZLE ${index + 1}`;
@@ -680,7 +668,8 @@ function renderPuzzles() {
         const rack =
             document.createElement("div");
 
-        rack.className = "puzzle-word";
+        rack.className =
+            "puzzle-word";
 
         rack.textContent =
             puzzle.rack;
@@ -695,26 +684,48 @@ function renderPuzzles() {
         const status =
             document.createElement("div");
 
-        status.className = "puzzle-status";
+        status.className =
+            "puzzle-status";
 
-        status.textContent = `${puzzle.answers.length} words`;
+        status.textContent =
+            `${puzzle.answers.length} words`;
 
         div.appendChild(status);
 
+
+        /*
+            Bonus word.
+        */
+
         if (puzzle.bonusWord) {
-            const bonus = document.createElement("div");
-            bonus.className = "bonus-container";
 
-            const bonusWord = document.createElement("span");
-            bonusWord.className = "bonus-word";
-            bonusWord.textContent = puzzle.bonusWord;
+            const bonus =
+                document.createElement("div");
 
-            const bonusLabel = document.createElement("span");
-            bonusLabel.className = "bonus-label";
-            bonusLabel.textContent = "(bonus word)";
+            bonus.className =
+                "bonus-container";
+
+            const bonusWord =
+                document.createElement("span");
+
+            bonusWord.className =
+                "bonus-word";
+
+            bonusWord.textContent =
+                puzzle.bonusWord;
+
+            const bonusLabel =
+                document.createElement("span");
+
+            bonusLabel.className =
+                "bonus-label";
+
+            bonusLabel.textContent =
+                "(bonus word)";
 
             bonus.appendChild(bonusWord);
             bonus.appendChild(bonusLabel);
+
             div.appendChild(bonus);
         }
 
@@ -728,7 +739,8 @@ function renderPuzzles() {
             const solution =
                 document.createElement("div");
 
-            solution.className = "solution";
+            solution.className =
+                "solution";
 
 
             /*
@@ -765,13 +777,6 @@ function renderPuzzles() {
 
             /*
                 Breakdown.
-
-                Each line is a two-column layout:
-
-                    base         +162
-                    shortest     +100
-                    start ≠ V    +100
-                    time          +42
             */
 
             const breakdown =
@@ -780,10 +785,6 @@ function renderPuzzles() {
             breakdown.className =
                 "score-breakdown";
 
-
-            /*
-                Helper for creating a breakdown row.
-            */
 
             function addScoreLine(label, value) {
 
@@ -843,6 +844,7 @@ function renderPuzzles() {
                 );
             }
 
+
             /*
                 Length bonus.
             */
@@ -858,12 +860,6 @@ function renderPuzzles() {
 
             /*
                 Starting-letter bonus.
-
-                Instead of the long:
-                    "not starting with V"
-
-                use:
-                    "start ≠ V"
             */
 
             if (puzzle.points.startingLetter > 0) {
@@ -989,10 +985,7 @@ function showMessage(text) {
 
 /* ============================================================
    POINT CALCULATION
-   ============================================================
-
-   Returns BOTH the total and its components.
-*/
+   ============================================================ */
 
 function calculatePoints(puzzle, word) {
 
@@ -1016,6 +1009,7 @@ function calculatePoints(puzzle, word) {
     let shortestLength = Infinity;
 
     for (const answer of puzzle.answers) {
+
         shortestLength =
             Math.min(
                 shortestLength,
@@ -1031,16 +1025,14 @@ function calculatePoints(puzzle, word) {
 
     /*
         LENGTH BONUS
-
-        Only applies if the word is NOT the shortest.
-
-        Formula:
-            max(0, 100 - 5 * word.length)
     */
 
     const lengthBonus =
         word.length !== shortestLength
-            ? Math.max(0, 150 - 25 * (word.length - 7))
+            ? Math.max(
+                0,
+                150 - 25 * (word.length - 7)
+            )
             : 0;
 
 
@@ -1115,6 +1107,13 @@ function submitWord() {
     updateCurrentWord();
 
 
+    /*
+        Clear hidden input immediately as well.
+    */
+
+    hiddenInput.value = "";
+
+
     /* ========================================================
        1. IS IT A WORD?
        ======================================================== */
@@ -1134,44 +1133,68 @@ function submitWord() {
     let isCommonAnswer = false;
 
     for (const puzzle of puzzles) {
+
         if (puzzle.answers.includes(word)) {
             isCommonAnswer = true;
             break;
         }
     }
 
-    /* Rare = in words_alpha.txt but not in CEL22. */
-    const isRareWord = !wordList.includes(word);
 
-    /* Bonus words solve a puzzle using the same subsequence rule. */
-    const bonusPuzzles = isRareWord
-        ? puzzles.filter(puzzle =>
-            word.length >= puzzle.rack.length &&
-            substr(puzzle.rack, word)
-        )
-        : [];
+    /*
+        Rare = in words_alpha.txt but not in CEL22.
+    */
+
+    const isRareWord =
+        !wordList.includes(word);
+
+
+    /*
+        Bonus words solve a puzzle using the same
+        subsequence rule.
+    */
+
+    const bonusPuzzles =
+        isRareWord
+            ? puzzles.filter(puzzle =>
+                word.length >= puzzle.rack.length &&
+                substr(puzzle.rack, word)
+            )
+            : [];
+
 
     if (bonusPuzzles.length > 0) {
+
         let showedBonus = false;
 
         for (const puzzle of bonusPuzzles) {
-            // Don't show a bonus word on a puzzle that already has
-            // a correct answer.
+
+            /*
+                Don't show a bonus word on a puzzle that
+                already has a correct answer.
+            */
+
             if (puzzle.solved) {
                 continue;
             }
 
-            puzzle.bonusWord = word;
+            puzzle.bonusWord =
+                word;
+
             showedBonus = true;
         }
 
+
         if (showedBonus) {
+
             renderPuzzles();
 
             showMessage(
                 `(${word}) bonus word`
             );
+
         } else {
+
             showMessage(
                 "No improvement (bonus word)"
             );
@@ -1180,153 +1203,216 @@ function submitWord() {
         return;
     }
 
+
     if (!isCommonAnswer) {
+
         showMessage("Not an answer");
+
         return;
     }
+
 
     /* ========================================================
        3. UPDATE EVERY PUZZLE THAT THIS WORD IMPROVES
        ======================================================== */
 
     let totalImprovement = 0;
+
     let improvedAny = false;
 
+
     for (const puzzle of puzzles) {
+
         if (!puzzle.answers.includes(word)) {
             continue;
         }
 
-        const newPoints = calculatePoints(puzzle, word);
-        const oldTotal = puzzle.points === 0 ? 0 : puzzle.points.total;
-        const improvement = newPoints.total - oldTotal;
+
+        const newPoints =
+            calculatePoints(
+                puzzle,
+                word
+            );
+
+
+        const oldTotal =
+            puzzle.points === 0
+                ? 0
+                : puzzle.points.total;
+
+
+        const improvement =
+            newPoints.total - oldTotal;
+
 
         if (improvement > 0) {
-            puzzle.solution = word;
-            puzzle.points = newPoints;
-            puzzle.solved = true;
-            puzzle.bonusWord = null;
-            totalImprovement += improvement;
-            improvedAny = true;
+
+            puzzle.solution =
+                word;
+
+            puzzle.points =
+                newPoints;
+
+            puzzle.solved =
+                true;
+
+            /*
+                A correct answer replaces/hides
+                any previous bonus word.
+            */
+
+            puzzle.bonusWord =
+                null;
+
+            totalImprovement +=
+                improvement;
+
+            improvedAny =
+                true;
         }
     }
 
+
     if (!improvedAny) {
-        showMessage("No improvement");
+
+        showMessage(
+            "No improvement"
+        );
+
         return;
     }
 
-    score += totalImprovement;
+
+    score +=
+        totalImprovement;
+
     updateScore();
+
     renderPuzzles();
 
-    showMessage(`+${totalImprovement} (${word})`);
-
+    showMessage(
+        `+${totalImprovement} (${word})`
+    );
 }
 
+
 /* ============================================================
-   KEYBOARD / TEXT INPUT (desktop + mobile)
-   ============================================================
+   KEYBOARD / TEXT INPUT
+   ============================================================ */
 
-   There is intentionally no visible text box. Instead, a 1px
-   offscreen <input> is kept focused, so that:
-
-     - On desktop, physical key presses land on it and behave
-       exactly like typing into any input field.
-     - On mobile, focusing it pops up the on-screen keyboard,
-       which otherwise has nothing to attach to.
-
-   All letters/backspaces are read from this input's `input`
-   event rather than `keydown`, because mobile virtual keyboards
-   (especially Android IMEs) do not reliably fire correct
-   `keydown` key values, but they do reliably update the
-   input's value. Enter/Space (submit) are handled via `keydown`
-   since they don't otherwise change the input's value.
-*/
-
-const hiddenInput = document.getElementById("hidden-input");
+const hiddenInput =
+    document.getElementById("hidden-input");
 
 
 function focusHiddenInput() {
+
     if (gameActive) {
-        hiddenInput.focus({ preventScroll: true });
+
+        hiddenInput.focus({
+            preventScroll: true
+        });
     }
 }
 
 
 /*
-    Tapping/clicking anywhere in the game area (while playing)
-    brings the keyboard back if it was dismissed. This also
-    satisfies the "user gesture" requirement some mobile
-    browsers impose before showing a keyboard.
+    Tapping/clicking anywhere in the game area
+    brings the keyboard back if it was dismissed.
 */
 
 document.getElementById("game")
-    .addEventListener("click", focusHiddenInput);
+    .addEventListener(
+        "click",
+        focusHiddenInput
+    );
 
 
 /*
-    If focus is lost for any reason while the game is still
-    active, try to reclaim it so mobile users don't lose their
-    keyboard mid-game.
+    If focus is lost for any reason while the game is
+    still active, try to reclaim it.
+
+    Because the input is now position: fixed, this
+    should no longer scroll the game back to the top.
 */
 
-hiddenInput.addEventListener("blur", () => {
-    if (gameActive) {
-        setTimeout(focusHiddenInput, 0);
+hiddenInput.addEventListener(
+    "blur",
+    () => {
+
+        if (gameActive) {
+
+            setTimeout(
+                focusHiddenInput,
+                0
+            );
+        }
     }
-});
+);
 
 
 /*
-    Letters and backspaces: read from the input's live value,
-    strip anything that isn't a letter, and mirror that back
-    into both currentWord and the input itself.
+    Letters and backspaces.
 */
 
-hiddenInput.addEventListener("input", () => {
+hiddenInput.addEventListener(
+    "input",
+    () => {
 
-    if (!gameActive) {
-        hiddenInput.value = "";
-        return;
+        if (!gameActive) {
+
+            hiddenInput.value = "";
+
+            return;
+        }
+
+
+        const filtered =
+            hiddenInput.value
+                .replace(/[^a-zA-Z]/g, "")
+                .toUpperCase();
+
+
+        if (hiddenInput.value !== filtered) {
+
+            hiddenInput.value =
+                filtered;
+        }
+
+
+        currentWord =
+            filtered;
+
+        updateCurrentWord();
     }
-
-    const filtered =
-        hiddenInput.value
-            .replace(/[^a-zA-Z]/g, "")
-            .toUpperCase();
-
-    if (hiddenInput.value !== filtered) {
-        hiddenInput.value = filtered;
-    }
-
-    currentWord = filtered;
-
-    updateCurrentWord();
-});
+);
 
 
 /*
-    Enter or Space submits, matching the original desktop
-    behavior. Both are prevented from being inserted as
-    characters.
+    Enter or Space submits.
 */
 
-hiddenInput.addEventListener("keydown", event => {
+hiddenInput.addEventListener(
+    "keydown",
+    event => {
 
-    if (!gameActive) {
-        return;
+        if (!gameActive) {
+            return;
+        }
+
+
+        if (
+            event.key === "Enter" ||
+            event.key === " "
+        ) {
+
+            event.preventDefault();
+
+            submitWord();
+
+            hiddenInput.value = "";
+        }
     }
-
-    if (event.key === "Enter" || event.key === " ") {
-
-        event.preventDefault();
-
-        submitWord();
-
-        hiddenInput.value = "";
-    }
-});
+);
 
 
 /* ============================================================
@@ -1336,41 +1422,49 @@ hiddenInput.addEventListener("keydown", event => {
 function startTimer() {
 
     /*
-        In case startTimer is somehow called while an old
-        timer still exists, clear it first.
+        Clear any old timer.
     */
 
     if (timerInterval !== null) {
 
-        clearInterval(timerInterval);
+        clearInterval(
+            timerInterval
+        );
 
-        timerInterval = null;
+        timerInterval =
+            null;
     }
 
 
-    timeRemaining = 120;
+    timeRemaining =
+        120;
 
     updateTimer();
 
 
     timerInterval =
-        setInterval(() => {
+        setInterval(
+            () => {
 
-            timeRemaining--;
+                timeRemaining--;
 
-            if (timeRemaining < 0) {
-                timeRemaining = 0;
-            }
+                if (timeRemaining < 0) {
 
-            updateTimer();
+                    timeRemaining =
+                        0;
+                }
+
+                updateTimer();
 
 
-            if (timeRemaining === 0) {
+                if (timeRemaining === 0) {
 
-                endGame();
-            }
+                    endGame();
+                }
 
-        }, 1000);
+            },
+            1000
+        );
 }
 
 
@@ -1388,22 +1482,30 @@ function endGame() {
         return;
     }
 
-    gameActive = false;
+    gameActive =
+        false;
 
 
     if (timerInterval !== null) {
 
-        clearInterval(timerInterval);
+        clearInterval(
+            timerInterval
+        );
 
-        timerInterval = null;
+        timerInterval =
+            null;
     }
 
 
-    currentWord = "";
+    currentWord =
+        "";
 
     updateCurrentWord();
 
-    hiddenInput.value = "";
+
+    hiddenInput.value =
+        "";
+
     hiddenInput.blur();
 
 
@@ -1414,13 +1516,16 @@ function endGame() {
     renderPuzzles();
 
 
-    document.getElementById("game-over")
-        .style.display = "block";
+    document.getElementById(
+        "game-over"
+    ).style.display =
+        "block";
 
 
-    document.getElementById("final-score")
-        .textContent =
-            `Final score: ${score}`;
+    document.getElementById(
+        "final-score"
+    ).textContent =
+        `Final score: ${score}`;
 }
 
 
@@ -1431,35 +1536,72 @@ function endGame() {
 async function startGame() {
 
     /*
-        Load CEL22.txt only once.
+        Load word lists only once.
     */
 
     if (wordList.length === 0) {
 
-        const commonResponse = await fetch("CEL22.txt");
+        const commonResponse =
+            await fetch("CEL22.txt");
+
         if (!commonResponse.ok) {
-            throw new Error("Could not load CEL22.txt");
+
+            throw new Error(
+                "Could not load CEL22.txt"
+            );
         }
 
-        const rareResponse = await fetch("words_alpha.txt");
+
+        const rareResponse =
+            await fetch("words_alpha.txt");
+
         if (!rareResponse.ok) {
-            throw new Error("Could not load words_alpha.txt");
+
+            throw new Error(
+                "Could not load words_alpha.txt"
+            );
         }
 
-        const commonText = await commonResponse.text();
-        const rareText = await rareResponse.text();
 
-        wordList = [...new Set(
-            commonText.split(/\r?\n/)
-                .map(word => word.trim().toUpperCase())
-                .filter(word => /^[A-Z]+$/.test(word))
-        )];
+        const commonText =
+            await commonResponse.text();
 
-        wordSet = new Set(
-            rareText.split(/\r?\n/)
-                .map(word => word.trim().toUpperCase())
-                .filter(word => /^[A-Z]+$/.test(word))
-        );
+        const rareText =
+            await rareResponse.text();
+
+
+        wordList =
+            [...new Set(
+                commonText
+                    .split(/\r?\n/)
+                    .map(
+                        word =>
+                            word
+                                .trim()
+                                .toUpperCase()
+                    )
+                    .filter(
+                        word =>
+                            /^[A-Z]+$/.test(word)
+                    )
+            )];
+
+
+        wordSet =
+            new Set(
+                rareText
+                    .split(/\r?\n/)
+                    .map(
+                        word =>
+                            word
+                                .trim()
+                                .toUpperCase()
+                    )
+                    .filter(
+                        word =>
+                            /^[A-Z]+$/.test(word)
+                    )
+            );
     }
 
 
@@ -1484,8 +1626,9 @@ async function startGame() {
         Hide game-over display.
     */
 
-    document.getElementById("game-over")
-        .style.display =
+    document.getElementById(
+        "game-over"
+    ).style.display =
         "none";
 
 
@@ -1497,7 +1640,10 @@ async function startGame() {
 
     startTimer();
 
-    hiddenInput.value = "";
+
+    hiddenInput.value =
+        "";
+
     focusHiddenInput();
 }
 
@@ -1506,35 +1652,47 @@ async function startGame() {
    RESTART BUTTON
    ============================================================ */
 
-document.getElementById("restart")
-    .addEventListener(
-        "click",
-        () => {
+document.getElementById(
+    "restart"
+).addEventListener(
+    "click",
+    () => {
 
-            startGame().catch(error => {
+        startGame().catch(
+            error => {
 
-                console.error(error);
+                console.error(
+                    error
+                );
 
-                document.getElementById("message")
-                    .textContent =
+                document.getElementById(
+                    "message"
+                ).textContent =
                     "Error loading word lists";
-            });
-        }
-    );
+            }
+        );
+    }
+);
 
 
 /* ============================================================
    INITIAL START
    ============================================================ */
 
-startGame().catch(error => {
+startGame().catch(
+    error => {
 
-    console.error(error);
+        console.error(
+            error
+        );
 
-    document.getElementById("message")
-        .textContent =
-        "Error loading word lists";
-});
+        document.getElementById(
+            "message"
+        ).textContent =
+            "Error loading word lists";
+    }
+);
+
 </script>
 
 </body>
