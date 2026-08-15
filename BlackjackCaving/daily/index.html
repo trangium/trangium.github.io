@@ -455,12 +455,14 @@
 
     <div id="rules">
 
-        <h2>Blackjack Caving</h2>
+        <h2>How To Play</h2>
 
         <p>
-            Type words containing each puzzle's letters
-            in order. Solve the puzzles with your best
-            answers before time runs out.
+            Type words containing the given letters in order. Try to solve as many as you can!
+        </p>
+
+        <p>
+            Example: CVG &rarr; CAVING
         </p>
 
         <button id="ready">I'm ready!</button>
@@ -526,7 +528,7 @@ function seededRandom(seed) {
 
     return function() {
 
-        let t = seed += 0x6D4B79F5;
+        let t = seed += 0x6D8B79F5;
 
         t = Math.imul(t ^ t >>> 15, t | 1);
 
