@@ -470,11 +470,11 @@
             }
 
             .mobile-key.backspace {
-                grid-column: span 2;
+                grid-column: span 1;
             }
 
             .mobile-key.enter {
-                grid-column: span 2;
+                grid-column: span 3;
             }
         }
 
@@ -1680,9 +1680,6 @@ document.querySelectorAll(".mobile-key").forEach(button => {
         handleMobileKey(button.dataset.key);
     });
 
-    button.addEventListener("touchstart", event => {
-        event.preventDefault();
-    }, { passive: false });
 });
 
 
