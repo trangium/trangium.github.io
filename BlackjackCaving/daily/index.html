@@ -1,0 +1,2147 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blackjack Caving</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        body {
+            font-family: monospace;
+            background: #f4f4f4;
+            color: #111;
+            overflow: hidden;
+        }
+
+        #game {
+            position: relative;
+
+            width: min(1100px, 96vw);
+            height: 100vh;
+            margin: auto;
+            padding: 12px 0;
+
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* =========================
+           TOP BAR
+           ========================= */
+
+        #header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            margin-bottom: 8px;
+        }
+
+        h1 {
+            font-size: 22px;
+            margin: 0;
+        }
+
+        #stats {
+            display: flex;
+            gap: 30px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        #timer {
+            min-width: 55px;
+            text-align: right;
+        }
+
+        /* =========================
+           CURRENT WORD
+           ========================= */
+
+        #current-word-container {
+            height: 45px;
+            flex-shrink: 0;
+            text-align: center;
+        }
+
+        #current-word {
+            height: 28px;
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 3px;
+        }
+
+        #message {
+            height: 17px;
+            font-size: 13px;
+        }
+
+        /* =========================
+           PUZZLES
+           ========================= */
+
+        #puzzles {
+            flex: 1;
+            min-height: 0;
+
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(2, minmax(0, 1fr));
+
+            gap: 8px;
+        }
+
+        .puzzle {
+            min-height: 0;
+            background: white;
+            border: 1px solid #bbb;
+            border-radius: 6px;
+
+            padding: 8px;
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+
+            overflow: hidden;
+        }
+
+        .puzzle.solved {
+            background: #e8e8e8;
+        }
+
+        .puzzle.bonus {
+            background: #f7f7f7;
+        }
+
+        .bonus-container {
+            margin-top: 6px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bonus-word {
+            font-size: 13px;
+            font-weight: bold;
+            letter-spacing: 0;
+            margin: 0;
+            flex-shrink: 0;
+            display: block;
+            text-align: center;
+        }
+
+        .bonus-label {
+            font-size: 10px;
+            font-weight: normal;
+            letter-spacing: 0;
+            margin: 0;
+            display: block;
+            text-align: center;
+        }
+
+        .puzzle-number {
+            color: #777;
+            font-size: 11px;
+            flex-shrink: 0;
+        }
+
+        .puzzle-word {
+            font-size: 24px;
+            font-weight: bold;
+            letter-spacing: 3px;
+            margin: 2px 0;
+            flex-shrink: 0;
+        }
+
+        .puzzle-status {
+            font-size: 11px;
+            color: #555;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        /* =========================
+           SOLUTION / SCORE BREAKDOWN
+           ========================= */
+
+        .solution {
+            margin-top: 5px;
+            width: 100%;
+            text-align: left;
+            font-size: 11px;
+            line-height: 1.3;
+            flex-shrink: 0;
+        }
+
+        .solution-word {
+            text-align: center;
+            font-weight: bold;
+            font-size: 13px;
+            margin-bottom: 2px;
+        }
+
+        .solution-total {
+            text-align: center;
+            font-size: 15px;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+
+        .score-breakdown {
+            width: fit-content;
+            margin: 0 auto;
+        }
+
+        .score-line {
+            display: grid;
+            grid-template-columns: 10ch 5ch;
+            column-gap: 1ch;
+        }
+
+        .score-label {
+            text-align: left;
+            white-space: nowrap;
+        }
+
+        .score-value {
+            text-align: right;
+        }
+
+        /* =========================
+           ANSWERS
+           ========================= */
+
+        .answers-container {
+            width: 100%;
+            min-height: 0;
+            flex: 1;
+
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+
+            margin-top: 4px;
+        }
+
+        .show-answers {
+            font-family: monospace;
+            font-size: 11px;
+
+            background: #eee;
+            color: #111;
+
+            border: 1px solid #aaa;
+            border-radius: 4px;
+
+            padding: 4px 7px;
+            cursor: pointer;
+        }
+
+        .show-answers:hover {
+            background: #ddd;
+        }
+
+        .answers {
+            width: 100%;
+            min-height: 0;
+
+            overflow-y: auto;
+            overflow-x: hidden;
+
+            margin-top: 4px;
+            padding: 3px;
+
+            font-size: 10px;
+            line-height: 1.35;
+
+            border-top: 1px solid #ddd;
+
+            word-break: break-word;
+        }
+
+        /* =========================
+           DAILY RESULT
+           ========================= */
+
+        #game-over {
+            display: none;
+
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+
+            text-align: center;
+            padding: 0;
+
+            z-index: 10;
+        }
+
+        #game-over h2 {
+            margin: 0 0 4px;
+            font-size: 20px;
+        }
+
+        #final-score {
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+
+        #countdown {
+            font-size: 13px;
+            margin-bottom: 7px;
+        }
+
+        #share {
+            font-family: monospace;
+            font-size: 14px;
+
+            background: white;
+            color: #111;
+
+            border: 1px solid #999;
+            border-radius: 4px;
+
+            padding: 6px 14px;
+            cursor: pointer;
+        }
+
+        #share:hover {
+            background: #eee;
+        }
+
+        /* =========================
+           RULES MODAL
+           ========================= */
+
+        #rules-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+
+            background: rgba(0, 0, 0, 0.35);
+
+            align-items: center;
+            justify-content: center;
+
+            z-index: 100;
+        }
+
+        #rules {
+            width: min(420px, 90vw);
+
+            background: white;
+            border: 1px solid #999;
+            border-radius: 8px;
+
+            padding: 20px;
+
+            text-align: center;
+        }
+
+        #rules h2 {
+            margin: 0 0 12px;
+            font-size: 20px;
+        }
+
+        #rules p {
+            margin: 0 0 16px;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        #ready {
+            font-family: monospace;
+            font-size: 14px;
+
+            background: white;
+            color: #111;
+
+            border: 1px solid #999;
+            border-radius: 4px;
+
+            padding: 7px 16px;
+
+            cursor: pointer;
+        }
+
+        #ready:hover {
+            background: #eee;
+        }
+
+        #ready:disabled {
+            cursor: default;
+            opacity: 0.6;
+        }
+
+        /* =========================
+           SMALL SCREENS
+           ========================= */
+
+        @media (max-width: 800px) {
+            body {
+                overflow: auto;
+            }
+
+            #game {
+                height: auto;
+                min-height: 100vh;
+            }
+
+            #puzzles {
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: repeat(5, minmax(180px, 1fr));
+            }
+
+            #stats {
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+
+
+<body>
+
+<div id="game">
+
+    <div id="header">
+        <h1>Blackjack Caving</h1>
+
+        <div id="stats">
+            <div id="timer">2:00</div>
+            <div id="score">0</div>
+        </div>
+    </div>
+
+
+    <div id="current-word-container">
+        <div id="current-word"></div>
+        <div id="message"></div>
+    </div>
+
+
+    <div id="puzzles"></div>
+
+
+    <div id="game-over">
+        <h2>Final score: <span id="final-score-number"></span></h2>
+
+        <div id="countdown"></div>
+
+        <button id="share">Share</button>
+    </div>
+
+</div>
+
+
+<!-- =========================
+     RULES MODAL
+     ========================= -->
+
+<div id="rules-overlay">
+
+    <div id="rules">
+
+        <h2>Blackjack Caving</h2>
+
+        <p>
+            Type words containing each puzzle's letters
+            in order. Solve the puzzles with your best
+            answers before time runs out.
+        </p>
+
+        <button id="ready">I'm ready!</button>
+
+    </div>
+
+</div>
+
+
+<script>
+"use strict";
+
+
+/* ============================================================
+   DAILY GAME
+   ============================================================ */
+
+/*
+    8/15/2026 is Blackjack Caving #1.
+
+    Every subsequent UTC day increments the number.
+
+    The puzzle seed depends ONLY on the UTC date, so everyone
+    gets the same puzzles on the same day.
+*/
+
+const DAILY_EPOCH = Date.UTC(2026, 7, 15);
+
+
+function getUTCDateString(date = new Date()) {
+
+    return [
+        date.getUTCFullYear(),
+        String(date.getUTCMonth() + 1).padStart(2, "0"),
+        String(date.getUTCDate()).padStart(2, "0")
+    ].join("-");
+}
+
+
+function getDailyNumber() {
+
+    const today = new Date();
+
+    const utcMidnight = Date.UTC(
+        today.getUTCFullYear(),
+        today.getUTCMonth(),
+        today.getUTCDate()
+    );
+
+    return Math.floor(
+        (utcMidnight - DAILY_EPOCH) / 86400000
+    ) + 1;
+}
+
+
+/*
+    Deterministic seeded random number generator.
+
+    Mulberry32 is small and deterministic.
+*/
+
+function seededRandom(seed) {
+
+    return function() {
+
+        let t = seed += 0x6D4B79F5;
+
+        t = Math.imul(t ^ t >>> 15, t | 1);
+
+        t ^= t + Math.imul(
+            t ^ t >>> 7,
+            t | 61
+        );
+
+        return (
+            (t ^ t >>> 14) >>> 0
+        ) / 4294967296;
+    };
+}
+
+
+/*
+    Convert today's UTC date into a deterministic integer seed.
+*/
+
+function getDailySeed() {
+
+    const date = getUTCDateString();
+
+    let hash = 2166136261;
+
+    for (let i = 0; i < date.length; i++) {
+
+        hash ^= date.charCodeAt(i);
+
+        hash = Math.imul(hash, 16777619);
+    }
+
+    return hash >>> 0;
+}
+
+
+/* ============================================================
+   WORD LIST
+   ============================================================ */
+
+let wordList = [];
+let wordSet = new Set();
+
+
+/* ============================================================
+   SUBSEQUENCE TEST
+   ============================================================ */
+
+function substr(small, big) {
+
+    let j = 0;
+
+    for (
+        let i = 0;
+        i < big.length && j < small.length;
+        i++
+    ) {
+
+        if (big[i] === small[j]) {
+            j++;
+        }
+    }
+
+    return j === small.length;
+}
+
+
+/* ============================================================
+   ANSWERS
+   ============================================================ */
+
+function answers(sub) {
+
+    const result = [];
+
+    for (const word of wordList) {
+
+        if (word.length < sub.length) {
+            continue;
+        }
+
+        if (substr(sub, word)) {
+            result.push(word);
+        }
+    }
+
+    return result;
+}
+
+
+/* ============================================================
+   RANDOM PUZZLE
+   ============================================================ */
+
+function randomRack(random) {
+
+    const length = Math.min(
+        4,
+        Math.floor(random() * 3) + 3
+    );
+
+    let result = "";
+
+    for (let i = 0; i < length; i++) {
+
+        result += String.fromCharCode(
+            65 + Math.floor(random() * 26)
+        );
+    }
+
+    return result;
+}
+
+
+/* ============================================================
+   GENERATE 10 DAILY PUZZLES
+   ============================================================ */
+
+function generatePuzzles() {
+
+    const puzzles = [];
+
+    const random = seededRandom(
+        getDailySeed()
+    );
+
+    /*
+        Since the random sequence is deterministic, simply
+        advancing through it gives the same puzzles every day.
+    */
+
+    for (let i = 0; i < 10; i++) {
+
+        while (true) {
+
+            const rack = randomRack(random);
+
+            const ans = answers(rack);
+
+            /*
+                Need at least 15 possible answers,
+                all of which are 6+ letters.
+            */
+
+            if (
+                ans.length < 15 ||
+                ans.some(word => word.length < 6)
+            ) {
+                continue;
+            }
+
+            puzzles.push({
+
+                rack: rack,
+
+                answers: ans,
+
+                solution: null,
+
+                points: 0,
+
+                solved: false,
+
+                bonusWord: null
+            });
+
+            break;
+        }
+    }
+
+    /*
+        Harder puzzles first.
+    */
+
+    puzzles.sort((a, b) =>
+        b.answers.length - a.answers.length
+    );
+
+    return puzzles;
+}
+
+
+/* ============================================================
+   GAME STATE
+   ============================================================ */
+
+let puzzles = [];
+
+let score = 0;
+
+let currentWord = "";
+
+let timeRemaining = 120;
+
+let timerInterval = null;
+
+let gameActive = false;
+
+
+/* ============================================================
+   DAILY STORAGE
+   ============================================================ */
+
+function storageKey() {
+
+    return "blackjack-caving-" + getUTCDateString();
+}
+
+
+function saveDailyResult() {
+
+    const result = {
+
+        score: score,
+
+        puzzles: puzzles.map(puzzle => ({
+
+            rack: puzzle.rack,
+
+            solution: puzzle.solution,
+
+            points: puzzle.points,
+
+            solved: puzzle.solved,
+
+            bonusWord: puzzle.bonusWord
+        }))
+    };
+
+    localStorage.setItem(
+        storageKey(),
+        JSON.stringify(result)
+    );
+}
+
+
+function loadDailyResult() {
+
+    const saved = localStorage.getItem(
+        storageKey()
+    );
+
+    if (!saved) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(saved);
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
+}
+
+
+/*
+    Restore a completed game's state.
+
+    The puzzle answers themselves are regenerated from today's
+    deterministic seed, rather than being stored.
+*/
+
+function restoreDailyResult(saved) {
+
+    puzzles = generatePuzzles();
+
+    score = saved.score;
+
+    for (let i = 0; i < puzzles.length; i++) {
+
+        const savedPuzzle = saved.puzzles[i];
+
+        if (!savedPuzzle) {
+            continue;
+        }
+
+        puzzles[i].solution =
+            savedPuzzle.solution;
+
+        puzzles[i].points =
+            savedPuzzle.points;
+
+        puzzles[i].solved =
+            savedPuzzle.solved;
+
+        puzzles[i].bonusWord =
+            savedPuzzle.bonusWord;
+    }
+
+    gameActive = false;
+
+    currentWord = "";
+
+    timeRemaining = 0;
+}
+
+
+/* ============================================================
+   DISPLAY
+   ============================================================ */
+
+function updateScore() {
+
+    document.getElementById("score").textContent =
+        score;
+}
+
+
+function updateCurrentWord() {
+
+    document.getElementById("current-word").textContent =
+        currentWord;
+}
+
+
+function updateTimer() {
+
+    const minutes =
+        Math.floor(timeRemaining / 60);
+
+    const seconds =
+        timeRemaining % 60;
+
+    document.getElementById("timer").textContent =
+        `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+
+/* ============================================================
+   COUNTDOWN TO NEXT UTC DAY
+   ============================================================ */
+
+function getMillisecondsUntilNextDay() {
+
+    const now = new Date();
+
+    const nextDay = new Date(
+        Date.UTC(
+            now.getUTCFullYear(),
+            now.getUTCMonth(),
+            now.getUTCDate() + 1
+        )
+    );
+
+    return nextDay.getTime() - now.getTime();
+}
+
+
+function formatCountdown(milliseconds) {
+
+    let totalSeconds =
+        Math.max(
+            0,
+            Math.floor(milliseconds / 1000)
+        );
+
+    const hours =
+        Math.floor(totalSeconds / 3600);
+
+    totalSeconds %= 3600;
+
+    const minutes =
+        Math.floor(totalSeconds / 60);
+
+    const seconds =
+        totalSeconds % 60;
+
+    return [
+        String(hours).padStart(2, "0"),
+        String(minutes).padStart(2, "0"),
+        String(seconds).padStart(2, "0")
+    ].join(":");
+}
+
+
+let countdownInterval = null;
+
+
+function startCountdown() {
+
+    if (countdownInterval !== null) {
+
+        clearInterval(countdownInterval);
+    }
+
+    function update() {
+
+        const countdown =
+            document.getElementById("countdown");
+
+        countdown.textContent =
+            `Next game in ${formatCountdown(
+                getMillisecondsUntilNextDay()
+            )}`;
+    }
+
+    update();
+
+    countdownInterval =
+        setInterval(update, 1000);
+}
+
+
+/* ============================================================
+   PUZZLE RENDERING
+   ============================================================ */
+
+function renderPuzzles() {
+
+    const container =
+        document.getElementById("puzzles");
+
+    container.innerHTML = "";
+
+    puzzles.forEach((puzzle, index) => {
+
+        const div =
+            document.createElement("div");
+
+        div.className = "puzzle";
+
+        if (puzzle.solved) {
+
+            div.classList.add("solved");
+
+        } else if (puzzle.bonusWord) {
+
+            div.classList.add("bonus");
+        }
+
+
+        /*
+            Puzzle number.
+        */
+
+        const number =
+            document.createElement("div");
+
+        number.className =
+            "puzzle-number";
+
+        number.textContent =
+            `PUZZLE ${index + 1}`;
+
+        div.appendChild(number);
+
+
+        /*
+            Puzzle letters.
+        */
+
+        const rack =
+            document.createElement("div");
+
+        rack.className =
+            "puzzle-word";
+
+        rack.textContent =
+            puzzle.rack;
+
+        div.appendChild(rack);
+
+
+        /*
+            Status.
+        */
+
+        const status =
+            document.createElement("div");
+
+        status.className =
+            "puzzle-status";
+
+        status.textContent =
+            `${puzzle.answers.length} words`;
+
+        div.appendChild(status);
+
+
+        /*
+            Bonus word.
+        */
+
+        if (puzzle.bonusWord) {
+
+            const bonus =
+                document.createElement("div");
+
+            bonus.className =
+                "bonus-container";
+
+
+            const bonusWord =
+                document.createElement("span");
+
+            bonusWord.className =
+                "bonus-word";
+
+            bonusWord.textContent =
+                puzzle.bonusWord;
+
+
+            const bonusLabel =
+                document.createElement("span");
+
+            bonusLabel.className =
+                "bonus-label";
+
+            bonusLabel.textContent =
+                "(bonus word)";
+
+
+            bonus.appendChild(bonusWord);
+
+            bonus.appendChild(bonusLabel);
+
+            div.appendChild(bonus);
+        }
+
+
+        /*
+            Show solution and scoring breakdown.
+        */
+
+        if (puzzle.solved) {
+
+            const solution =
+                document.createElement("div");
+
+            solution.className =
+                "solution";
+
+
+            const word =
+                document.createElement("div");
+
+            word.className =
+                "solution-word";
+
+            word.textContent =
+                puzzle.solution;
+
+            solution.appendChild(word);
+
+
+            const total =
+                document.createElement("div");
+
+            total.className =
+                "solution-total";
+
+            total.textContent =
+                `+${puzzle.points.total}`;
+
+            solution.appendChild(total);
+
+
+            const breakdown =
+                document.createElement("div");
+
+            breakdown.className =
+                "score-breakdown";
+
+
+            function addScoreLine(label, value) {
+
+                const line =
+                    document.createElement("div");
+
+                line.className =
+                    "score-line";
+
+
+                const labelElement =
+                    document.createElement("span");
+
+                labelElement.className =
+                    "score-label";
+
+                labelElement.textContent =
+                    label;
+
+
+                const valueElement =
+                    document.createElement("span");
+
+                valueElement.className =
+                    "score-value";
+
+                valueElement.textContent =
+                    `+${value}`;
+
+
+                line.appendChild(labelElement);
+
+                line.appendChild(valueElement);
+
+                breakdown.appendChild(line);
+            }
+
+
+            addScoreLine(
+                "base",
+                puzzle.points.base
+            );
+
+
+            if (puzzle.points.shortest > 0) {
+
+                addScoreLine(
+                    "shortest",
+                    puzzle.points.shortest
+                );
+            }
+
+
+            if (puzzle.points.lengthBonus > 0) {
+
+                addScoreLine(
+                    "length",
+                    puzzle.points.lengthBonus
+                );
+            }
+
+
+            if (puzzle.points.startingLetter > 0) {
+
+                addScoreLine(
+                    `start ≠ ${puzzle.rack[0]}`,
+                    puzzle.points.startingLetter
+                );
+            }
+
+
+            addScoreLine(
+                "time",
+                puzzle.points.time
+            );
+
+
+            solution.appendChild(breakdown);
+
+            div.appendChild(solution);
+        }
+
+
+        /*
+            Show answers after time is up.
+        */
+
+        if (!gameActive) {
+
+            const answersContainer =
+                document.createElement("div");
+
+            answersContainer.className =
+                "answers-container";
+
+
+            const button =
+                document.createElement("button");
+
+            button.className =
+                "show-answers";
+
+            button.textContent =
+                "Show answers";
+
+
+            const answerDiv =
+                document.createElement("div");
+
+            answerDiv.className =
+                "answers";
+
+            answerDiv.style.display =
+                "none";
+
+
+            button.addEventListener(
+                "click",
+                () => {
+
+                    const sorted =
+                        [...puzzle.answers].sort(
+                            (a, b) => {
+
+                                if (
+                                    a.length !==
+                                    b.length
+                                ) {
+                                    return (
+                                        a.length -
+                                        b.length
+                                    );
+                                }
+
+                                return a.localeCompare(b);
+                            }
+                        );
+
+                    answerDiv.textContent =
+                        sorted.join(", ");
+
+                    answerDiv.style.display =
+                        "block";
+
+                    button.style.display =
+                        "none";
+                }
+            );
+
+
+            answersContainer.appendChild(button);
+
+            answersContainer.appendChild(answerDiv);
+
+            div.appendChild(answersContainer);
+        }
+
+
+        container.appendChild(div);
+    });
+}
+
+
+/* ============================================================
+   MESSAGE
+   ============================================================ */
+
+let messageTimeout = null;
+
+
+function showMessage(text) {
+
+    const message =
+        document.getElementById("message");
+
+    message.textContent =
+        text;
+
+    clearTimeout(messageTimeout);
+
+    messageTimeout =
+        setTimeout(() => {
+
+            message.textContent = "";
+
+        }, 1000);
+}
+
+
+/* ============================================================
+   POINT CALCULATION
+   ============================================================ */
+
+function calculatePoints(puzzle, word) {
+
+    const base =
+        25 * Math.round(
+            4 * Math.max(
+                1,
+                8 -
+                Math.log2(
+                    puzzle.answers.length
+                )
+            )
+        );
+
+
+    let shortestLength =
+        Infinity;
+
+    for (const answer of puzzle.answers) {
+
+        shortestLength =
+            Math.min(
+                shortestLength,
+                answer.length
+            );
+    }
+
+
+    const shortest =
+        word.length === shortestLength
+            ? 250
+            : 0;
+
+
+    const lengthBonus =
+        word.length !== shortestLength
+            ? Math.max(
+                0,
+                150 -
+                25 * (word.length - 7)
+            )
+            : 0;
+
+
+    const startingLetter =
+        word[0] !== puzzle.rack[0]
+            ? 250
+            : 0;
+
+
+    const time =
+        Math.ceil(
+            20 * timeRemaining / 120
+        );
+
+
+    const total =
+        base +
+        shortest +
+        lengthBonus +
+        startingLetter +
+        time;
+
+
+    return {
+
+        total: total,
+
+        base: base,
+
+        shortest: shortest,
+
+        lengthBonus: lengthBonus,
+
+        startingLetter: startingLetter,
+
+        time: time
+    };
+}
+
+
+/* ============================================================
+   SUBMIT WORD
+   ============================================================ */
+
+function submitWord() {
+
+    if (!gameActive) {
+        return;
+    }
+
+    if (currentWord.length === 0) {
+        return;
+    }
+
+
+    const word =
+        currentWord;
+
+
+    currentWord = "";
+
+    updateCurrentWord();
+
+
+    /*
+        1. IS IT A WORD?
+    */
+
+    if (!wordSet.has(word)) {
+
+        showMessage("Not a word");
+
+        return;
+    }
+
+
+    /*
+        2. IS IT AN ANSWER TO ANY PUZZLE?
+    */
+
+    let isCommonAnswer = false;
+
+    for (const puzzle of puzzles) {
+
+        if (puzzle.answers.includes(word)) {
+
+            isCommonAnswer = true;
+
+            break;
+        }
+    }
+
+
+    /*
+        Rare = in words_alpha.txt but not CEL22.
+    */
+
+    const isRareWord =
+        !wordList.includes(word);
+
+
+    /*
+        Bonus words solve a puzzle using the same
+        subsequence rule.
+    */
+
+    const bonusPuzzles =
+        isRareWord
+            ? puzzles.filter(puzzle =>
+                word.length >= puzzle.rack.length &&
+                substr(puzzle.rack, word)
+            )
+            : [];
+
+
+    if (bonusPuzzles.length > 0) {
+
+        let showedBonus = false;
+
+        for (const puzzle of bonusPuzzles) {
+
+            /*
+                Don't show a bonus word on a puzzle
+                that already has a correct answer.
+            */
+
+            if (puzzle.solved) {
+                continue;
+            }
+
+            puzzle.bonusWord = word;
+
+            showedBonus = true;
+        }
+
+
+        if (showedBonus) {
+
+            renderPuzzles();
+
+            showMessage(
+                `(${word}) bonus word`
+            );
+
+        } else {
+
+            showMessage(
+                "No improvement (bonus word)"
+            );
+        }
+
+        return;
+    }
+
+
+    if (!isCommonAnswer) {
+
+        showMessage("Not an answer");
+
+        return;
+    }
+
+
+    /*
+        3. UPDATE EVERY PUZZLE THAT THIS WORD IMPROVES
+    */
+
+    let totalImprovement = 0;
+
+    let improvedAny = false;
+
+
+    for (const puzzle of puzzles) {
+
+        if (!puzzle.answers.includes(word)) {
+            continue;
+        }
+
+
+        const newPoints =
+            calculatePoints(
+                puzzle,
+                word
+            );
+
+
+        const oldTotal =
+            puzzle.points === 0
+                ? 0
+                : puzzle.points.total;
+
+
+        const improvement =
+            newPoints.total -
+            oldTotal;
+
+
+        if (improvement > 0) {
+
+            puzzle.solution =
+                word;
+
+            puzzle.points =
+                newPoints;
+
+            puzzle.solved =
+                true;
+
+            puzzle.bonusWord =
+                null;
+
+
+            totalImprovement +=
+                improvement;
+
+            improvedAny = true;
+        }
+    }
+
+
+    if (!improvedAny) {
+
+        showMessage("No improvement");
+
+        return;
+    }
+
+
+    score +=
+        totalImprovement;
+
+    updateScore();
+
+    renderPuzzles();
+
+    showMessage(
+        `+${totalImprovement} (${word})`
+    );
+}
+
+
+/* ============================================================
+   KEYBOARD INPUT
+   ============================================================ */
+
+document.addEventListener(
+    "keydown",
+    event => {
+
+        if (!gameActive) {
+            return;
+        }
+
+
+        /*
+            ENTER or SPACE = submit.
+        */
+
+        if (
+            event.key === "Enter" ||
+            event.key === " "
+        ) {
+
+            event.preventDefault();
+
+            submitWord();
+
+            return;
+        }
+
+
+        /*
+            BACKSPACE = delete last letter.
+        */
+
+        if (event.key === "Backspace") {
+
+            event.preventDefault();
+
+            currentWord =
+                currentWord.slice(0, -1);
+
+            updateCurrentWord();
+
+            return;
+        }
+
+
+        /*
+            Only accept letters.
+        */
+
+        if (
+            /^[a-zA-Z]$/.test(event.key)
+        ) {
+
+            event.preventDefault();
+
+            currentWord +=
+                event.key.toUpperCase();
+
+            updateCurrentWord();
+        }
+    }
+);
+
+
+/* ============================================================
+   TIMER
+   ============================================================ */
+
+function startTimer() {
+
+    if (timerInterval !== null) {
+
+        clearInterval(timerInterval);
+
+        timerInterval = null;
+    }
+
+
+    timeRemaining = 120;
+
+    updateTimer();
+
+
+    timerInterval =
+        setInterval(() => {
+
+            timeRemaining--;
+
+            if (timeRemaining < 0) {
+                timeRemaining = 0;
+            }
+
+            updateTimer();
+
+
+            if (timeRemaining === 0) {
+
+                endGame();
+            }
+
+        }, 1000);
+}
+
+
+/* ============================================================
+   SHARE
+   ============================================================ */
+
+function getResultGrid() {
+
+    const rows = [];
+
+    for (let i = 0; i < 10; i += 5) {
+
+        let row = "";
+
+        for (let j = i; j < i + 5; j++) {
+
+            const puzzle =
+                puzzles[j];
+
+            if (puzzle.solved) {
+
+                row += "🟩";
+
+            } else if (puzzle.bonusWord) {
+
+                row += "🟨";
+
+            } else {
+
+                row += "⬛";
+            }
+        }
+
+        rows.push(row);
+    }
+
+    return rows.join("\n");
+}
+
+
+function getShareText() {
+
+    const number =
+        getDailyNumber();
+
+    return [
+        `Blackjack Caving #${number}`,
+        "",
+        `${score} points`,
+        "",
+        getResultGrid(),
+        "",
+        "https://trangium.github.io/BlackjackCaving/daily"
+    ].join("\n");
+}
+
+
+async function shareResult() {
+
+    const text =
+        getShareText();
+
+    try {
+
+        await navigator.clipboard.writeText(text);
+
+        const button =
+            document.getElementById("share");
+
+        button.textContent =
+            "Copied!";
+
+        setTimeout(() => {
+
+            button.textContent =
+                "Share";
+
+        }, 1200);
+
+    } catch (error) {
+
+        /*
+            Fallback for browsers where the Clipboard API
+            is unavailable.
+        */
+
+        const textarea =
+            document.createElement("textarea");
+
+        textarea.value = text;
+
+        textarea.style.position =
+            "fixed";
+
+        textarea.style.left =
+            "-9999px";
+
+        document.body.appendChild(textarea);
+
+        textarea.select();
+
+        try {
+            document.execCommand("copy");
+        } catch (copyError) {
+            console.error(copyError);
+        }
+
+        document.body.removeChild(textarea);
+
+        const button =
+            document.getElementById("share");
+
+        button.textContent =
+            "Copied!";
+
+        setTimeout(() => {
+
+            button.textContent =
+                "Share";
+
+        }, 1200);
+    }
+}
+
+
+document.getElementById("share")
+    .addEventListener(
+        "click",
+        shareResult
+    );
+
+
+/* ============================================================
+   SHOW COMPLETED GAME
+   ============================================================ */
+
+function showCompletedGame() {
+
+    const saved =
+        loadDailyResult();
+
+    if (!saved) {
+        return false;
+    }
+
+
+    restoreDailyResult(saved);
+
+    updateScore();
+
+    updateCurrentWord();
+
+    updateTimer();
+
+    renderPuzzles();
+
+
+    document.getElementById("game-over")
+        .style.display =
+        "block";
+
+
+    document.getElementById("final-score-number")
+        .textContent = score;
+
+
+    startCountdown();
+
+    return true;
+}
+
+
+/* ============================================================
+   END GAME
+   ============================================================ */
+
+function endGame() {
+
+    if (!gameActive) {
+        return;
+    }
+
+
+    gameActive = false;
+
+
+    if (timerInterval !== null) {
+
+        clearInterval(timerInterval);
+
+        timerInterval = null;
+    }
+
+
+    currentWord = "";
+
+    updateCurrentWord();
+
+
+    /*
+        Save the completed daily result BEFORE showing
+        the results screen.
+    */
+
+    saveDailyResult();
+
+
+    renderPuzzles();
+
+
+    document.getElementById("game-over")
+        .style.display =
+        "block";
+
+
+    document.getElementById("final-score-number")
+        .textContent = score;
+
+
+    startCountdown();
+}
+
+
+/* ============================================================
+   START GAME
+   ============================================================ */
+
+function startGame() {
+
+    /*
+        Preparation has already loaded the word lists and
+        generated today's puzzles.
+    */
+
+    if (!gamePrepared) {
+        throw new Error("Game is not prepared");
+    }
+
+    score = 0;
+    currentWord = "";
+    timeRemaining = 120;
+    gameActive = true;
+
+    document.getElementById("game-over")
+        .style.display = "none";
+
+    updateScore();
+    updateCurrentWord();
+    updateTimer();
+    renderPuzzles();
+    startTimer();
+}
+
+
+/* ============================================================
+   GAME PREPARATION
+   ============================================================ */
+
+let gamePreparation = null;
+let gamePrepared = false;
+
+/*
+    Prepare the word lists and today's puzzles while the
+    rules dialog is being displayed. This does not start
+    the timer or the game.
+*/
+async function prepareGame() {
+
+    if (gamePrepared) {
+        return;
+    }
+
+    await startGameDataOnly();
+
+    /*
+        Generate today's deterministic puzzles exactly once.
+    */
+    puzzles = generatePuzzles();
+
+    gamePrepared = true;
+}
+
+
+/* ============================================================
+   READY BUTTON
+   ============================================================ */
+
+document.getElementById("ready")
+    .addEventListener(
+        "click",
+        async () => {
+
+            const button =
+                document.getElementById("ready");
+
+            /*
+                If preparation is still running, keep the
+                rules dialog visible and wait for it.
+            */
+            if (!gamePrepared) {
+
+                button.disabled = true;
+                button.textContent = "Loading...";
+
+                try {
+                    await gamePreparation;
+                } catch (error) {
+                    console.error(error);
+                    button.disabled = false;
+                    button.textContent = "I'm ready!";
+                    document.getElementById(
+                        "message"
+                    ).textContent =
+                        "Error loading word lists";
+                    return;
+                }
+            }
+
+            try {
+                document.getElementById(
+                    "rules-overlay"
+                ).style.display = "none";
+
+                startGame();
+            } catch (error) {
+                console.error(error);
+                button.disabled = false;
+                button.textContent = "I'm ready!";
+                document.getElementById(
+                    "message"
+                ).textContent =
+                    "Error loading word lists";
+            }
+        }
+    );
+
+
+/* ============================================================
+   INITIAL START
+   ============================================================ */
+
+async function initialize() {
+
+    const saved = loadDailyResult();
+
+    if (saved !== null) {
+
+        try {
+
+            await startGameDataOnly();
+
+            restoreDailyResult(saved);
+
+            updateScore();
+            updateCurrentWord();
+            updateTimer();
+            renderPuzzles();
+
+            document.getElementById("game-over")
+                .style.display = "block";
+
+            document.getElementById("final-score-number")
+                .textContent = score;
+
+            startCountdown();
+
+        } catch (error) {
+
+            console.error(error);
+
+            document.getElementById("message")
+                .textContent =
+                "Error loading word lists";
+        }
+
+        return;
+    }
+
+    /*
+        No saved result for today:
+        show the rules dialog.
+    */
+
+    document.getElementById("rules-overlay")
+        .style.display = "flex";
+
+    /*
+        Prepare everything in the background while the user
+        reads the rules. Do not await it here.
+    */
+    gamePreparation = prepareGame();
+
+    gamePreparation.catch(error => {
+        console.error(error);
+    });
+}
+
+/*
+    Load the word lists without actually starting the timer.
+*/
+
+async function startGameDataOnly() {
+
+    if (wordList.length !== 0) {
+        return;
+    }
+
+
+    const commonResponse =
+        await fetch("../CEL22.txt");
+
+    if (!commonResponse.ok) {
+
+        throw new Error(
+            "Could not load CEL22.txt"
+        );
+    }
+
+
+    const rareResponse =
+        await fetch("../words_alpha.txt");
+
+    if (!rareResponse.ok) {
+
+        throw new Error(
+            "Could not load words_alpha.txt"
+        );
+    }
+
+
+    const commonText =
+        await commonResponse.text();
+
+    const rareText =
+        await rareResponse.text();
+
+
+    wordList =
+        [
+            ...new Set(
+                commonText
+                    .split(/\r?\n/)
+                    .map(
+                        word =>
+                            word.trim()
+                                .toUpperCase()
+                    )
+                    .filter(
+                        word =>
+                            /^[A-Z]+$/.test(word)
+                    )
+            )
+        ];
+
+
+    wordSet =
+        new Set(
+            rareText
+                .split(/\r?\n/)
+                .map(
+                    word =>
+                        word.trim()
+                            .toUpperCase()
+                )
+                .filter(
+                    word =>
+                        /^[A-Z]+$/.test(word)
+                )
+        );
+}
+
+
+initialize();
+</script>
+
+</body>
+</html>
