@@ -1859,6 +1859,14 @@ function startTimer() {
    SHARE
    ============================================================ */
 
+function isOptimal(puzzle) {
+    if (!puzzle.solved) {
+        return false;
+    }
+    let earnedScore = calculatePoints(puzzle, puzzle.solution).total;
+    return puzzle.answers.every(answer => calculatePoints(puzzle, answer).total <= earnedScore);
+}
+
 function getResultGrid() {
 
     const rows = [];
@@ -1872,7 +1880,11 @@ function getResultGrid() {
             const puzzle =
                 puzzles[j];
 
-            if (puzzle.solved) {
+            if (isOptimal(puzzle)) {
+
+                row += "🎯";
+
+            } else if (puzzle.solved) {
 
                 row += "🟩";
 
@@ -1899,9 +1911,7 @@ function getShareText() {
         getDailyNumber();
 
     return [
-        `Blackjack Caving #${number}`,
-        "",
-        `${score} points`,
+        `Blackjack Caving #${number} - ${score} points`,
         "",
         getResultGrid(),
         "",
