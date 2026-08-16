@@ -510,6 +510,12 @@
                 display: none;
             }
         }
+
+        @media (hover: hover) and (pointer: fine) and (min-width: 801px) {
+            #small-screen-warn {
+                display: none;
+            }
+        }
     </style>
 </head>
 
@@ -565,6 +571,8 @@
         <p>
             Example: CVG &rarr; CAVING
         </p>
+
+        <p id="small-screen-warn"><small>Note: for best results, use a device with a keyboard and large screen.</small></p>
 
         <button id="ready">I'm ready!</button>
 
