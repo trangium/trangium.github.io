@@ -283,6 +283,9 @@
             left: 50%;
             transform: translateX(-50%);
 
+            width: max-content;   /* size to content instead of shrink-to-fit-against-left */
+            max-width: 90%;        /* safety net so it can't overflow on tiny screens */
+
             text-align: center;
             padding: 0;
 
@@ -391,22 +394,110 @@
            ========================= */
 
         @media (max-width: 800px) {
+            html, body {
+                height: 100%;
+            }
+
             body {
-                overflow: auto;
+                overflow-y: auto;
+                overflow-x: hidden;
             }
 
             #game {
                 height: auto;
                 min-height: 100vh;
+                padding-bottom: 115px;
+            }
+
+            /* Sticky only on mobile. Desktop keeps the original layout. */
+            #current-word-container {
+                position: sticky;
+                top: 0;
+                z-index: 30;
+                background: #f4f4f4;
+                padding-top: 4px;
+                padding-bottom: 49px;
+                border-bottom: 1px solid #bbb;
+            }
+
+            #puzzles {
+                padding-top: 8px;
+            }
+
+            #current-word-container.game-ended {
+                z-index: -1;
+            }
+
+            #header.game-ended {
+                visibility: hidden;
             }
 
             #puzzles {
                 grid-template-columns: repeat(2, 1fr);
-                grid-template-rows: repeat(5, minmax(180px, 1fr));
+                grid-template-rows: none;
+                grid-auto-rows: minmax(180px, auto);
             }
 
             #stats {
                 gap: 15px;
+            }
+
+            /* Manual keyboard: no input element means no native keyboard. */
+            #mobile-keyboard {
+                position: fixed;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 40;
+
+                display: grid;
+                grid-template-columns: repeat(10, minmax(0, 1fr));
+                gap: 4px;
+
+                padding: 6px;
+                background: #f4f4f4;
+                border-top: 1px solid #bbb;
+                box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+
+                touch-action: manipulation;
+            }
+
+            .mobile-key {
+                min-width: 0;
+                height: 42px;
+                padding: 0;
+
+                font-family: monospace;
+                font-size: 16px;
+                font-weight: bold;
+
+                background: white;
+                color: #111;
+                border: 1px solid #aaa;
+                border-radius: 4px;
+
+                cursor: pointer;
+                -webkit-tap-highlight-color: transparent;
+                touch-action: manipulation;
+            }
+
+            .mobile-key:active {
+                background: #ddd;
+            }
+
+            .mobile-key.backspace {
+                grid-column: span 1;
+            }
+
+            .mobile-key.enter {
+                grid-column: span 3;
+            }
+        }
+
+        /* Completely absent from the desktop layout. */
+        @media (min-width: 801px) {
+            #mobile-keyboard {
+                display: none;
             }
         }
     </style>
@@ -471,6 +562,39 @@
 
 </div>
 
+
+    <div id="mobile-keyboard" aria-label="Keyboard">
+        <button type="button" class="mobile-key" data-key="Q">Q</button>
+        <button type="button" class="mobile-key" data-key="W">W</button>
+        <button type="button" class="mobile-key" data-key="E">E</button>
+        <button type="button" class="mobile-key" data-key="R">R</button>
+        <button type="button" class="mobile-key" data-key="T">T</button>
+        <button type="button" class="mobile-key" data-key="Y">Y</button>
+        <button type="button" class="mobile-key" data-key="U">U</button>
+        <button type="button" class="mobile-key" data-key="I">I</button>
+        <button type="button" class="mobile-key" data-key="O">O</button>
+        <button type="button" class="mobile-key" data-key="P">P</button>
+
+        <button type="button" class="mobile-key" data-key="A">A</button>
+        <button type="button" class="mobile-key" data-key="S">S</button>
+        <button type="button" class="mobile-key" data-key="D">D</button>
+        <button type="button" class="mobile-key" data-key="F">F</button>
+        <button type="button" class="mobile-key" data-key="G">G</button>
+        <button type="button" class="mobile-key" data-key="H">H</button>
+        <button type="button" class="mobile-key" data-key="J">J</button>
+        <button type="button" class="mobile-key" data-key="K">K</button>
+        <button type="button" class="mobile-key" data-key="L">L</button>
+        <button type="button" class="mobile-key backspace" data-key="BACKSPACE">⌫</button>
+
+        <button type="button" class="mobile-key" data-key="Z">Z</button>
+        <button type="button" class="mobile-key" data-key="X">X</button>
+        <button type="button" class="mobile-key" data-key="C">C</button>
+        <button type="button" class="mobile-key" data-key="V">V</button>
+        <button type="button" class="mobile-key" data-key="B">B</button>
+        <button type="button" class="mobile-key" data-key="N">N</button>
+        <button type="button" class="mobile-key" data-key="M">M</button>
+        <button type="button" class="mobile-key enter" data-key="ENTER">ENTER</button>
+    </div>
 
 <script>
 "use strict";
@@ -1570,6 +1694,44 @@ function submitWord() {
    KEYBOARD INPUT
    ============================================================ */
 
+function handleMobileKey(key) {
+
+    if (!gameActive) {
+        return;
+    }
+
+    if (key === "ENTER") {
+        submitWord();
+        return;
+    }
+
+    if (key === "BACKSPACE") {
+        currentWord = currentWord.slice(0, -1);
+        updateCurrentWord();
+        return;
+    }
+
+    if (/^[A-Z]$/.test(key)) {
+        currentWord += key;
+        updateCurrentWord();
+    }
+}
+
+
+/*
+    Mobile keyboard buttons deliberately do not focus an input element,
+    so the browser's native keyboard is never opened.
+*/
+
+document.querySelectorAll(".mobile-key").forEach(button => {
+
+    button.addEventListener("click", () => {
+        handleMobileKey(button.dataset.key);
+    });
+
+});
+
+
 document.addEventListener(
     "keydown",
     event => {
@@ -1889,6 +2051,14 @@ function endGame() {
         .textContent = score;
 
 
+    document.getElementById("current-word-container")
+        .classList.add("game-ended");
+
+    document.getElementById("header")
+        .classList.add("game-ended");
+
+
+
     startCountdown();
 }
 
@@ -1913,6 +2083,12 @@ function startGame() {
     timeRemaining = 120;
     gameActive = true;
 
+    document.getElementById("current-word-container")
+        .classList.remove("game-ended");
+
+    document.getElementById("header")
+        .classList.remove("game-ended");
+
     document.getElementById("game-over")
         .style.display = "none";
 
@@ -1931,6 +2107,55 @@ function startGame() {
 let gamePreparation = null;
 let gamePrepared = false;
 
+function saveDailyPuzzles() {
+    localStorage.setItem(
+        "blackjackCavingPuzzles",
+        JSON.stringify({
+            date: getDailyNumber(),
+            puzzles: puzzles.map(puzzle => ({
+                rack: puzzle.rack,
+                answers: puzzle.answers
+            }))
+        })
+    );
+}
+
+function loadDailyPuzzles() {
+    const saved =
+        localStorage.getItem("blackjackCavingPuzzles");
+
+    if (!saved) {
+        return false;
+    }
+
+    try {
+        const data = JSON.parse(saved);
+
+        if (
+            data.date !== getDailyNumber() ||
+            !Array.isArray(data.puzzles) ||
+            data.puzzles.length !== 10
+        ) {
+            return false;
+        }
+
+        puzzles = data.puzzles.map(puzzle => ({
+            rack: puzzle.rack,
+            answers: puzzle.answers,
+            solved: false,
+            solution: null,
+            points: 0,
+            bonusWord: null
+        }));
+
+        return true;
+
+    } catch (error) {
+        console.error(error);
+        return false;
+    }
+}
+
 /*
     Prepare the word lists and today's puzzles while the
     rules dialog is being displayed. This does not start
@@ -1947,7 +2172,10 @@ async function prepareGame() {
     /*
         Generate today's deterministic puzzles exactly once.
     */
-    puzzles = generatePuzzles();
+    if (!loadDailyPuzzles()) {
+        puzzles = generatePuzzles();
+        saveDailyPuzzles();
+    }
 
     gamePrepared = true;
 }
@@ -2027,6 +2255,12 @@ async function initialize() {
             updateCurrentWord();
             updateTimer();
             renderPuzzles();
+
+            document.getElementById("current-word-container")
+                .classList.add("game-ended");
+
+            document.getElementById("header")
+                .classList.add("game-ended");
 
             document.getElementById("game-over")
                 .style.display = "block";
@@ -2144,6 +2378,9 @@ async function startGameDataOnly() {
 
 initialize();
 </script>
+
+
+
 
 </body>
 </html>

@@ -283,6 +283,9 @@
             left: 50%;
             transform: translateX(-50%);
 
+            width: max-content;   /* size to content instead of shrink-to-fit-against-left */
+            max-width: 90%;        /* safety net so it can't overflow on tiny screens */
+
             text-align: center;
             padding: 0;
 
