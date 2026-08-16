@@ -393,7 +393,7 @@
            SMALL SCREENS
            ========================= */
 
-        @media (max-width: 800px) {
+        @media (hover: none) or (pointer: coarse)  {
             html, body {
                 height: 100%;
             }
@@ -495,7 +495,7 @@
         }
 
         /* Completely absent from the desktop layout. */
-        @media (min-width: 801px) {
+        @media (hover: hover) and (pointer: fine)  {
             #mobile-keyboard {
                 display: none;
             }
