@@ -487,6 +487,7 @@
 
             #current-word-container.game-ended {
                 z-index: -1;
+                position: static;
             }
 
             #header.game-ended {
@@ -2069,7 +2070,11 @@ function endGame() {
     document.getElementById("header")
         .classList.add("game-ended");
 
-
+    window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: 'smooth'
+    });
 
     startCountdown();
 }
