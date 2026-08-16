@@ -49,6 +49,10 @@
             margin-bottom: 8px;
         }
 
+        #game-title {
+            padding-top: 3px;
+        }
+
         h1 {
             font-size: 22px;
             margin: 0;
@@ -59,6 +63,10 @@
             gap: 30px;
             font-size: 20px;
             font-weight: bold;
+            position: fixed;
+            top: 15px;
+            z-index: 60;
+            right: calc((100vw - min(1100px, 96vw))/2);
         }
 
         #timer {
@@ -71,9 +79,10 @@
            ========================= */
 
         #current-word-container {
-            height: 45px;
+            height: 55px;
             flex-shrink: 0;
-            text-align: center;
+            display: grid;
+            place-items: center;
         }
 
         #current-word {
@@ -81,11 +90,13 @@
             font-size: 24px;
             font-weight: bold;
             letter-spacing: 3px;
+            grid-area: 1 / 1;
         }
 
         #message {
-            height: 17px;
-            font-size: 13px;
+            height: 20px;
+            font-size: 16px;
+            grid-area: 1 / 1;
         }
 
         /* =========================
@@ -394,47 +405,6 @@
            ========================= */
 
         @media (hover: none) or (pointer: coarse)  {
-            html, body {
-                height: 100%;
-            }
-
-            body {
-                overflow-y: auto;
-                overflow-x: hidden;
-            }
-
-            #game {
-                height: auto;
-                min-height: 100vh;
-                padding-bottom: 150px;
-            }
-
-            /* Sticky only on mobile. Desktop keeps the original layout. */
-            #current-word-container {
-                position: sticky;
-                top: 0;
-                z-index: 30;
-                background: #f4f4f4;
-                padding-top: 4px;
-                padding-bottom: 49px;
-                border-bottom: 1px solid #bbb;
-            }
-
-            #puzzles {
-                padding-top: 8px;
-            }
-
-            #current-word-container.game-ended {
-                z-index: -1;
-            }
-
-            #header.game-ended {
-                visibility: hidden;
-            }
-
-            #stats {
-                gap: 15px;
-            }
 
             /* Manual keyboard: no input element means no native keyboard. */
             #mobile-keyboard {
@@ -486,6 +456,10 @@
             .mobile-key.enter {
                 grid-column: span 3;
             }
+
+            #game {
+                padding-bottom: 150px;
+            }
         }
 
         @media (max-width: 800px) {
@@ -493,6 +467,43 @@
                 grid-template-columns: repeat(2, 1fr);
                 grid-template-rows: none;
                 grid-auto-rows: minmax(180px, auto);
+            }
+
+            body {
+                overflow-y: auto;
+                overflow-x: hidden;
+            }
+
+                        /* Sticky only on mobile. Desktop keeps the original layout. */
+            #current-word-container {
+                position: sticky;
+                top: 0;
+                z-index: 30;
+                background: #f4f4f4;
+                padding-top: 4px;
+                padding-bottom: 4px;
+                border-bottom: 1px solid #bbb;
+            }
+
+            #puzzles {
+                padding-top: 8px;
+            }
+
+            #current-word-container.game-ended {
+                z-index: -1;
+            }
+
+            #header.game-ended {
+                visibility: hidden;
+            }
+            
+            html, body {
+                height: 100%;
+            }
+
+            #game {
+                height: auto;
+                min-height: 100vh;
             }
         }
 
@@ -511,11 +522,11 @@
 <div id="game">
 
     <div id="header">
-        <h1>Blackjack Caving</h1>
+        <h1 id="game-title">Blackjack Caving</h1>
 
         <div id="stats">
-            <div id="timer">2:00</div>
             <div id="score">0</div>
+            <div id="timer">2:00</div>
         </div>
     </div>
 
@@ -967,6 +978,8 @@ function updateCurrentWord() {
 
     document.getElementById("current-word").textContent =
         currentWord;
+
+    document.getElementById("message").textContent = "";
 }
 
 
