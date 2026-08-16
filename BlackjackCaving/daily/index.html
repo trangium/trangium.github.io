@@ -432,12 +432,6 @@
                 visibility: hidden;
             }
 
-            #puzzles {
-                grid-template-columns: repeat(2, 1fr);
-                grid-template-rows: none;
-                grid-auto-rows: minmax(180px, auto);
-            }
-
             #stats {
                 gap: 15px;
             }
@@ -491,6 +485,14 @@
 
             .mobile-key.enter {
                 grid-column: span 3;
+            }
+        }
+
+        @media (max-width: 800px) {
+            #puzzles {
+                grid-template-columns: repeat(2, 1fr);
+                grid-template-rows: none;
+                grid-auto-rows: minmax(180px, auto);
             }
         }
 
