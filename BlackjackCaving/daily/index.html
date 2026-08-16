@@ -1727,9 +1727,10 @@ function handleMobileKey(key) {
 
 document.querySelectorAll(".mobile-key").forEach(button => {
 
-    button.addEventListener("click", () => {
+    button.addEventListener("touchstart", event => {
+        event.preventDefault();
         handleMobileKey(button.dataset.key);
-    });
+    }, { passive: false });
 
 });
 
