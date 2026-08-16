@@ -2048,6 +2048,14 @@ function endGame() {
         .textContent = score;
 
 
+    document.getElementById("current-word-container")
+        .classList.add("game-ended");
+
+    document.getElementById("header")
+        .classList.add("game-ended");
+
+
+
     startCountdown();
 }
 
