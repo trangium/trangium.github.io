@@ -412,15 +412,19 @@
                 top: 0;
                 z-index: 30;
                 background: #f4f4f4;
-                padding-top: 3px;
-                border-bottom: 1px solid #ddd;
+                padding-bottom: 45px;
+                border-bottom: 1px solid #bbb;
+            }
+
+            #puzzles {
+                padding-top: 8px;
             }
 
             #current-word-container.game-ended {
                 z-index: -1;
             }
 
-            #game-title.game-ended {
+            #header.game-ended {
                 visibility: hidden;
             }
 
@@ -501,7 +505,7 @@
 <div id="game">
 
     <div id="header">
-        <h1 id="game-title">Blackjack Caving</h1>
+        <h1>Blackjack Caving</h1>
 
         <div id="stats">
             <div id="timer">2:00</div>
@@ -1503,8 +1507,6 @@ function submitWord() {
     currentWord = "";
 
     updateCurrentWord();
-    document.getElementById("current-word-container")
-    .classList.add("game-ended");
 
 
     /*
@@ -2072,6 +2074,9 @@ function startGame() {
     document.getElementById("current-word-container")
         .classList.remove("game-ended");
 
+    document.getElementById("header")
+        .classList.remove("game-ended");
+
     document.getElementById("game-over")
         .style.display = "none";
 
@@ -2240,6 +2245,9 @@ async function initialize() {
             renderPuzzles();
 
             document.getElementById("current-word-container")
+                .classList.add("game-ended");
+
+            document.getElementById("header")
                 .classList.add("game-ended");
 
             document.getElementById("game-over")
