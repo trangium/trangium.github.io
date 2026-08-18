@@ -851,31 +851,59 @@ function renderPuzzles() {
                 "none";
 
 
-            button.addEventListener("click", () => {
+            button.addEventListener(
+                "click",
+                () => {
 
-                /*
-                    Shortest words first, then alphabetical.
-                */
+                    // Group answers by their total point value.
+                    const groups = new Map();
 
-                const sorted =
-                    [...puzzle.answers].sort((a, b) => {
+                    for (const word of puzzle.answers) {
+                        const points =
+                            calculatePoints(puzzle, word).total;
 
-                        if (a.length !== b.length) {
-                            return a.length - b.length;
+                        if (!groups.has(points)) {
+                            groups.set(points, []);
                         }
 
-                        return a.localeCompare(b);
-                    });
+                        groups.get(points).push(word);
+                    }
 
-                answerDiv.textContent =
-                    sorted.join(", ");
+                    // Highest-scoring answers first.
+                    const sortedGroups =
+                        [...groups.entries()].sort(
+                            (a, b) => b[0] - a[0]
+                        );
 
-                answerDiv.style.display =
-                    "block";
+                    answerDiv.innerHTML = "";
 
-                button.style.display =
-                    "none";
-            });
+                    for (const [points, words] of sortedGroups) {
+
+                        // Length + alphabetical order within each point group.
+                        words.sort((a, b) => {
+                            if (a.length !== b.length) {
+                                return a.length - b.length;
+                            }
+                            return a.localeCompare(b)
+                            }
+                        );
+
+                        const line =
+                            document.createElement("div");
+
+                        line.textContent =
+                            `(${points}+)  ${words.join(", ")}`;
+
+                        answerDiv.appendChild(line);
+                    }
+
+                    answerDiv.style.display =
+                        "block";
+
+                    button.style.display =
+                        "none";
+                }
+            );
 
 
             answersContainer.appendChild(button);

@@ -1356,26 +1356,47 @@ function renderPuzzles() {
                 "click",
                 () => {
 
-                    const sorted =
-                        [...puzzle.answers].sort(
-                            (a, b) => {
+                    // Group answers by their total point value.
+                    const groups = new Map();
 
-                                if (
-                                    a.length !==
-                                    b.length
-                                ) {
-                                    return (
-                                        a.length -
-                                        b.length
-                                    );
-                                }
+                    for (const word of puzzle.answers) {
+                        const points =
+                            calculatePoints(puzzle, word).total;
 
-                                return a.localeCompare(b);
+                        if (!groups.has(points)) {
+                            groups.set(points, []);
+                        }
+
+                        groups.get(points).push(word);
+                    }
+
+                    // Highest-scoring answers first.
+                    const sortedGroups =
+                        [...groups.entries()].sort(
+                            (a, b) => b[0] - a[0]
+                        );
+
+                    answerDiv.innerHTML = "";
+
+                    for (const [points, words] of sortedGroups) {
+
+                        // Length + alphabetical order within each point group.
+                        words.sort((a, b) => {
+                            if (a.length !== b.length) {
+                                return a.length - b.length;
+                            }
+                            return a.localeCompare(b)
                             }
                         );
 
-                    answerDiv.textContent =
-                        sorted.join(", ");
+                        const line =
+                            document.createElement("div");
+
+                        line.textContent =
+                            `(${points}+) ${words.join(", ")}`;
+
+                        answerDiv.appendChild(line);
+                    }
 
                     answerDiv.style.display =
                         "block";
