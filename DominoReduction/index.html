@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>Domino Reduction Solver</title>
+    <style>
+        body {
+            font-family: "Courier New", monospace;
+            max-width: 700px;
+            margin: 40px auto;
+            padding: 0 16px;
+            color: #111;
+        }
+
+        h1 {
+            font-size: 22px;
+        }
+
+        p.desc {
+            color: #444;
+            line-height: 1.4;
+        }
+
+        #scramble {
+            font-family: "Courier New", monospace;
+            font-size: 16px;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 8px;
+        }
+
+        .button {
+            border: 2px solid #000;
+            background-color: #fff;
+            color: #000;
+            padding: 10px 24px;
+            font-family: "Courier New", monospace;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .button:hover:not(:disabled) {
+            background-color: #000;
+            color: #fff;
+        }
+
+        .button:disabled {
+            cursor: default;
+            opacity: 0.5;
+        }
+
+        #status {
+            color: #666;
+            margin-top: 8px;
+            min-height: 1.2em;
+        }
+
+        #result {
+            margin-top: 16px;
+            font-size: 20px;
+            min-height: 1.4em;
+        }
+
+        #result .sol {
+            font-weight: bold;
+        }
+
+        #result .meta {
+            font-size: 14px;
+            color: #555;
+            margin-top: 4px;
+        }
+
+        #error {
+            color: #b00020;
+            margin-top: 8px;
+        }
+
+        .examples {
+            margin-top: 28px;
+            font-size: 13px;
+            color: #555;
+        }
+
+        .examples table {
+            border-collapse: collapse;
+        }
+
+        .examples td {
+            padding: 2px 8px 2px 0;
+        }
+
+        .examples a {
+            cursor: pointer;
+            color: #0645ad;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Domino Reduction Solver</h1>
+    <p class="desc">
+        Finds a shortest move sequence that brings a scrambled cube into
+        G1 = &lt;U, D, R2, L2, F2, B2&gt; &mdash; i.e. the shortest solution
+        counting the cube as solved once corners and U/D-face edges have
+        correct orientation only (their permutation doesn't matter) and the
+        four equator edges are in the equator slice.
+    </p>
+    <p class="desc">Or try the <a href="game.html">reduction game</a> and reduce a scramble one move at a time yourself.</p>
+
+    <input id="scramble" type="text" placeholder="e.g. L' U R' U2" autocomplete="off" />
+    <br>
+    <button id="solveBtn" class="button" disabled>Loading solver&hellip;</button>
+
+    <div id="status"></div>
+    <div id="error"></div>
+    <div id="result"></div>
+
+    <div class="examples">
+        Examples (click to try):
+        <table>
+            <tr>
+                <td><a data-scramble="L' U R' U2">L' U R' U2</a></td>
+                <td>&rarr; L U' R</td>
+            </tr>
+            <tr>
+                <td><a data-scramble="R2 U R2 U F2 R2 F B R2 F B">R2 U R2 U F2 R2 F B R2 F B</a></td>
+                <td>&rarr; (empty)</td>
+            </tr>
+            <tr>
+                <td><a data-scramble="R' U R' F' R U R' U' R'">R' U R' F' R U R' U' R'</a></td>
+                <td>&rarr; F R2 U' R</td>
+            </tr>
+        </table>
+    </div>
+
+    <script type="module">
+        import { solve } from "./solver.js";
+
+        const scrambleInput = document.getElementById("scramble");
+        const solveBtn = document.getElementById("solveBtn");
+        const statusEl = document.getElementById("status");
+        const errorEl = document.getElementById("error");
+        const resultEl = document.getElementById("result");
+
+        // solver.js builds its move/pruning tables at import time; by the
+        // time this module body runs, that work is already done.
+        solveBtn.disabled = false;
+        solveBtn.textContent = "Solve";
+
+        function runSolve() {
+            errorEl.textContent = "";
+            resultEl.innerHTML = "";
+            const scramble = scrambleInput.value;
+            let sol;
+            try {
+                const t0 = performance.now();
+                sol = solve(scramble);
+                const dt = (performance.now() - t0).toFixed(1);
+                statusEl.textContent = `solved in ${dt} ms`;
+                const solStr = sol.length === 0 ? "(empty)" : sol.join(" ");
+                resultEl.innerHTML =
+                    `<div class="sol">${solStr}</div>` +
+                    `<div class="meta">${sol.length} move${sol.length === 1 ? "" : "s"}</div>`;
+            } catch (e) {
+                statusEl.textContent = "";
+                errorEl.textContent = e.message;
+            }
+        }
+
+        solveBtn.addEventListener("click", runSolve);
+        scrambleInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") runSolve();
+        });
+
+        for (const a of document.querySelectorAll(".examples a")) {
+            a.addEventListener("click", () => {
+                scrambleInput.value = a.dataset.scramble;
+                runSolve();
+            });
+        }
+    </script>
+</body>
+
+</html>

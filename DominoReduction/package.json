@@ -1,0 +1,15 @@
+{
+  "name": "dominoreduction",
+  "version": "1.0.0",
+  "description": "Shortest-path solver to G1 = <U, D, R2, L2, F2, B2> (domino reduction), with a static web UI in web/. Only the gen/ scripts need the cubing dependency (used at dev time to derive web/moves-data.js and to sanity-check the solver); the web UI itself has no runtime dependencies.",
+  "private": true,
+  "scripts": {
+    "generate": "node gen/generate-tables.mjs",
+    "test": "node gen/test.mjs"
+  },
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "cubing": "^0.63.4"
+  }
+}
