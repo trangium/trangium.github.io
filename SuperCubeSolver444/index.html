@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>4x4x4 Seven-Phase Solver</title>
+        <style>
+            /* one font for everything (the labels are Courier New): form controls do not inherit it by default */
+            textarea, input[type=text], button {
+                font-family: "courier new", courier, monospace;
+                font-size: 1rem;
+            }
+
+            .button {
+                border: none;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                transition-duration: 0.4s;
+                cursor: pointer;
+                background-color: white;
+                color: black;
+                border: 0.125rem solid #000;
+            }
+
+            .top-button {
+                padding: 1rem 1.75rem;
+                margin: 0.25rem 0.125rem;
+            }
+
+            .button:hover {
+                background-color: #000;
+                color: white;
+            }
+
+            button:disabled {
+                opacity: 0.3;
+                cursor: none;
+                pointer-events: none;
+            }
+
+            input[type=checkbox], input[type=radio] {
+                transform: scale(1.3);
+            }
+
+            #prefix, #suffix {
+                width: 28rem;
+                max-width: 90%;
+            }
+
+            #title {
+                font-size: 1.6rem;
+                margin-bottom: 1.25rem;
+            }
+
+            .gap {
+                height: 0.75rem;
+            }
+
+            /* the three dots of "Solving..." are separate spans: the font would otherwise merge adjacent periods into an ellipsis */
+            .dot {
+                display: inline-block;
+                margin-right: 0.12em;
+            }
+
+            #output {
+                white-space: pre-wrap;
+                word-break: break-word;
+                font-weight: normal;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div style="font-family:courier new;font-size:18px">
+            <strong>
+                <div id="title">4x4x4 Seven-Phase Solver</div>
+
+                <input type="radio" name="mode" id="mode-gen" value="gen" checked /><label for="mode-gen"> Random-state scramble</label><br>
+                <input type="radio" name="mode" id="mode-solve" value="solve" /><label for="mode-solve"> Solve given position</label><br><br>
+
+                <div id="scramble-area" hidden>
+                    Scramble<br>
+                    <textarea id="scramble" rows="4" cols="72" spellcheck="false" placeholder="Leave blank for random-state"></textarea><br><br>
+                </div>
+
+                <input type="checkbox" id="safe" /><label for="safe"> Supercube-safe?</label><br><br>
+
+                Start Padding <input type="text" id="prefix" spellcheck="false" placeholder="Leave blank for no padding" /><br>
+                <div class="gap"></div>
+                End Padding <input type="text" id="suffix" spellcheck="false" placeholder="Leave blank for no padding" /><br><br>
+
+                <button style="font-family:courier new;font-size:18px" class="button top-button" id="run"><strong>Run</strong></button>
+
+                <div id="status"></div>
+                <div id="output"></div>
+            </strong>
+        </div>
+
+        <script>
+            const $ = (id) => document.getElementById(id);
+            const worker = new Worker('worker.js');
+
+            // status text followed by `dots` (0..3) separate periods
+            function setStatus(text, dots) {
+                const el = $('status');
+                el.textContent = text;
+                for (let i = 0; i < (dots || 0); i++) {
+                    const d = document.createElement('span');
+                    d.className = 'dot';
+                    d.textContent = '.';
+                    el.appendChild(d);
+                }
+            }
+            let busy = false, timer = null, dotIndex = 0;
+
+            function setBusy(b) {
+                busy = b;
+                $('run').disabled = b;
+            }
+
+            // "<label>", "<label>.", "<label>..", "<label>..." cycling
+            function startDots(label) {
+                stopDots();
+                dotIndex = 0;
+                setStatus(label, 0);
+                timer = setInterval(() => { dotIndex = (dotIndex + 1) % 4; setStatus(label, dotIndex); }, 400);
+            }
+
+            function stopDots() {
+                if (timer !== null) { clearInterval(timer); timer = null; }
+            }
+
+            function prepare() {
+                setBusy(true);
+                startDots('Loading tables');
+                worker.postMessage({ type: 'prepare', safe: $('safe').checked });
+            }
+
+            worker.onmessage = (e) => {
+                const d = e.data;
+                if (d.type === 'idle') {
+                    stopDots();
+                    $('status').textContent = '';
+                    setBusy(false);
+                } else if (d.type === 'solving') {
+                    startDots('Solving');
+                } else if (d.type === 'result') {
+                    stopDots();
+                    setBusy(false);
+                    if (d.ok) {
+                        const label = d.random ? 'Scramble' : 'Solution';
+                        $('status').textContent = '';
+                        $('output').textContent = label + ' (' + d.moves + ' moves, ' + (d.ms / 1000).toFixed(1) + ' s):\n' + (d.text || '(already solved)');
+                    } else {
+                        $('status').textContent = '';
+                        $('output').textContent = d.error;
+                    }
+                } else if (d.type === 'error') {
+                    stopDots();
+                    setBusy(false);
+                    $('status').textContent = '';
+                    $('output').textContent = d.message;
+                }
+            };
+
+            worker.onerror = (e) => {
+                stopDots();
+                setBusy(false);
+                $('status').textContent = '';
+                $('output').textContent = 'The solver could not be loaded' + (e && e.message ? ': ' + e.message : '.');
+            };
+
+            function updateMode() {
+                $('scramble-area').hidden = !$('mode-solve').checked;
+            }
+
+            $('mode-gen').addEventListener('change', updateMode);
+            $('mode-solve').addEventListener('change', updateMode);
+
+            $('run').addEventListener('click', () => {
+                if (busy) return;
+                const scramble = $('mode-solve').checked ? $('scramble').value.trim() : '';
+                setBusy(true);
+                $('output').textContent = '';
+                worker.postMessage({
+                    type: 'run',
+                    safe: $('safe').checked,
+                    randomState: scramble === '',
+                    scramble: scramble,
+                    prefix: $('prefix').value,
+                    suffix: $('suffix').value
+                });
+            });
+
+            updateMode();
+            prepare();
+        </script>
+    </body>
+
+</html>

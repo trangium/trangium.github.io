@@ -1,0 +1,9 @@
+__pycache__/
+*.pkl
+*.exe
+archive/
+phase_distance_study/
+cpp/s4_layer_ud.bin
+cpp/s4_layer_ud_modk.bin
+cpp/s4_eqpllLRFB_ud.bin
+cpp/s4_eqpllLRFB_ud_modk.bin
