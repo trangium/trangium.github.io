@@ -77,19 +77,22 @@
             <strong>
                 <div id="title">4x4x4 Seven-Phase Solver</div>
 
-                <input type="radio" name="mode" id="mode-gen" value="gen" checked /><label for="mode-gen"> Random-state scramble</label><br>
+                <input type="radio" name="mode" id="mode-fmc" value="fmc" checked /><label for="mode-fmc"> FMC scramble</label><br>
+                <input type="radio" name="mode" id="mode-gen" value="gen" /><label for="mode-gen"> Custom random-state scramble</label><br>
                 <input type="radio" name="mode" id="mode-solve" value="solve" /><label for="mode-solve"> Solve given position</label><br><br>
 
-                <div id="scramble-area" hidden>
-                    Scramble<br>
-                    <textarea id="scramble" rows="4" cols="72" spellcheck="false" placeholder="Leave blank for random-state"></textarea><br><br>
+                <div id="config">
+                    <div id="scramble-area" hidden>
+                        Scramble<br>
+                        <textarea id="scramble" rows="4" cols="72" spellcheck="false" placeholder="Leave blank for random-state"></textarea><br><br>
+                    </div>
+
+                    <input type="checkbox" id="safe" /><label for="safe"> Supercube-safe?</label><br><br>
+
+                    Start Padding <input type="text" id="prefix" spellcheck="false" placeholder="Leave blank for no padding" /><br>
+                    <div class="gap"></div>
+                    End Padding <input type="text" id="suffix" spellcheck="false" placeholder="Leave blank for no padding" /><br><br>
                 </div>
-
-                <input type="checkbox" id="safe" /><label for="safe"> Supercube-safe?</label><br><br>
-
-                Start Padding <input type="text" id="prefix" spellcheck="false" placeholder="Leave blank for no padding" /><br>
-                <div class="gap"></div>
-                End Padding <input type="text" id="suffix" spellcheck="false" placeholder="Leave blank for no padding" /><br><br>
 
                 <button style="font-family:courier new;font-size:18px" class="button top-button" id="run"><strong>Run</strong></button>
 
@@ -173,24 +176,28 @@
             };
 
             function updateMode() {
+                const fmc = $('mode-fmc').checked;
+                $('config').hidden = fmc;
                 $('scramble-area').hidden = !$('mode-solve').checked;
             }
 
+            $('mode-fmc').addEventListener('change', updateMode);
             $('mode-gen').addEventListener('change', updateMode);
             $('mode-solve').addEventListener('change', updateMode);
 
             $('run').addEventListener('click', () => {
                 if (busy) return;
+                const fmc = $('mode-fmc').checked;
                 const scramble = $('mode-solve').checked ? $('scramble').value.trim() : '';
                 setBusy(true);
                 $('output').textContent = '';
                 worker.postMessage({
                     type: 'run',
-                    safe: $('safe').checked,
-                    randomState: scramble === '',
-                    scramble: scramble,
-                    prefix: $('prefix').value,
-                    suffix: $('suffix').value
+                    safe: fmc ? false : $('safe').checked,
+                    randomState: fmc ? true : scramble === '',
+                    scramble: fmc ? '' : scramble,
+                    prefix: fmc ? "Rw' Uw' F" : $('prefix').value,
+                    suffix: fmc ? "Rw' Uw' F" : $('suffix').value
                 });
             });
 
