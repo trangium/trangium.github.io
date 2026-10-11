@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <meta charset="utf-8" />
+        <title>Batch Solver 2.0 (beta)</title>
+        <style>
+            textarea {
+                font-size: 1rem;
+            }
+
+            #puzzle {
+                margin-top: 0.125rem;
+            }
+
+            .adv-layout {
+                text-align: left;
+            }   
+
+            .button {
+                border: none;
+                color: white;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                transition-duration: 0.4s;
+                cursor: pointer;
+                background-color: white;
+                color: black;
+                border: 0.125rem solid #000;
+            }
+
+            .top-button {
+                padding: 1rem 1.75rem;
+                margin: 0.25rem 0.125rem;
+            }
+
+            .pager-btn {
+                padding: 0.063rem 0.6rem;
+                margin: 0rem 0.125rem;
+            }
+
+            .add-subgroup, .remove-subgroup, .add-sorting, .remove-sorting {
+                padding: 0.063rem 0.312rem;
+                margin: 0rem 0.125rem;
+            }
+    
+            .button:hover {
+                background-color: #000;
+                color: white;
+            }
+
+            button:disabled {
+                opacity: 0.3;
+                cursor: none;
+                pointer-events: none;
+            }
+
+            input[type=checkbox] {
+                transform: scale(1.3);
+            }
+
+            #input-area tr {
+                height: 1.875rem;
+            }
+
+            #input-area td, #input-area th {
+                text-align: left;
+                vertical-align: top;
+                padding: 0;
+            }
+
+            #imageOptions {
+                line-height: 1.333;
+            }
+
+            #table-area table {
+                border-color: black;
+                border-width: 0.063rem 0.063rem 0.125rem 0.063rem;
+                border-style: solid;
+            }
+
+            #table-area td {
+                border-color: black;
+                border-width: 0.063rem 0.063rem 0 0;
+                border-style: solid;
+                padding: 0.188rem;
+                height: 1em;
+                text-align: left;
+                vertical-align: top;
+                white-space: nowrap;
+            }
+
+            #table-area th {
+                border-color: black;
+                border-width: 0.063rem 0.063rem 0 0;
+                border-style: solid;
+                padding: 0.188rem;
+                text-align: center;
+            }
+
+            #table-area .output-left {
+                border-color: black;
+                border-width: 0.063rem 0.063rem 0 0.063rem;
+                border-style: solid;
+            }
+
+            #table-area .case-header {
+                padding: 0.75rem;
+            }
+
+            .inputNum {
+                vertical-align: middle;
+                resize: none;
+                width: 4.5rem;
+            }
+
+            #info-fails {
+                color: red;
+                text-decoration: underline;
+                cursor: pointer;
+            }
+
+            .tooltip {
+                position: relative;
+                display: inline-block;
+            }
+
+            .tooltip .tooltiptext {
+                visibility: hidden;
+                width: 9rem;
+                background-color: #555;
+                color: #fff;
+                text-align: center;
+                border-radius: 0.375rem;
+                padding: 0.313rem;
+                position: absolute;
+                z-index: 1;
+                bottom: 150%;
+                left: 50%;
+                margin-left: -5rem;
+                opacity: 0;
+                transition: opacity 0.3s;
+            }
+
+            .tooltip .tooltiptext::after {
+                content: "";
+                position: absolute;
+                top: 100%;
+                left: 50%;
+                margin-left: -0.313rem;
+                border-width: 0.313rem;
+                border-style: solid;
+                border-color: #555 transparent transparent transparent;
+            }
+
+            .tooltip:hover .tooltiptext {
+                visibility: visible;
+                opacity: 1;
+            }
+
+        </style>
+    </head>
+    
+    <body>
+        <div style="font-family:courier new;font-size:18px">
+            <strong>
+                <div id="input-area">
+                    Puzzle
+                    <select id="puzzle-select" onchange="puzzleSelected(this)">
+                        <option value="3x3x3">3x3x3</option>
+                        <option value="2x2x2">2x2x2</option>
+                        <option value="4x4x4">4x4x4</option>
+                        <option value="Skewb">Skewb</option>
+                        <option value="Pyraminx">Pyraminx</option>
+                        <option value="Megaminx">Megaminx</option>
+                        <option value="FTO">FTO</option>
+                        <option value="Custom">Custom</option>
+                    </select>
+                    <br>
+                    <textarea id="puzzle" rows="15" cols="88" spellcheck="false"></textarea><br><br>
+                    Unique Orientations & Equivalences<br>
+                    <textarea id="ignore" rows="3" cols="72" spellcheck="false"></textarea><br><br>
+
+                    <table id="subgroup-table">
+                        <tr id="subgroup-row-1">
+                            <th style="vertical-align: bottom">Prune</th>
+                            <th style="vertical-align: bottom">Search</th>
+                            <th style="vertical-align: bottom">Subgroup</th>
+                            <th>
+                                <button style="font-family:courier new; font-size:17px" class="button add-subgroup" onclick="subgroupButtonHandler(this)"><strong>+</strong></button>
+                            </th>
+                        </tr>
+                        <tr id="subgroup-row-2">
+                            <td><textarea class="prune" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                            <td><textarea class="search" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                            <td><textarea class="subgroup" rows="1" cols="42" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                            <td>
+                                <button style="font-family:courier new; font-size:17px" class="button remove-subgroup" disabled onclick="subgroupButtonHandler(this)"><strong>-</strong></button>
+                            </td>
+                        </tr>
+                    </table><br>
+                    Scramble<br>
+                    <textarea id="solve" rows="6" cols="72" spellcheck="false"></textarea><br><br>
+                    Batching
+                    <select id="batching" onchange="batchingSelected(this)">
+                        <option value="none" selected>None</option>
+                        <option value="full">Full</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                    <a id="batching-info-link" href="#" hidden onclick="toggleBatchingInfo(); return false;" style="color:blue; text-decoration:underline; font-weight:normal">(info)</a><br>
+                    <div id="batching-info" hidden style="font-weight:normal; white-space:pre-wrap; margin:0.3rem 0 0.3rem 1.5rem"></div>
+                    <div id="batching-custom" hidden>
+                        <textarea id="scramble-ignore" rows="2" cols="72" spellcheck="false"></textarea><br>
+                    </div><br>
+                    <table id="batch-adjustments">
+                        <tr id="pre-adjust-table">
+                            <th style="vertical-align: bottom">Pre-Adjust</th>
+                            <th style="vertical-align: bottom">Post-Adjust</th>
+                        </tr>
+                        <tr id="post-adjust-table">
+                            <td><textarea id="pre-adjustments" rows="1" cols="14" spellcheck="false">U</textarea>&nbsp;&nbsp;</td>
+                            <td><textarea id="post-adjustments" rows="1" cols="14" spellcheck="false">U</textarea>&nbsp;&nbsp;</td>
+                        </tr>
+                    </table>
+
+                    <table id="sorting-table">
+                        <tr id="sorting-row-1">
+                            <th style="vertical-align: bottom">Case Sorting</th>
+                        </tr>
+                        <tr id="sorting-row-2">
+                            <td>
+                                <select class="sorting-type" style="font-size:15px; padding:2px">
+                                    <option value="priority">Set priority</option>
+                                    <option value="ori-of">Orientation of</option>
+                                    <option value="ori-at">Orientation at</option>
+                                    <option value="perm-of">Permutation of</option>
+                                    <option value="perm-at">Permutation at</option>
+                                </select>
+                            </td>
+                            <td><textarea class="sorting-pieces" rows="1" cols="44" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                            <td><button style="font-family:courier new; font-size:17px" class="button up-sorting" onclick="sortButtonHandler(this)"><strong>&#x25B2;</strong></button></td>
+                            <td><button style="font-family:courier new; font-size:17px" class="button down-sorting" onclick="sortButtonHandler(this)"><strong>&#x25BC;</strong></button>&nbsp;&nbsp;</td>
+                            <td><button style="font-family:courier new; font-size:17px" class="button add-sorting" onclick="sortButtonHandler(this)"><strong>+</strong></button></td>
+                            <td><button disabled style="font-family:courier new; font-size:17px" class="button remove-sorting" onclick="sortButtonHandler(this)"><strong>-</strong></button>&nbsp;</td>
+                        </tr>
+                    </table><br>
+                    
+                </div>
+            Options
+            </strong>
+            <div id="options">
+                <label for="sortBy"> Sort algs by: </label>
+                <select id="sortBy">
+                    <option value="MCC">MCC</option>
+                    <option value="STM">STM</option>
+                    <option value="SQTM">SQTM</option>
+                    <option value="ESQ">ESQ</option>
+                </select>
+                <br>
+                <label for="secondary-metric"> Secondary metric: </label>
+                <select id="secondary-metric">
+                    <option value="None">None</option>
+                    <option value="MCC">MCC</option>
+                    <option value="STM">STM</option>
+                    <option value="SQTM">SQTM</option>
+                    <option value="ESQ">ESQ</option>
+                </select>
+                <br>
+                <input type="checkbox" id="statVis" onclick="visibility('statVis', 'statistics')" checked/><label for="statVis"> Show statistics</label><br>
+                <input type="checkbox" id="imgOptVis" onclick="visibility('imgOptVis', 'imageOptions')" checked/><label for="imgOptVis"> Show image options</label><br>
+                <input type="checkbox" id="optVis" onclick="visibility('optVis', 'advanced')" /><label for="optVis"> Show advanced MCC options</label><br>
+                <input type="checkbox" id="esqOptVis" onclick="visibility('esqOptVis', 'esqOptions')" /><label for="esqOptVis"> Show ESQ options</label><br>
+                <input type="checkbox" id="showPostAdj" /><label for="showPostAdj"> Show ending adjustments</label><br>
+                <input type="checkbox" id="tableOptVis" onclick="visibility('tableOptVis', 'tableOptions')" /><label for="tableOptVis"> Show endtable options</label><br>
+                Show top <input type="number" class="inputNum" id="maxSolutions" value="20"></input> solutions for each case<br>
+            </div>
+
+            <div id="imageOptions">
+                <br>
+                <strong>Image Options</strong><br>
+                <input type="checkbox" id="imageVis" checked/><label for="imageVis"> Show images</label><br>
+                Image type: <select id="img-select" onchange="imageSelected(this)">
+                    <option value="3x3x3-top">3x3x3 top</option>
+                    <option value="3x3x3">3x3x3</option>
+                    <option value="2x2x2-top">2x2x2 top</option>
+                    <option value="2x2x2">2x2x2</option>
+                    <option value="4x4x4">4x4x4</option>
+                    <option value="5x5x5">5x5x5</option>
+                    <option value="Skewb">Skewb</option>
+                    <option value="Pyraminx">Pyraminx</option>
+                    <option value="Megaminx">Megaminx</option>
+                </select><br>
+                Image size: <input type="number" class="inputNum" id="imgSize" value="150" oninput="generateImagePreview()"></input><br>
+                <div id="imgRot"> 
+                    X rotation: <input type="number" class="inputNum" id="imgPitch" value="30" oninput="generateImagePreview()"></input> 
+                    Y rotation: <input type="number" class="inputNum" id="imgYaw" value="40" oninput="generateImagePreview()"></input><br> 
+                </div>
+                Mask: <input size="54" id="faceletColors" oninput="generateImagePreview()" spellcheck="false"></input><br>
+                <input type="checkbox" id="previewVis" onclick="previewToggled(this)"/><label for="previewVis"> Show preview</label> <br>
+                <div id="imgPreview" hidden></div>
+                <input hidden type="range" id="previewYaw" oninput="generateImagePreview()" style="width: 225px;" value="0" min="-265" max="265" step="1">
+                <br>
+            </div>
+
+            <div id="advanced" hidden>
+                <table class="adv-layout">
+                    <tr>
+                        <th>Wrist Turn Multiplier:</th>
+                        <th>
+                            <input type="range" value="0.8" max="1" step="0.05" oninput="p1.value = this.value">
+                            <output id="p1">0.8</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Push Turn Multiplier:</th>
+                        <th>
+                            <input type="range" value="1.3" min="1" max="3" step="0.05" oninput="p2.value = this.value">
+                            <output id="p2">1.3</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Ring Turn Multiplier:</th>
+                        <th>
+                            <input type="range" value="1.4" min="1" max="3" step="0.05" oninput="p3.value = this.value">
+                            <output id="p3">1.4</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Destabilize Penalty:</th>
+                        <th>
+                            <input type="range" value="0.5" max="2" step="0.05" oninput="p4.value = this.value">
+                            <output id="p4">0.5</output><br>
+                        </th>
+                    </tr> 
+                    <tr>
+                        <th>Soft Regrip Penalty:</th>
+                        <th>
+                            <input type="range" value="1" max="4" step="0.05" oninput="p5.value = this.value">
+                            <output id="p5">1</output><br>
+                        </th>
+                    </tr> 
+                    <tr>
+                        <th>Half Turn Multiplier:</th>
+                        <th>
+                            <input type="range" value="1.65" min="1" max="2" step="0.05" oninput="p6.value = this.value">
+                            <output id="p6">1.65</output><br>
+                        </th>
+                    </tr> 
+                    <tr>
+                        <th>S/E Slice Multiplier:</th>
+                        <th>
+                            <input type="range" value="1.25" min="1" max="2" step="0.05" oninput="p7.value = this.value">
+                            <output id="p7">1.25</output><br>
+                        </th>
+                    </tr> 
+                    <tr>
+                        <th>Overwork Penalty:</th>
+                        <th>
+                            <input type="range" value="2.25" max="5" step="0.05" oninput="p8.value = this.value">
+                            <output id="p8">2.25</output><br>
+                        </th>
+                    </tr>
+                    <tr>
+                        <th>Move Block Penalty:</th>
+                        <th>
+                            <input type="range" value="0.8" min="0" max="3" step="0.05" oninput="p9.value = this.value">
+                            <output id="p9">0.8</output><br>
+                        </th>
+                    </tr> 
+                    <tr>
+                        <th>y/z Rotation:</th>
+                        <th>
+                            <input type="range" value="3.5" min="1" max="7" step="0.1" oninput="p10.value = this.value">
+                            <output id="p10">3.5</output><br>
+                        </th>
+                    </tr>                     
+                </table>
+                <br>
+            </div>
+
+            <div id="esqOptions" hidden>
+                <strong>Rank ESQ</strong><br>
+                <textarea id="rankESQ" rows="9" cols="64">R_ L_ r_ l_: 1
+R2 L2 r2 l2: 2
+__: 2
+_2: 3</textarea>
+                <br><br>
+                <strong>Generation ESQ</strong>                    
+                <select id="esq-gen-select" onchange="esqGenSelected(this)">
+                    <option value="default">Default</option>
+                    <option value="match">Match</option>
+                    <option value="custom" selected>Custom</option>
+                </select><br>
+                <div id="genESQarea">
+                    <textarea id="generationESQ" rows="9" cols="64"></textarea><br>
+                </div>
+                <br>
+            </div>
+
+            <div id="tableOptions" hidden>
+                <strong>Endtable options</strong><br>
+                Exact storage margin: <input type="number" class="inputNum" id="extDepth" value="4" min="0" max="8"></input><br>
+                Early layer false-positive rate: <input type="number" class="inputNum" id="fprInput" value="0.001" min="0.00001" max="0.5" step="any"></input><br>
+                Last layer false-positive rate: <input type="number" class="inputNum" id="fprLastInput" value="0.01" min="0.00001" max="0.5" step="any"></input><br><br>
+            </div>
+
+            <div id="warnings" hidden style="color:#9a5b00; margin-bottom:0.6rem"></div>
+
+            <div id="statistics">
+                <strong>Statistics</strong><br>
+                <span id="info-status-line" hidden>Status: <span id="info-status"></span><br></span>
+                <span id="info-tables-line" hidden>Memory: <a id="info-memory" href="#" onclick="toggleTables(); return false;" title="Click for details" style="color:blue; text-decoration:underline; cursor:pointer"></a><br></span>
+                <div id="info-tables" hidden style="margin-left:1.5rem; font-weight:normal"></div>
+                Case: <span id="info-this-case">0</span>/<span id="info-num-cases">0</span> 
+                    <span class="tooltip">
+                        <span id="info-fails"></span>
+                        <span class="tooltiptext" id="myTooltip">Copy to clipboard</span>
+                    </span><br>
+                Rate: <span id="info-time">0.00 sec/case</span><br>
+                MCC: <span id="info-mcc"> 0.00 </span><br>
+                STM: <span id="info-stm"> 0.00 </span><br>
+                SQTM: <span id="info-sqtm"> 0.00 </span><br>
+                ESQ: <span id="info-esq"> 0.00 </span><br>
+
+            </div><br>
+
+            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="searchButtonHandler()" id="calc-button"><strong>Start Search</strong></button>
+            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="exportTable()" id="select-button"><strong>Export Output</strong></button>
+            <button style="font-family:courier new;font-size:18px" class="button top-button" onclick="clearOutput()" id="clear-button"><strong>Clear Output</strong></button><br>
+
+            <div id="table-area" hidden><br>
+                <strong>Output</strong>
+                <div id="pager" style="margin:0.4rem 0">
+                    <button class="button pager-btn" id="page-first" onclick="gotoPage(0)">&laquo;</button><button class="button pager-btn" id="page-prev" onclick="gotoPage(page-1)">&lsaquo;</button>
+                    Page <input type="number" class="inputNum" style="width:4rem" id="page-num" value="1" min="1" onchange="gotoPage(this.value-1)"> of <span id="page-count">1</span>
+                    <button class="button pager-btn" id="page-next" onclick="gotoPage(page+1)">&rsaquo;</button><button class="button pager-btn" id="page-last" onclick="gotoPage(1e9)">&raquo;</button>
+                    (<span id="page-total">0</span> cases) &nbsp; Cases per page:
+                    <select id="page-size" onchange="pageSizeChanged(this)">
+                        <option>10</option><option selected>20</option><option>50</option><option>100</option><option>200</option>
+                    </select>
+                </div>
+                <div id="no-cases" hidden><em>The scramble produced no cases.</em></div>
+                <table cellspacing="0" id="output-table">
+                    <tr id="computation-header"></tr>
+                    <tr id="solutions-header"></tr>
+                    <tr id="output-data"></tr>
+                </table>
+            </div>
+        </div>
+        <canvas hidden id="canvas" width="150" height="150"></canvas>
+        <br><br><br><br><br><br><br><br><br><br><br>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js" integrity="sha512-Qlv6VSKh1gDKGoJbnyA5RMXYcvnpIqhO++MhIM2fStMcGT9i2T//tSwYFlcyoRRDcDZ+TYHpH8azBBCyhpSeqw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js" integrity="sha512-UnrKxsCMN9hFk7M56t4I4ckB4N/2HHi0w/7+B/1JsXIX3DmyBcsGpT3/BsuZMZf+6mAr0vP81syWtfynHJ69JA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>    
+    <script src="../twistysim.js"></script>
+    <script>
+        let work;
+        let solveID = 0;
+        let caseNum = 1;
+        let subgroupRowID = 3;
+        let subgroupRows = 1;
+        let sortingRowID = 3;
+        let sortingRows = 1;
+        let colMask;
+        let startTime = Date.now();
+        let failed = [];
+        let isIdle = true;
+        let casesDone = 0;
+        let totalMCC, totalSTM, totalSQTM, totalESQ;
+        let sortCriteria;
+        let PRESETS = {};      // filled in by the module script at the bottom
+
+        function visibility(checkboxId, elementId) {
+            if (document.getElementById(checkboxId).checked) {
+                document.getElementById(elementId).hidden = false;
+            } else {
+                document.getElementById(elementId).hidden = true;
+            }            
+        }
+
+        function previewToggled(c) {
+            visibility('previewVis', 'imgPreview')
+            visibility('previewVis', 'previewYaw')
+            if (c.checked) {
+                generateImagePreview();
+            }
+        }
+
+        function imageSelected(type) {
+            imgRot.hidden = type.value.includes("top");
+            previewYaw.hidden = type.value.includes("top") || !previewVis.checked;
+            generateImagePreview();
+        }
+
+        function toggleBatchingInfo() {
+            const el = document.getElementById("batching-info");
+            el.hidden = !el.hidden;
+        }
+
+        function batchingSelected(opt) {
+            document.getElementById("batching-custom").hidden = opt.value !== "custom";
+        }
+
+        function esqGenSelected(opt) {
+            let esqGenField = document.getElementById("generationESQ");
+            let esqGenArea = document.getElementById("genESQarea")
+            if (opt.value === "default") {
+                esqGenField.value = ``;
+                esqGenArea.hidden = true;
+            } else if (opt.value === "match") {
+                esqGenArea.hidden = true;
+            } else {
+                esqGenArea.hidden = false;
+            }
+        }
+
+        function puzzleSelected(pzl) {
+            let pzlField = document.getElementById('puzzle');
+            let uoeField = document.getElementById('ignore');
+            if (pzl.value === "Custom") {
+                pzlField.readOnly = false;
+                return;
+            }
+            pzlField.readOnly = true;
+            let preset = PRESETS[pzl.value];
+            if (!preset) return;
+            pzlField.value = preset.puzzle;
+            uoeField.value = preset.ignore;
+            if (preset.image) {
+                document.getElementById("img-select").value = preset.image;
+                imageSelected({value: preset.image});
+            }
+        }
+
+        function cubeImage(fc, setup="", yawOffset=0, conf=null) {
+            conf = conf || readImageConf();
+            let imgType = conf.type;
+            let cube;
+            if (imgType == "4x4x4") {
+                for (let replacer of [
+                ["2R'", "r' R"], ["2R2", "r2 R2"], ["2R", "r R'"], 
+                ["2L'", "l' L"], ["2L2", "l2 L2"], ["2L", "l L'"], 
+                ["2U'", "u' U"], ["2U2", "u2 U2"], ["2U", "u U'"], 
+                ["2D'", "d' D"], ["2D2", "d2 D2"], ["2D", "d D'"],
+                ["2F'", "f' F"], ["2F2", "f2 F2"], ["2F", "f F'"], 
+                ["2B'", "b' B"], ["2B2", "b2 B2"], ["2B", "b B'"]]) {
+                    setup = setup.replaceAll(replacer[0], replacer[1]);
+                }
+            }
+            if (imgType == "Skewb") {
+                for (let replacer of [
+                ["S2", "R' F R F' R' F R F'"], ["S3", "R' F R F' R' F R F' R' F R F'"], 
+                ["S'", "F R' F' R"], ["S2'", "F R' F' R F R' F' R"], ["S", "R' F R F'"], 
+                ["H'", "R' F R F'"], ["H2'", "R' F R F' R' F R F'"], ["H3", "R' F R F' R' F R F' R' F R F'"], 
+                ["H2", "F R' F' R F R' F' R"], ["H", "F R' F' R"], 
+                ["s2", "r' R r R' r' R r R'"], ["s3", "r' R r R' r' R r R' r' R r R'"],
+                ["s'", "R r' R' r"], ["s2'", "R r' R' r R r' R' r"], ["s", "r' R r R'"], 
+                ["h'", "r' R r R'"], ["h2'", "r' R r R' r' R r R'"], ["h3'", "r' R r R' r' R r R' r' R r R'"],
+                ["h2", "R r' R' r R r' R' r"], ["h", "R r' R' r"], 
+                ["vUperm'", "R' B l b' l' F l L'"], ["vUperm", "L f R' F' r B r' f'"],
+                ["hUperm'", "l L' b' L F L' f' r"], ["hUperm", "L' b' R B r' F' r b"],
+                ["l", "$"], ["L", "l"], ["$", "L"], 
+                ["r", "$"], ["R", "r"], ["$", "R"], 
+                ["b", "$"], ["B", "b"], ["$", "B"], 
+                ["F", "U"],
+                ["R'", "$"], ["R", "R'"], ["$", "R"]]) {
+                    setup = setup.replaceAll(replacer[0], replacer[1]);
+                }
+            }
+            if (imgType == "3x3x3-top") {
+                cube = TTk.TwistyPuzzle(3).alg(setup);
+                cube.context().projection().focalFac(-0.905).near(0.83);
+                cube.context().transform().pitch(Math.PI/2).yaw(0);
+            } else if (imgType == "2x2x2-top") {
+                cube = TTk.TwistyPuzzle(2).alg(setup);
+                cube.context().projection().focalFac(-0.96).near(0.882);
+                cube.context().transform().pitch(Math.PI/2).yaw(0);
+            } else {
+                let cMap = {"3x3x3":3, "2x2x2":2, "4x4x4":4, "5x5x5":5, "Skewb":"skewb", "Pyraminx":"pyraminx", "Megaminx":"megaminx"};
+                cube = TTk.TwistyPuzzle(cMap[imgType]).alg(setup);
+                cube.context().transform().pitch(conf.pitch/180*Math.PI).yaw((yawOffset+conf.yaw)/180*Math.PI);
+            }
+            cube = cube.size({width:conf.size, height:conf.size})
+            if (fc.trim() === "" && imgType == "Megaminx") {cube = cube.fc("wwwwwwwwwwwaaaaaaaaaaarrrrrrrrrrrbbbbbbbbbbbyyyyyyyyyyymmmmmmmmmmmgggggggggggpppppppppppGGGGGGGGGGGoooooooooooBBBBBBBBBBBYYYYYYYYYYY")}
+            else if (fc.trim() !== "") {cube = cube.fc(fc)}
+            return cube;
+        }
+
+        function generateImagePreview() {
+            document.getElementById("imgPreview").innerHTML = "";
+            let rawYaw = parseInt(document.getElementById("previewYaw").value, 10);
+            const SNAP = 25;
+            let dispYaw = (rawYaw > SNAP) ? (rawYaw-SNAP) : (rawYaw < -SNAP) ? (rawYaw+SNAP) : 0;
+            let cube = cubeImage(document.getElementById("faceletColors").value, "", dispYaw);
+            cube("#imgPreview");
+        }
+
+        generateImagePreview();
+
+        function getWorkerData() {
+            let subgroupData = [];
+            let pruneDepths = document.querySelectorAll(".prune");
+            let searchDepths = document.querySelectorAll(".search");
+            let subgroups = document.querySelectorAll(".subgroup");
+            for (let i=0; i<pruneDepths.length; i++) {
+                subgroupData.push(
+                {subgroup: subgroups[i].value,
+                prune: pruneDepths[i].value,
+                search: searchDepths[i].value});
+            }
+
+            let sortData = [];
+            let sortTypes = document.querySelectorAll(".sorting-type");
+            let sortPieces = document.querySelectorAll(".sorting-pieces")
+            for (let i=0; i<sortTypes.length; i++) {
+                sortData.push(
+                {type: sortTypes[i].value, 
+                pieces: sortPieces[i].value});
+            }
+
+            let mcc = [];
+            for (let i=1; i<=10; i++) mcc.push(parseFloat(document.getElementById("p"+i).innerHTML));
+
+            return {puzzle: document.getElementById('puzzle').value, 
+                    ignore: document.getElementById('ignore').value,
+                    solve: document.getElementById('solve').value,
+                    batching: document.getElementById('batching').value,
+                    scrambleIgnore: document.getElementById('scramble-ignore').value,
+                    preAdjust: document.getElementById('pre-adjustments').value,
+                    postAdjust: document.getElementById('post-adjustments').value,
+                    subgroups: subgroupData,
+                    sorting: sortData,
+                    esq: document.getElementById("esq-gen-select").value === "match" ? document.getElementById('rankESQ').value : document.getElementById('generationESQ').value,
+                    rankesq: document.getElementById('rankESQ').value,
+                    showPost: showPostAdj.checked,
+                    sortBy: document.getElementById("sortBy").value,
+                    secondary: document.getElementById("secondary-metric").value,
+                    maxSolutions: parseInt(document.getElementById("maxSolutions").value, 10) || 20,
+                    mcc: mcc,
+                    extension: parseInt(document.getElementById("extDepth").value, 10),
+                    fpr: parseFloat(document.getElementById("fprInput").value),
+                    fprLast: parseFloat(document.getElementById("fprLastInput").value)};
+        }
+
+        function searchButtonHandler() {
+            if (document.getElementById("calc-button").innerText == "Start Search") {
+                calc();
+            } else {
+                stopSearch();
+            }
+        }
+
+        function subgroupButtonHandler(e) {
+            if (e.className == "button add-subgroup") {
+                let tbody = document.getElementById("subgroup-table").children[0];
+                let clone = document.getElementById("subgroup-row-1").cloneNode(true);
+                clone.innerHTML = `
+                    <td><textarea class="prune" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                    <td><textarea class="search" rows="1" cols="7" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                    <td><textarea class="subgroup" rows="1" cols="42" spellcheck="false"></textarea>&nbsp;&nbsp;</td>
+                    <td>
+                        <button style="font-family:courier new;font-size:17px" class="button remove-subgroup" onclick="subgroupButtonHandler(this)"><strong>-</strong></button>
+                    </td>`;
+                clone.id = "subgroup-row-"+subgroupRowID;
+                tbody.appendChild(clone);
+                document.querySelector(".remove-subgroup").disabled = false;
+                subgroupRowID++;
+                subgroupRows++;
+            } else {
+                e.parentNode.parentNode.remove();
+                subgroupRows--;
+                if (subgroupRows == 1) {
+                    document.querySelector(".remove-subgroup").disabled = true;
+                }
+            }
+        }
+
+        function sortButtonHandler(e) {
+            let trow = e.parentNode.parentNode;
+            let table = trow.parentNode;
+            console.log(trow);
+            if (e.className == "button add-sorting") {
+                document.querySelector(".remove-sorting").disabled = false;
+                let clone = trow.cloneNode(true);
+                clone.id = "sorting-row-"+sortingRowID;
+
+                let trowDrop = trow.children[0].children[0].options;
+                let cloneDrop = clone.children[0].children[0].options;
+                for (let i=0; i<cloneDrop.length; i++) {
+                    cloneDrop[i].selected = trowDrop[i].selected;
+                }
+
+                table.insertBefore(clone, trow);
+                sortingRowID++;
+                sortingRows++;
+            } else if (e.className == "button remove-sorting") {
+                e.parentNode.parentNode.remove();
+                sortingRows--;
+                if (sortingRows == 1) {
+                    document.querySelector(".remove-sorting").disabled = true;
+                }
+            } else if (e.className == "button up-sorting") {
+                rowIndex = Array.from(table.children).indexOf(trow);
+                if (rowIndex > 1) {
+                    table.insertBefore(table.children[rowIndex], table.children[rowIndex-1]);
+                }
+            } else if (e.className == "button down-sorting") {
+                rowIndex = Array.from(table.children).indexOf(trow);
+                if (rowIndex < Array.from(table.children).length-1) {
+                    table.insertBefore(table.children[rowIndex+1], table.children[rowIndex]);
+                }
+            }
+        }
+
+        function escapeHtml(s) {
+            return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        function readImageConf() {
+            return {
+                visible: document.getElementById("imageVis").checked,
+                type: document.getElementById("img-select").value,
+                size: parseFloat(document.getElementById("imgSize").value, 10) || 150,
+                pitch: parseFloat(document.getElementById("imgPitch").value, 10) || 0,
+                yaw: parseFloat(document.getElementById("imgYaw").value, 10) || 0,
+                colors: document.getElementById("faceletColors").value,
+            };
+        }
+
+        function fmtBytes(b) {
+            if (b < 1024) return b + " B";
+            const units = ["KB", "MB", "GB"];
+            let v = b / 1024, u = 0;
+            while (v >= 1024 && u < units.length - 1) { v /= 1024; u++; }
+            return v.toFixed(v < 10 ? 2 : 1) + " " + units[u];
+        }
+
+        function fmtSize(b) { return b < 10 * 1048576 ? "<10 MB" : fmtBytes(b); }
+
+        // ---------------------------------------------------------------------------------------------
+        // Output model. Every case lives in this array; only the current page is ever put into the DOM,
+        // so the number of cases does not matter to the browser. Case images are made when a case is first shown
+        // (or when exporting) and cached as PNG data URIs.
+        let cases = [];            // {num, setup, rows: [[speed, alg]], done, result}
+        let page = 0, pageSize = 20;
+        let runBase = 0;           // index of the first case of the current run (earlier runs stay in `cases`)
+        const PAGINATE_ABOVE = 20; // up to this many cases everything is shown on one page
+        let imgConf = null;
+        let imgCache = new Map(), imgPromises = new Map();
+        let outputGen = 0;         // bumped by Clear Output so that late image callbacks are ignored
+        let dirty = new Set(), dirtyAll = false, dirtyStats = false, flushTimer = null;
+        let activeIndex = -1, globalDepth = null, searching = false;
+        let tableInfo = [];
+
+        function schedule() {
+            if (flushTimer === null) flushTimer = setTimeout(flush, 200);
+        }
+
+        function flush() {
+            if (flushTimer !== null) { clearTimeout(flushTimer); flushTimer = null; }
+            const [from, to] = pageRange();
+            if (dirtyAll) { for (let i = from; i < to; i++) updateColumn(i); }
+            else for (const i of dirty) if (i >= from && i < to) updateColumn(i);
+            dirty.clear();
+            dirtyAll = false;
+            if (dirtyStats) { dirtyStats = false; updateStats(); }
+        }
+
+        function effectivePageSize() { return cases.length > PAGINATE_ABOVE ? pageSize : Math.max(cases.length, 1); }
+        function pageRange() {
+            const size = effectivePageSize();
+            return [page * size, Math.min(cases.length, page * size + size)];
+        }
+
+        function markDirty(i) { dirty.add(i); schedule(); }
+
+        function progressText(i) {
+            const c = cases[i];
+            if (c.done) return "";
+            if (!searching || c.stopped) return "<small>Stopped</small>";
+            if (i === activeIndex) return "<small>Searching depth " + c.depth + "</small>";
+            if (activeIndex === -1 && globalDepth !== null) return "<small>Searching depth " + globalDepth + "</small>";
+            return "";
+        }
+
+        function updateColumn(i) {
+            const c = cases[i];
+            const speed = document.getElementById("speed" + i);
+            if (!speed) return;
+            speed.innerHTML = c.rows.map(r => escapeHtml(r[0]) + "<br>").join("");
+            document.getElementById("solutions" + i).innerHTML = c.rows.length
+                ? c.rows.map(r => escapeHtml(r[1]) + "<br>").join("")
+                : (c.done ? "<small>no solution found</small>" : "");
+            document.getElementById("progUpdate" + i).innerHTML = progressText(i);
+        }
+
+        /** Makes the PNG of a case (once). Resolves to a data URI, or null when images are off or the drawing failed. */
+        function ensureImage(i) {
+            if (!cases[i] || !cases[i].conf.visible) return Promise.resolve(null);
+            if (imgCache.has(i)) return Promise.resolve(imgCache.get(i));
+            if (imgPromises.has(i)) return imgPromises.get(i);
+            const gen = outputGen, conf = cases[i].conf;
+            const p = new Promise((resolve) => {
+                const holder = document.createElement("div");
+                holder.id = "imgHold" + i;
+                holder.style.cssText = "position:absolute;left:-10000px;top:0";
+                document.body.appendChild(holder);
+                let svg;
+                try {
+                    cubeImage(conf.colors, cases[i].setup, 0, conf)("#imgHold" + i);
+                    svg = holder.children[0];
+                    svg.setAttribute("stroke", "black");
+                } catch (e) { holder.remove(); resolve(null); return; }
+                const canvas = document.createElement("canvas");
+                canvas.width = canvas.height = conf.size;
+                const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(svg)], {type: "image/svg+xml;charset=utf-8"}));
+                const img = new Image();
+                img.onload = function () {
+                    canvas.getContext("2d").drawImage(img, 0, 0);
+                    URL.revokeObjectURL(url);
+                    holder.remove();
+                    const uri = canvas.toDataURL("image/png");
+                    if (gen === outputGen) imgCache.set(i, uri);
+                    resolve(uri);
+                };
+                img.onerror = function () { URL.revokeObjectURL(url); holder.remove(); resolve(null); };
+                img.src = url;
+            });
+            imgPromises.set(i, p);
+            p.then(() => imgPromises.delete(i));
+            return p;
+        }
+
+        function showImage(i) {
+            const el = document.getElementById("caseHeader" + i);
+            if (!el) return;
+            el.textContent = "#" + cases[i].num;
+            if (!cases[i].conf.visible) return;
+            ensureImage(i).then((uri) => {
+                const e2 = document.getElementById("caseHeader" + i);       // the page may have changed meanwhile
+                if (uri && e2) e2.innerHTML = '<img src="' + uri + '" title="#' + cases[i].num + '" alt="#' + cases[i].num + '"/>';
+            });
+        }
+
+        function renderPage() {
+            const total = cases.length;
+            const paginate = total > PAGINATE_ABOVE;
+            const size = effectivePageSize();
+            const pages = Math.max(1, Math.ceil(total / size));
+            page = Math.min(Math.max(0, page), pages - 1);
+            document.getElementById("pager").hidden = !paginate;
+            document.getElementById("page-num").value = page + 1;
+            document.getElementById("page-num").max = pages;
+            document.getElementById("page-count").textContent = pages;
+            document.getElementById("page-total").textContent = total;
+            document.getElementById("page-first").disabled = document.getElementById("page-prev").disabled = page === 0;
+            document.getElementById("page-next").disabled = document.getElementById("page-last").disabled = page >= pages - 1;
+            document.getElementById("no-cases").hidden = total !== 0;
+            const [from, to] = pageRange();
+            let h1 = "", h2 = "", h3 = "";
+            for (let i = from; i < to; i++) {
+                h1 += '<th colspan="2" class="output-left case-header"><span id="caseHeader' + i + '"></span><br><span id="progUpdate' + i + '"></span></th>';
+                h2 += '<th class="output-left">&nbsp;' + escapeHtml(cases[i].sortBy) + '&nbsp;</th><th>&nbsp;Solutions&nbsp;</th>';
+                h3 += '<td class="output-left" id="speed' + i + '"></td><td id="solutions' + i + '"></td>';
+            }
+            document.getElementById("output-table").innerHTML =
+                '<tr id="computation-header">' + h1 + '</tr><tr id="solutions-header">' + h2 + '</tr><tr id="output-data">' + h3 + '</tr>';
+            for (let i = from; i < to; i++) { updateColumn(i); showImage(i); }
+        }
+
+        function gotoPage(n) {
+            n = parseInt(n, 10);
+            if (isNaN(n)) return;
+            page = n;
+            renderPage();
+        }
+
+        function pageSizeChanged(sel) {
+            const first = page * effectivePageSize();
+            pageSize = parseInt(sel.value, 10) || 20;
+            page = Math.floor(first / effectivePageSize());
+            renderPage();
+        }
+
+        function setStatus(text) {
+            document.getElementById("info-status").textContent = text;
+            document.getElementById("info-status-line").hidden = (text === "");
+        }
+
+        function addWarning(text) {
+            const d = document.createElement("div");
+            d.textContent = "Note: " + text;
+            document.getElementById("warnings").appendChild(d);
+            document.getElementById("warnings").hidden = false;
+        }
+
+        function toggleTables() {
+            const el = document.getElementById("info-tables");
+            el.hidden = !el.hidden;
+        }
+
+        function showTables() {
+            const lines = [];
+            let peak = 0;
+            tableInfo.forEach((t, r) => {
+                if (!t) return;
+                peak = Math.max(peak, t.bytes);
+                lines.push((tableInfo.length > 1 ? "Subgroup " + (r + 1) + ": " : "") + "Depth " + t.depth + ", " +
+                    Math.round(t.states).toLocaleString() + " states, " + fmtSize(t.bytes) + " (Bloom filters " + fmtSize(t.filterBytes) + ")");
+            });
+            document.getElementById("info-memory").textContent = fmtSize(peak);
+            document.getElementById("info-tables").innerHTML = lines.map(escapeHtml).join("<br>");
+            document.getElementById("info-tables-line").hidden = lines.length === 0;
+            if (lines.length === 0) document.getElementById("info-tables").hidden = true;
+        }
+
+        function updateStats() {
+            const numSucceeded = casesDone - failed.length;
+            document.getElementById("info-this-case").innerHTML = casesDone;
+            document.getElementById("info-fails").innerHTML = (failed.length == 0) ? "" : " (" + failed.length + " failed)";
+            document.getElementById("info-time").innerHTML = (casesDone ? (Date.now() - startTime) / casesDone / 1000 : 0).toFixed(2) + " sec/case";
+            if (numSucceeded > 0) {
+                document.getElementById("info-mcc").innerHTML = (totalMCC / numSucceeded).toFixed(2);
+                document.getElementById("info-stm").innerHTML = (totalSTM / numSucceeded).toFixed(2);
+                document.getElementById("info-sqtm").innerHTML = (totalSQTM / numSucceeded).toFixed(2);
+                document.getElementById("info-esq").innerHTML = (totalESQ / numSucceeded).toFixed(2);
+            }
+        }
+
+        function caseFinished(result) {
+            const index = runBase + result.index;
+            const c = cases[index];
+            if (!c || c.done) return;
+            c.done = true;
+            casesDone++;
+            if (result.top === null) {
+                failed.push(c.num);
+            } else {
+                totalMCC += result.mcc;
+                totalSTM += result.stm;
+                totalSQTM += result.sqtm;
+                totalESQ += result.esq;
+            }
+            if (activeIndex === index) activeIndex = -1;
+            dirtyStats = true;
+            markDirty(index);
+        }
+
+        function handleMessage(msg) {
+            if (msg.type === "stop") {
+                stopSearch();
+                if (msg.value !== null) alert(msg.value);
+            } else if (msg.type === "status") {
+                setStatus(msg.value);
+            } else if (msg.type === "warning") {
+                addWarning(msg.value);
+            } else if (msg.type === "batching") {
+                document.getElementById("batching-info").textContent = msg.value;
+                document.getElementById("batching-info-link").hidden = false;
+            } else if (msg.type === "tables") {
+                tableInfo[msg.value.row] = msg.value;
+                showTables();
+            } else if (msg.type === "num-states") {
+                document.getElementById("info-num-cases").innerHTML = msg.value;
+            } else if (msg.type === "cases") {
+                runBase = cases.length;
+                cases = cases.concat(msg.value.map(c => ({num: c.num, setup: c.setup, rows: [], done: false, stopped: false, depth: null, conf: imgConf, sortBy: sortCriteria})));
+                page = Math.floor(runBase / effectivePageSize());     // show the first case of this run
+                renderPage();
+            } else if (msg.type === "depthUpdate") {
+                const d = msg.value;
+                if (d.index >= 0) {
+                    const index = runBase + d.index;
+                    if (activeIndex >= 0 && activeIndex !== index) markDirty(activeIndex);
+                    activeIndex = index;
+                    if (cases[index]) { cases[index].depth = d.depth; markDirty(index); }
+                } else {
+                    activeIndex = -1;
+                    globalDepth = d.depth;
+                    dirtyAll = true;
+                    schedule();
+                }
+            } else if (msg.type === "solutions") {
+                for (const s of msg.value) {
+                    const index = runBase + s.index;
+                    if (cases[index]) { cases[index].rows = s.rows; markDirty(index); }
+                }
+            } else if (msg.type === "case-done") {
+                caseFinished(msg.value);
+            }
+        }
+
+        function resetOutput() {
+            outputGen++;
+            cases = [];
+            runBase = 0;
+            imgCache = new Map();
+            imgPromises = new Map();
+            dirty = new Set();
+            dirtyAll = dirtyStats = false;
+            activeIndex = -1;
+            globalDepth = null;
+            tableInfo = [];
+            page = 0;
+        }
+
+        function calc() {
+            // Earlier runs stay in the output; this run's cases are appended when the worker reports them.
+            activeIndex = -1;
+            globalDepth = null;
+            tableInfo = [];
+            runBase = cases.length;
+            work = new Worker("worker.js", {type: "module"});
+            isIdle = false;
+            searching = true;
+            startTime = Date.now();
+            failed = [];
+            casesDone = 0;
+            totalMCC = totalSTM = totalSQTM = totalESQ = 0;
+            imgConf = readImageConf();
+            colMask = imgConf.colors;
+            sortCriteria = document.getElementById("sortBy").value;
+
+            document.getElementById("info-this-case").innerHTML = 0;
+            document.getElementById("info-num-cases").innerHTML = 0;
+            document.getElementById("info-time").innerHTML = "0.00 sec/case";
+            document.getElementById("info-mcc").innerHTML = "0.00";
+            document.getElementById("info-stm").innerHTML = "0.00";
+            document.getElementById("info-sqtm").innerHTML = "0.00";
+            document.getElementById("info-esq").innerHTML = "0.00";
+            document.getElementById("info-fails").innerHTML = "";
+            document.getElementById("warnings").innerHTML = "";
+            document.getElementById("warnings").hidden = true;
+            document.getElementById("batching-info").textContent = "";
+            document.getElementById("batching-info").hidden = true;
+            document.getElementById("batching-info-link").hidden = true;
+            showTables();
+            setStatus("");
+
+            document.getElementById("calc-button").innerHTML = "<strong>&nbsp;End Search&nbsp;</strong>";
+            document.getElementById("table-area").hidden = false;
+            document.getElementById("clear-button").disabled = true;
+            renderPage();
+
+            work.postMessage(getWorkerData());
+            work.onerror = function(event) {
+                stopSearch();
+                alert("The solver crashed: " + (event.message || "unknown error"));
+            };
+            work.onmessage = function(event) { handleMessage(event.data); };
+        }
+
+        function stopSearch() {
+            if (work) work.terminate();
+            isIdle = true;
+            searching = false;
+            for (const c of cases) if (!c.done) c.stopped = true;
+            setStatus("");
+            document.getElementById("calc-button").innerHTML = "<strong>Start Search</strong>";
+            document.getElementById("clear-button").disabled = false;
+            dirtyAll = dirtyStats = true;
+            flush();
+        }
+
+        function displayTextWidth(text, font) {
+            let canvas = displayTextWidth.canvas || (displayTextWidth.canvas = document.createElement("canvas"));
+            let context = canvas.getContext("2d");
+            context.font = font;
+            let metrics = context.measureText(text);
+            return metrics.width * 0.17 + 3;
+        }
+
+        async function exportTable() {
+            if (cases.length === 0) return;
+            const btn = document.getElementById("select-button");
+            btn.disabled = true;
+            const label = btn.innerHTML;
+            try {
+                if (cases.some(c => c.conf.visible)) {
+                    for (let i = 0; i < cases.length; i += 25) {
+                        btn.innerHTML = "<strong>Images " + i + "/" + cases.length + "</strong>";
+                        await Promise.all(cases.slice(i, i + 25).map((_, k) => ensureImage(i + k)));
+                    }
+                }
+                btn.innerHTML = "<strong>Writing file</strong>";
+                const workbook = new ExcelJS.Workbook();
+                const PER_SHEET = 4000;         // two columns per case; Excel allows 16384 columns
+                const sheets = Math.ceil(cases.length / PER_SHEET);
+                for (let s = 0; s < sheets; s++) {
+                    const worksheet = workbook.addWorksheet(sheets > 1 ? 'Batch Solver Algs ' + (s + 1) : 'Batch Solver Algs');
+                    worksheet.addRow([]);
+                    worksheet.getRow(1).height = 18;
+                    const from = s * PER_SHEET, to = Math.min(cases.length, from + PER_SHEET);
+                    const headerRow = [];
+                    for (let i = from; i < to; i++) {
+                        const column = (i - from) * 2;
+                        worksheet.mergeCells(1, column + 1, 1, column + 2);
+                        const conf = cases[i].conf;
+                        const uri = conf.visible ? imgCache.get(i) : null;
+                        if (uri) {
+                            worksheet.addImage(workbook.addImage({base64: uri, extension: 'png'}), {
+                                tl: { col: column, row: 0 }, ext: { width: conf.size, height: conf.size }
+                            });
+                            if (conf.size > worksheet.getRow(1).height) worksheet.getRow(1).height = conf.size;
+                        } else {
+                            worksheet.getCell(1, column + 1).value = "#" + cases[i].num;
+                        }
+                        headerRow.push(cases[i].sortBy, "Solutions");
+                    }
+                    worksheet.addRow(headerRow);
+                    for (let i = from; i < to; i++) {
+                        const column = (i - from) * 2 + 1;
+                        cases[i].rows.forEach((r, k) => {
+                            worksheet.getCell(3 + k, column).value = r[0];
+                            worksheet.getCell(3 + k, column + 1).value = r[1];
+                            const w = displayTextWidth(r[1], "Calibri");
+                            const col = worksheet.getColumn(column + 1);
+                            if (col.width == undefined || col.width < w) col.width = w;
+                        });
+                    }
+                }
+                const data = await workbook.xlsx.writeBuffer();
+                saveAs(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8' }), 'algs.xlsx');
+            } finally {
+                btn.innerHTML = label;
+                btn.disabled = false;
+            }
+        }
+
+        function clearOutput() {
+            resetOutput();
+            document.getElementById("output-table").innerHTML = '<tr id="computation-header"></tr><tr id="solutions-header"></tr><tr id="output-data"></tr>';
+            document.getElementById("table-area").hidden = true;
+            document.getElementById("warnings").innerHTML = "";
+            document.getElementById("warnings").hidden = true;
+            solveID = 0;
+        }
+
+        function copyFails() {
+            navigator.clipboard.writeText("#" + failed.join(", "));
+            document.getElementById("myTooltip").innerHTML = "Copied";
+        }
+
+        function outFails() {
+            document.getElementById("myTooltip").innerHTML = "Copy to clipboard";
+        }
+
+        document.getElementById("info-fails").addEventListener("click", copyFails, false);
+        document.getElementById("info-fails").addEventListener("mouseout", outFails, false);
+        document.getElementById("info-fails").addEventListener("touchend", copyFails, false);
+        
+
+    </script>
+    <script type="module">
+        import { PRESETS as presets } from "./src/presets.js";
+        PRESETS = presets;
+        puzzleSelected({value: "3x3x3"});
+    </script>
+</body>
+</html>
