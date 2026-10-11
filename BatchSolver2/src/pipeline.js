@@ -42,7 +42,7 @@ import { parseESQ, weightFor, stm, sqtm, moveCount, removeParens } from "./esq.j
  * @property {number} [extension]  exact-storage margin K (default 4)
  * @property {number} [maxCases]  most distinct cases the Scramble may generate (default 2,000,000)
  * @property {number} [maxAdjust]  most elements of a Pre-/Post-Adjust group (default 2000)
- * @property {number} [maxMccLength]  most plain moves an algorithm may expand to for MCC; longer ones get no MCC (default 5000)
+ * @property {number} [maxMccLength]  most plain moves an algorithm may expand to for MCC; longer ones get no MCC (default 200)
  * @property {number} [fpr]  @property {number} [fprLast]
  */
 
@@ -57,6 +57,7 @@ export function compositeExpander(puzzle, maxLength) {
     const defByName = new Map(puzzle.defs.map(d => [d.name, d]));
     if (!puzzle.defs.some(d => d.tokens)) return null;
     // R -> R', R' -> R, and U2 stays U2 (algSpeed only knows "U2"; "U2'" is not a move it can read)
+    // this will give erroneous results for puzzles like Megaminx where U2 and U2' are distinct
     const invertToken = (t) => t.endsWith("'") ? t.slice(0, -1) : /\d$/.test(t) ? t : t + "'";
     const defLength = new Map();             // composite name -> expanded length of one copy (Infinity: over the limit)
     const lengthOf = (tok, depth) => {
@@ -111,7 +112,7 @@ class Metrics {
         };
         this.badMCC = null;        // first algorithm whose MCC could not be computed (reported once as a warning)
         this.tooLong = false;      // some algorithm expands to more moves than the limit (reported once as a warning)
-        this.maxMccLength = input.maxMccLength || 5000;
+        this.maxMccLength = input.maxMccLength || 200;
         const expand = compositeExpander(puzzle, this.maxMccLength);
         const p = input.mcc || [0.8, 1.3, 1.4, 0.5, 1, 1.65, 1.25, 2.25, 0.8, 3.5];
         this.fns.MCC = (alg) => {
@@ -129,7 +130,6 @@ class Metrics {
     value(name, alg) { return this.fns[name](alg); }
 }
 
-const formatBytes = (b) => b >= 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1024)) + " KB";
 const sortValue = (x) => (x === x ? x : Infinity);
 
 /** The best `limit` distinct solutions of one case, ordered like the old Batch Solver. */
@@ -189,12 +189,11 @@ export function checkCoarser(puzzle, fine, coarse) {
     for (let p = 0; p < puzzle.n; p++) {
         const name = puzzle.pieceNames[p];
         if (coarse.cls[fine.cls[p]] !== coarse.cls[p]) {
-            throw new BatchError('Batching must keep every equivalence of Unique Orientations & Equivalences, ' +
-                'but "' + name + '" and "' + puzzle.pieceNames[fine.cls[p]] + '" are treated as different there.');
+            throw new BatchError('Invalid batching: "' + name + '" and "' + puzzle.pieceNames[fine.cls[p]] + '" must be considered equivalent');
         }
         if (fine.k[p] % coarse.k[p] !== 0) {
-            throw new BatchError('Batching must distinguish no more orientations than Unique Orientations & Equivalences, ' +
-                'but piece "' + name + '" has ' + coarse.k[p] + " there and " + fine.k[p] + " in the main field.");
+            throw new BatchError('Invalid batching: ' +
+                '"' + name + '" has an invalid orientation count');
         }
     }
 }
@@ -255,7 +254,7 @@ async function runInner(input, host) {
     } catch (e) { algSpeed = null; }
     const metrics = new Metrics(input, puzzle, algSpeed);
     if (!algSpeed && (input.sortBy === "MCC" || input.secondary === "MCC")) {
-        throw new BatchError("Could not load algSpeed.js, which is needed to compute MCC.");
+        throw new BatchError("Failed to load algSpeed.js");
     }
 
     // ---- search units: one case on its own, or all cases that look alike under Scramble UO&E
@@ -275,7 +274,7 @@ async function runInner(input, host) {
     if (coarse) {
         post({
             type: "batching",
-            value: "Batching: " + gen.cases.length + (gen.cases.length === 1 ? " case" : " cases") + " in " + units.length + (units.length === 1 ? " search" : " searches") +
+            value: gen.cases.length + (gen.cases.length === 1 ? " case" : " cases") + ", " + units.length + (units.length === 1 ? " search" : " searches") +
                 (fullText ? "\nEquivalences used:\n" + fullText : ""),
         });
     }
@@ -291,11 +290,11 @@ async function runInner(input, host) {
     const checkWarnings = () => {
         if (metrics.badMCC !== null && !warned.has("mcc")) {
             warned.add("mcc");
-            post({ type: "warning", value: "MCC could not be computed for some algorithms due to unknown moves." });
+            post({ type: "warning", value: "MCC warning: unknown moves found." });
         }
         if (metrics.tooLong && !warned.has("mccLength")) {
             warned.add("mccLength");
-            post({ type: "warning", value: "MCC could not be computed for some algorithms due to high expansion length."});
+            post({ type: "warning", value: "MCC warning: some computations skipped due to high expansion length."});
         }
     };
     // Posts the current top lists of the changed cases. Unless forced, at most about one post per 300 ms
@@ -338,7 +337,7 @@ async function runInner(input, host) {
         const isLast = r === rows.length - 1;
         const sub = buildSubgroup(base, rows[r].subgroup, searchMask);
         if (sub.rounded.length) {
-            const w = "Generation ESQ weights are rounded to whole numbers (" +
+            const w = "Warning: generation ESQs have been rounded (" +
                 sub.rounded.slice(0, 4).map(x => x.name + ": " + x.from + " → " + x.to).join(", ") + (sub.rounded.length > 4 ? ", …" : "") + ").";
             if (!warned.has(w)) { warned.add(w); post({ type: "warning", value: w }); }
         }

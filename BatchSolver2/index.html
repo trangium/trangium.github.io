@@ -443,7 +443,7 @@ _2: 3</textarea>
                         <option>10</option><option selected>20</option><option>50</option><option>100</option><option>200</option>
                     </select>
                 </div>
-                <div id="no-cases" hidden><em>The scramble produced no cases.</em></div>
+                <div id="no-cases" hidden><em>No cases to display.</em></div>
                 <table cellspacing="0" id="output-table">
                     <tr id="computation-header"></tr>
                     <tr id="solutions-header"></tr>
@@ -1051,7 +1051,7 @@ _2: 3</textarea>
             work.postMessage(getWorkerData());
             work.onerror = function(event) {
                 stopSearch();
-                alert("The solver crashed: " + (event.message || "unknown error"));
+                alert(event.message || "Unknown error");
             };
             work.onmessage = function(event) { handleMessage(event.data); };
         }
