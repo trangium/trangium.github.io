@@ -86,8 +86,9 @@ static u64 nextRand() {
 static const u32 MAXL = 256;   // maximum Bloom layers (= maximum prune cost)
 
 static u32 N = 0, NM = 0, OMAX = 1, ZS = 0;
+static u8 *TWR;                    // twists reduced mod K[p] when UNIFORM (used only for hashing), else = TW
 static u8 *K, *ORI, *SRC, *TW;     // K: per piece class; ORI: per location (full orientation count)
-static u8 MODT[16 * 9];             // MODT[o * 9 + k] = o % k
+static u8 MODT[64 * 33];            // MODT[o * 33 + k] = o % k   (o < 64: an orientation below k <= 32 plus a twist below 32)
 static bool UNIFORM = true;         // fast path: orientation can be reduced modulo K[location]
 static const u32 BIG = 1u << 28;    // cost of a move that may not be played in a given direction
 static u32 *COST, *BCOST, *INV;
@@ -103,7 +104,7 @@ static u8 *tmpA, *tmpB, *tmpC, *tmpD;
 
 EXPORT(init) u32 init(u32 n, u32 nm, u32 omax) {
     N = n; NM = nm; OMAX = omax; ZS = n * omax;
-    for (u32 o = 0; o < 16; o++) for (u32 k = 1; k < 9; k++) MODT[o * 9 + k] = (u8)(o % k);
+    for (u32 o = 0; o < 64; o++) for (u32 k = 1; k < 33; k++) MODT[o * 33 + k] = (u8)(o % k);
     K = newArr<u8>(n); ORI = newArr<u8>(n); SRC = newArr<u8>((u64)nm * n); TW = newArr<u8>((u64)nm * n);
     COST = newArr<u32>(nm); BCOST = newArr<u32>(nm); INV = newArr<u32>(nm);
     tmpA = newArr<u8>(n); tmpB = newArr<u8>(n); tmpC = newArr<u8>(n); tmpD = newArr<u8>(n);
@@ -286,6 +287,12 @@ EXPORT(prepare) u32 prepare() {
         UNIFORM = true;
         for (u32 p = 0; p < N; p++) if (K[p] != K[orb[p]]) UNIFORM = false;
     }
+    TWR = newArr<u8>((u64)NM * N);
+    if (!TWR) return 0;
+    for (u32 m = 0; m < NM; m++) for (u32 p = 0; p < N; p++) {
+        u32 t = TW[(u64)m * N + p];
+        TWR[(u64)m * N + p] = (u8)(UNIFORM ? t % K[p] : t);
+    }
     // Zobrist
     Z = newArr<u64>((u64)N * ZS);
     if (!Z) return 0;
@@ -360,7 +367,7 @@ static inline u64 hashState(const u16* s) {
 
 // Computes the values of the changed locations of `par` after move m and returns the child's hash.
 static inline u64 childHash(const u16* par, u64 H, u32 m, u16* nv) {
-    const u8 *s = mSrc(m), *t = mTw(m);
+    const u8 *s = mSrc(m), *t = TWR + (u64)m * N;
     u32 a = chgOff[m], b = chgOff[m + 1];
     for (u32 i = a; i < b; i++) {
         u32 p = chg[i];
@@ -369,7 +376,7 @@ static inline u64 childHash(const u16* par, u64 H, u32 m, u16* nv) {
             if ((v >> 8) >= K[p]) v -= (u32)K[p] << 8;         // k is the same for every piece that can reach p
         } else {
             u32 cl = v & 255;
-            v = cl | ((u32)MODT[(v >> 8) * 9 + K[cl]] << 8);
+            v = cl | ((u32)MODT[(v >> 8) * 33 + K[cl]] << 8);
         }
         nv[i - a] = (u16)v;
         H ^= Z[(u64)p * ZS + (v & 255) * OMAX + (v >> 8)] ^ Z[(u64)p * ZS + (u32)(par[p] & 255) * OMAX + (par[p] >> 8)];

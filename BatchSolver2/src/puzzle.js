@@ -12,7 +12,7 @@ export class BatchError extends Error {}
 
 export const MAX_PIECES = 256;
 export const MAX_MOVES = 1024;
-export const MAX_ORIENTATIONS = 8;
+export const MAX_ORIENTATIONS = 32;
 
 const mod = (a, n) => ((a % n) + n) % n;
 
@@ -86,7 +86,7 @@ export function enumerateGroup(gens, ori, cap = 2000) {
             if (!seen.has(key)) {
                 seen.set(key, out.length);
                 out.push({ action: next, seq: out[head].seq.concat(g) });
-                if (out.length > cap) throw new BatchError("An adjust group has more than " + cap + " elements, which is too many.");
+                if (out.length > cap) throw new BatchError("An adjust group has more than " + cap + " elements, which is too many. (The limit can be raised with \"Max adjust group size\" in the advanced options.)");
             }
         }
     }

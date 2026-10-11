@@ -110,9 +110,9 @@ function priorityVector(puzzle, action, sorting) {
  * @return {{cases:{num:number, setup:string, state:Uint16Array}[], total:number}} selected cases (modifiers applied) and total count
  */
 /** More cases than this cannot be held (or looked at) in a browser tab; say so instead of running out of memory. */
-export const MAX_CASES = 2000000;
+export const MAX_CASES = 2000000;   // default of the "Max cases" option
 
-export function generateCases(base, scramble, sorting, progress = () => {}, wantClassMap = false) {
+export function generateCases(base, scramble, sorting, progress = () => {}, wantClassMap = false, maxCases = MAX_CASES) {
     const { puzzle, mask } = base;
     const { set, startNum } = parseModifiers(scramble);
     const text = (scramble.includes("#") ? scramble.slice(0, scramble.indexOf("#")) : scramble).replaceAll("\n", " ");
@@ -150,9 +150,9 @@ export function generateCases(base, scramble, sorting, progress = () => {}, want
                         const child = finalize({ str: (it.str + " " + gens[g]).trim(), state: st, action: null, parent: it, algAct: acts[g] });
                         all.set(key, child);
                         next.push(child);
-                        if (all.size > MAX_CASES) {
-                            throw new BatchError("The scramble generates more than " + MAX_CASES.toLocaleString() + " distinct states. " +
-                                "Ignore more pieces in Unique Orientations & Equivalences, or generate fewer states, so that the number of cases is manageable.");
+                        if (all.size > maxCases) {
+                            throw new BatchError("The scramble generates more than " + maxCases.toLocaleString() + " distinct states. " +
+                                "Ignore more pieces in Unique Orientations & Equivalences, generate fewer states, or raise \"Max cases\" in the advanced options.");
                         }
                     }
                 }

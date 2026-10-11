@@ -46,7 +46,7 @@ export function buildBase(cfg) {
     const preMoves = selectMoves(puzzle, splitMoveList(cfg.preText), "Pre-Adjust");
     const postMoves = selectMoves(puzzle, splitMoveList(cfg.postText), "Post-Adjust");
     checkNormalizes(puzzle, mask, postMoves);
-    const groupOf = (moves) => enumerateGroup(moves.map(m => puzzle.moves[m]), puzzle.ori)
+    const groupOf = (moves) => enumerateGroup(moves.map(m => puzzle.moves[m]), puzzle.ori, cfg.maxAdjust || 2000)
         .map(e => ({ action: e.action, seq: e.seq.map(g => moves[g]) }));
     const preGroup = groupOf(preMoves), postGroup = groupOf(postMoves);
     return { puzzle, mask, preMoves, postMoves, preGroup, postGroup, genWeights: parseESQ(cfg.genEsq || "") };

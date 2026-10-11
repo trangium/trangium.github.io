@@ -128,7 +128,7 @@ export class Engine {
 
     /**
      * Builds the endtables: exact states up to cost D-K, Bloom layers 1..D.
-     * @param {{prune:number|{states:number}, extension?:number, fpr?:number, fprLast?:number, onProgress?:(msg:string)=>void}} opt
+     * @param {{prune:number|{states:number}, extension?:number, fpr?:number, fprLast?:number, onProgress?:(what:string, detail?:string)=>void}} opt
      * prune: depth (cost), or {states: limit} to choose the depth from a state budget.
      */
     buildTables(opt) {
@@ -147,7 +147,7 @@ export class Engine {
         const cum = [];     // cumulative exact counts
         let level = 0;
         for (; level <= L; level++) {
-            say("Exact states: depth " + level);
+            say("Exact states", "depth " + level);
             let c = x.bfs_level(level, 0);
             if (c === EMPTY) throw new BatchError("Out of memory while building the prune table.");
             cum.push((cum.length ? cum[cum.length - 1] : 0) + c);
@@ -188,7 +188,7 @@ export class Engine {
             const chunk = Math.max(1, Math.min(2000, Math.ceil(total / 200)));
             while (done < total) {
                 done = x.ext_run(1, done, chunk);
-                say("Counting states: " + Math.floor(100 * done / Math.max(1, total)) + "%");
+                say("Counting states", Math.floor(100 * done / Math.max(1, total)) + "%");
             }
             const hllLen = 65536;
             const regs = new Uint8Array(this.x.memory.buffer, x.hll_ptr(), (D - L + 1) * hllLen);
@@ -234,7 +234,7 @@ export class Engine {
             const chunk = Math.max(1, Math.min(2000, Math.ceil(frontierCount / 200)));
             while (done < frontierCount) {
                 done = x.ext_run(2, done, chunk);
-                say("Filling endtables: " + Math.floor(100 * done / Math.max(1, frontierCount)) + "%");
+                say("Filling endtables", Math.floor(100 * done / Math.max(1, frontierCount)) + "%");
             }
         }
         this.stats.memoryBytes = x.bytes_used();

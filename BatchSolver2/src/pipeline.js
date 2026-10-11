@@ -4,7 +4,7 @@
 // Messages posted to `host.post`:
 //   {type:"status",      value:string}                          what is being built right now ("" clears it)
 //   {type:"warning",     value:string}                          something the user should know about
-//   {type:"batching",    value:string}                          what batching did (cases per search, equivalences chosen by "full")
+//   {type:"batching",    value:string}                          what batching did (cases per search, equivalences chosen by "auto")
 //   {type:"tables",      value:{row, depth, states, bytes, filterBytes, exactStates}}   size of one subgroup's endtables
 //   {type:"num-states",  value:number|string}                   number of cases (a string while still counting)
 //   {type:"cases",       value:[{index, num, setup}]}           every case, once, before any search starts
@@ -26,7 +26,7 @@ import { parseESQ, weightFor, stm, sqtm, moveCount, removeParens } from "./esq.j
 /**
  * @typedef {object} BatchInput
  * @property {string} puzzle  @property {string} ignore  Unique Orientations & Equivalences
- * @property {"none"|"full"|"custom"} [batching]  none: one search per case; full: batch as much as possible; custom: use `scrambleIgnore`
+ * @property {"none"|"auto"|"custom"} [batching]  none: one search per case; auto: work out what to ignore so that all cases batch; custom: use `scrambleIgnore`
  *   (default: custom if `scrambleIgnore` is not empty, otherwise none)
  * @property {string} [scrambleIgnore]  Batching mask for "custom": a Unique Orientations & Equivalences text that ignores more than `ignore`
  * @property {string} solve
@@ -40,16 +40,42 @@ import { parseESQ, weightFor, stm, sqtm, moveCount, removeParens } from "./esq.j
  * @property {number} maxSolutions
  * @property {number[]} mcc  the ten MCC parameters
  * @property {number} [extension]  exact-storage margin K (default 4)
+ * @property {number} [maxCases]  most distinct cases the Scramble may generate (default 2,000,000)
+ * @property {number} [maxAdjust]  most elements of a Pre-/Post-Adjust group (default 2000)
+ * @property {number} [maxMccLength]  most plain moves an algorithm may expand to for MCC; longer ones get no MCC (default 5000)
  * @property {number} [fpr]  @property {number} [fprLast]
  */
 
-/** Maps each composite move name (and its inverse) to the plain moves it is made of, for MCC. */
-function compositeExpander(puzzle) {
+/**
+ * Maps each composite move name (and its inverse) to the plain moves it is made of, for MCC.
+ * Composites can be nested (A = B B B F, B = C C C F, ...), so the expanded length can grow exponentially with the
+ * nesting depth. The length is therefore worked out first (memoised, without expanding anything) and an algorithm
+ * whose expansion would exceed `maxLength` moves gets `null`: no expansion is ever built that is longer than the limit.
+ * @return {null | ((alg:string)=>string|null)}
+ */
+export function compositeExpander(puzzle, maxLength) {
     const defByName = new Map(puzzle.defs.map(d => [d.name, d]));
     if (!puzzle.defs.some(d => d.tokens)) return null;
     // R -> R', R' -> R, and U2 stays U2 (algSpeed only knows "U2"; "U2'" is not a move it can read)
     const invertToken = (t) => t.endsWith("'") ? t.slice(0, -1) : /\d$/.test(t) ? t : t + "'";
-    const expandToken = (tok, depth) => {
+    const defLength = new Map();             // composite name -> expanded length of one copy (Infinity: over the limit)
+    const lengthOf = (tok, depth) => {
+        const pt = parseMoveToken(tok);
+        const def = pt && defByName.get(pt.name);
+        if (!def || !def.tokens || depth > 50) return 1;
+        let one = defLength.get(def.name);
+        if (one === undefined) {
+            one = 0;
+            for (const t of def.tokens) {
+                one += lengthOf(t, depth + 1);
+                if (one > maxLength) { one = Infinity; break; }
+            }
+            defLength.set(def.name, one);
+        }
+        const total = one * pt.power;
+        return total > maxLength ? Infinity : total;
+    };
+    const expandToken = (tok, depth) => {          // only called when lengthOf(tok) <= maxLength
         const pt = parseMoveToken(tok);
         const def = pt && defByName.get(pt.name);
         if (!def || !def.tokens || depth > 50) return [tok];
@@ -60,11 +86,19 @@ function compositeExpander(puzzle) {
         return pt.inverse ? out.reverse().map(invertToken) : out;
     };
     const cache = new Map();
-    return (alg) => alg.split(/\s+/).filter(x => x !== "").map(tok => {
-        let r = cache.get(tok);
-        if (r === undefined) { r = expandToken(tok, 0).join(" "); cache.set(tok, r); }
-        return r;
-    }).join(" ");
+    return (alg) => {
+        const toks = alg.split(/\s+/).filter(x => x !== "");
+        let total = 0;
+        for (const tok of toks) {
+            total += lengthOf(tok, 0);
+            if (total > maxLength) return null;
+        }
+        return toks.map(tok => {
+            let r = cache.get(tok);
+            if (r === undefined) { r = expandToken(tok, 0).join(" "); cache.set(tok, r); }
+            return r;
+        }).join(" ");
+    };
 }
 
 class Metrics {
@@ -76,12 +110,17 @@ class Metrics {
             ESQ: (alg) => moveCount(alg, (m) => weightFor(w, m)),
         };
         this.badMCC = null;        // first algorithm whose MCC could not be computed (reported once as a warning)
-        const expand = compositeExpander(puzzle);
+        this.tooLong = false;      // some algorithm expands to more moves than the limit (reported once as a warning)
+        this.maxMccLength = input.maxMccLength || 5000;
+        const expand = compositeExpander(puzzle, this.maxMccLength);
         const p = input.mcc || [0.8, 1.3, 1.4, 0.5, 1, 1.65, 1.25, 2.25, 0.8, 3.5];
         this.fns.MCC = (alg) => {
             if (!algSpeed) return NaN;
             let s = removeParens(alg);
-            if (expand) s = expand(s);
+            if (expand) {
+                s = expand(s);
+                if (s === null) { this.tooLong = true; return NaN; }
+            }
             const v = parseFloat(algSpeed(s, false, false, ...p));
             if (v !== v && s.trim() !== "" && this.badMCC === null) this.badMCC = s;
             return v;
@@ -181,7 +220,7 @@ async function runInner(input, host) {
     post({ type: "status", value: "Reading the puzzle" });
     const base = buildBase({
         puzzleText: input.puzzle, ignoreText: input.ignore,
-        preText: input.preAdjust, postText: input.postAdjust, genEsq: input.esq,
+        preText: input.preAdjust, postText: input.postAdjust, genEsq: input.esq, maxAdjust: input.maxAdjust,
     });
     const { puzzle } = base;
     const fine = base.mask;
@@ -190,7 +229,7 @@ async function runInner(input, host) {
 
     // Batching: the search runs on a coarser mask, and each solution is then matched to the cases it solves.
     const scrambleText = (input.scrambleIgnore || "").trim();
-    const mode = input.batching || (scrambleText === "" ? "none" : "custom");
+    const mode = input.batching === "full" ? "auto" : input.batching || (scrambleText === "" ? "none" : "custom");
     let coarse = null, fullText = "";
     if (mode === "custom" && scrambleText !== "") {
         coarse = parseMask(puzzle, input.scrambleIgnore, "Batching");
@@ -198,10 +237,10 @@ async function runInner(input, host) {
     }
 
     post({ type: "status", value: "Generating cases" });
-    const gen = generateCases(base, input.solve, sorting, (m) => post({ type: "num-states", value: m }), mode !== "none");
+    const gen = generateCases(base, input.solve, sorting, (m) => post({ type: "num-states", value: m }), mode !== "none", input.maxCases || undefined);
     post({ type: "num-states", value: gen.total });
     post({ type: "cases", value: gen.cases.map((c, index) => ({ index, num: c.num, setup: c.setup })) });
-    if (mode === "full" && gen.cases.length > 0) {
+    if (mode === "auto" && gen.cases.length > 0) {
         const full = fullBatchMask(puzzle, fine, gen.cases.map(c => c.state));
         coarse = full.mask;
         checkCoarser(puzzle, fine, coarse);
@@ -245,22 +284,33 @@ async function runInner(input, host) {
     const limit = input.maxSolutions || 20;
     const primary = input.sortBy || "MCC";
     const secondary = input.secondary && input.secondary !== "None" ? input.secondary : null;
+    const warned = new Set();
     const rankers = new Array(gen.cases.length).fill(null);
     const dirty = new Set();
-    let lastFlush = Date.now(), lastDepthPost = 0;
-    const flush = (force) => {
+    let lastFlush = 0, lastCost = 0, lastDepthPost = 0;
+    const checkWarnings = () => {
+        if (metrics.badMCC !== null && !warned.has("mcc")) {
+            warned.add("mcc");
+            post({ type: "warning", value: "MCC could not be computed for some algorithms due to unknown moves." });
+        }
+        if (metrics.tooLong && !warned.has("mccLength")) {
+            warned.add("mccLength");
+            post({ type: "warning", value: "MCC could not be computed for some algorithms due to high expansion length."});
+        }
+    };
+    // Posts the current top lists of the changed cases. Unless forced, at most about one post per 300 ms
+    // (and never more than a quarter of the time is spent posting), so even huge numbers of cases stay responsive.
+    const flush = (force) => {      // force: true = now; false = rate limited
         const now = Date.now();
-        if (dirty.size === 0 || (!force && now - lastFlush < Math.max(250, 2 * dirty.size))) return;
+        checkWarnings();
+        const gap = force === true ? 0 : Math.max(300, 4 * lastCost);
+        if (dirty.size === 0 || now - lastFlush < gap) return;
         const out = [];
         for (const index of dirty) out.push({ index, rows: rankers[index].rows() });
         dirty.clear();
-        lastFlush = now;
-        if (metrics.badMCC !== null && !warned.has("mcc")) {
-            warned.add("mcc");
-            post({ type: "warning", value: "MCC could not be computed for \"" + metrics.badMCC + "\", so algorithms like it are ranked last. " +
-                "Check that every move it contains is one MCC understands." });
-        }
         post({ type: "solutions", value: out });
+        lastFlush = Date.now();
+        lastCost = lastFlush - now;
     };
     const addSolution = (index, alg) => {
         const r = rankers[index] || (rankers[index] = new Ranker(limit, metrics, primary, secondary));
@@ -284,10 +334,8 @@ async function runInner(input, host) {
     const postInv = base.postGroup.map(e => invert(e.action, puzzle.ori));
     const seqText = (seq) => seq.map(nameOf).join(" ");
 
-    const warned = new Set();
     for (let r = 0; r < rows.length; r++) {
         const isLast = r === rows.length - 1;
-        const label = rows.length > 1 ? "Subgroup " + (r + 1) + ": " : "";
         const sub = buildSubgroup(base, rows[r].subgroup, searchMask);
         if (sub.rounded.length) {
             const w = "Generation ESQ weights are rounded to whole numbers (" +
@@ -301,9 +349,13 @@ async function runInner(input, host) {
         const stats = eng.buildTables({
             prune: pr.states !== undefined ? { states: pr.states } : pr.depth,
             extension: input.extension, fpr: input.fpr, fprLast: input.fprLast,
-            onProgress: (m) => {       // progress arrives very often; the page only needs a few updates per second
+            onProgress: (what, detail = "") => {       // progress arrives very often; the page only needs a few updates per second
                 const now = Date.now();
-                if (now - lastStatus > 100 || !m.includes("%")) { lastStatus = now; post({ type: "status", value: label + m }); }
+                if (now - lastStatus > 100 || !detail.endsWith("%")) {
+                    lastStatus = now;
+                    const parts = [rows.length > 1 ? "Subgroup " + (r + 1) : "", detail].filter(x => x !== "");
+                    post({ type: "status", value: what + (parts.length ? " (" + parts.join(", ") + ")" : "") });
+                }
             },
         });
         const maxCost = parseSearch(rows[r].search, eng.depth);
@@ -315,7 +367,7 @@ async function runInner(input, host) {
                 bytes: stats.memoryBytes, filterBytes: stats.bloomBytes, exactStates: stats.exactStates,
             },
         });
-        post({ type: "status", value: label + "searching" });
+        post({ type: "status", value: rows.length > 1 ? "Searching Subgroup " + (r + 1) : "Searching" });
 
         const invMoves = sub.masked.inv.map(i => sub.masked.moves[i]);   // engine move -> action of its inverse
         const bufA = new Uint16Array(puzzle.n), bufB = new Uint16Array(puzzle.n);

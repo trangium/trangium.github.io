@@ -204,8 +204,8 @@
                     <textarea id="solve" rows="6" cols="72" spellcheck="false"></textarea><br><br>
                     Batching
                     <select id="batching" onchange="batchingSelected(this)">
-                        <option value="none" selected>None</option>
-                        <option value="full">Full</option>
+                        <option value="none">None</option>
+                        <option value="auto" selected>Auto</option>
                         <option value="custom">Custom</option>
                     </select>
                     <a id="batching-info-link" href="#" hidden onclick="toggleBatchingInfo(); return false;" style="color:blue; text-decoration:underline; font-weight:normal">(info)</a><br>
@@ -269,10 +269,10 @@
                 <br>
                 <input type="checkbox" id="statVis" onclick="visibility('statVis', 'statistics')" checked/><label for="statVis"> Show statistics</label><br>
                 <input type="checkbox" id="imgOptVis" onclick="visibility('imgOptVis', 'imageOptions')" checked/><label for="imgOptVis"> Show image options</label><br>
-                <input type="checkbox" id="optVis" onclick="visibility('optVis', 'advanced')" /><label for="optVis"> Show advanced MCC options</label><br>
+                <input type="checkbox" id="optVis" onclick="visibility('optVis', 'advanced')" /><label for="optVis"> Show MCC options</label><br>
                 <input type="checkbox" id="esqOptVis" onclick="visibility('esqOptVis', 'esqOptions')" /><label for="esqOptVis"> Show ESQ options</label><br>
                 <input type="checkbox" id="showPostAdj" /><label for="showPostAdj"> Show ending adjustments</label><br>
-                <input type="checkbox" id="tableOptVis" onclick="visibility('tableOptVis', 'tableOptions')" /><label for="tableOptVis"> Show endtable options</label><br>
+                <input type="checkbox" id="tableOptVis" onclick="visibility('tableOptVis', 'tableOptions')" /><label for="tableOptVis"> Show advanced options</label><br>
                 Show top <input type="number" class="inputNum" id="maxSolutions" value="20"></input> solutions for each case<br>
             </div>
 
@@ -399,10 +399,13 @@ _2: 3</textarea>
             </div>
 
             <div id="tableOptions" hidden>
-                <strong>Endtable options</strong><br>
+                <strong>Advanced options</strong><br>
                 Exact storage margin: <input type="number" class="inputNum" id="extDepth" value="4" min="0" max="8"></input><br>
                 Early layer false-positive rate: <input type="number" class="inputNum" id="fprInput" value="0.001" min="0.00001" max="0.5" step="any"></input><br>
-                Last layer false-positive rate: <input type="number" class="inputNum" id="fprLastInput" value="0.01" min="0.00001" max="0.5" step="any"></input><br><br>
+                Last layer false-positive rate: <input type="number" class="inputNum" id="fprLastInput" value="0.01" min="0.00001" max="0.5" step="any"></input><br>
+                Max cases: <input type="number" class="inputNum" id="maxCases" value="2000000" min="1" step="any" style="width:7rem"></input><br>
+                Max adjust group size: <input type="number" class="inputNum" id="maxAdjust" value="2000" min="1" step="any" style="width:7rem"></input><br>
+                Max MCC expansion length: <input type="number" class="inputNum" id="maxMccLength" value="200" min="1" step="any" style="width:7rem"></input><br><br>
             </div>
 
             <div id="warnings" hidden style="color:#9a5b00; margin-bottom:0.6rem"></div>
@@ -639,7 +642,10 @@ _2: 3</textarea>
                     mcc: mcc,
                     extension: parseInt(document.getElementById("extDepth").value, 10),
                     fpr: parseFloat(document.getElementById("fprInput").value),
-                    fprLast: parseFloat(document.getElementById("fprLastInput").value)};
+                    fprLast: parseFloat(document.getElementById("fprLastInput").value),
+                    maxCases: parseFloat(document.getElementById("maxCases").value) || undefined,
+                    maxAdjust: parseFloat(document.getElementById("maxAdjust").value) || undefined,
+                    maxMccLength: parseFloat(document.getElementById("maxMccLength").value) || undefined};
         }
 
         function searchButtonHandler() {
