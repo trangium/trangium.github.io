@@ -405,7 +405,7 @@ _2: 3</textarea>
                 Last layer false-positive rate: <input type="number" class="inputNum" id="fprLastInput" value="0.01" min="0.00001" max="0.5" step="any"></input><br>
                 Max cases: <input type="number" class="inputNum" id="maxCases" value="2000000" min="1" step="any" style="width:7rem"></input><br>
                 Max adjust group size: <input type="number" class="inputNum" id="maxAdjust" value="2000" min="1" step="any" style="width:7rem"></input><br>
-                Max MCC expansion length: <input type="number" class="inputNum" id="maxMccLength" value="200" min="1" step="any" style="width:7rem"></input><br><br>
+                Max MCC expansion length: <input type="number" class="inputNum" id="maxMccLength" value="5000" min="1" step="any" style="width:7rem"></input><br><br>
             </div>
 
             <div id="warnings" hidden style="color:#9a5b00; margin-bottom:0.6rem"></div>
@@ -443,7 +443,7 @@ _2: 3</textarea>
                         <option>10</option><option selected>20</option><option>50</option><option>100</option><option>200</option>
                     </select>
                 </div>
-                <div id="no-cases" hidden><em>No cases to display.</em></div>
+                <div id="no-cases" hidden><em>The scramble produced no cases.</em></div>
                 <table cellspacing="0" id="output-table">
                     <tr id="computation-header"></tr>
                     <tr id="solutions-header"></tr>
@@ -1051,7 +1051,7 @@ _2: 3</textarea>
             work.postMessage(getWorkerData());
             work.onerror = function(event) {
                 stopSearch();
-                alert(event.message || "Unknown error");
+                alert("The solver crashed: " + (event.message || "unknown error"));
             };
             work.onmessage = function(event) { handleMessage(event.data); };
         }

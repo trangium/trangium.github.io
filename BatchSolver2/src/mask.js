@@ -165,7 +165,8 @@ export function checkNormalizes(puzzle, mask, moveIndices) {
         for (const g of gens) {
             const conj = compose(compose(qInv, g, puzzle.ori), q, puzzle.ori);
             if (!inSolvedGroup(mask, conj)) {
-                throw new BatchError('Invalid post-adjust: the move "' + q.name + '" changes which states count as solved.');
+                throw new BatchError('Invalid post-adjust: the move "' + q.name + 
+                    '" does not preserve the Unique Orientations & Equivalences.');
             }
         }
     }

@@ -4,7 +4,7 @@
 
 import {
     BatchError, parsePuzzle, splitMoveList, selectMoves, actionKey, enumerateGroup,
-    invert, compose, isIdentity,
+    invert, compose, isIdentity, identityAction,
 } from "./puzzle.js";
 import { parseMask, applyToMasked, maskedStateOfAction, checkNormalizes } from "./mask.js";
 import { parseESQ, weightFor } from "./esq.js";
@@ -38,6 +38,31 @@ export function parseSearch(text, pruneDepth) {
 }
 
 /**
+ * Keys that identify an adjust action by what it does to masked states, so that two actions that differ only
+ * in how they treat equivalent pieces (or ignored orientations) count as one group element.
+ *  preKey:  the effect of applyToMasked (a right action): which location each location takes its piece from,
+ *           and the twist (only its value modulo the orientation counts of the mask matters).
+ *  postKey: the effect of leftMultiplyMasked: for each class, the class and twist it is sent to.
+ */
+export function adjustKeys(puzzle, mask) {
+    const gcd = (a, b) => { while (b) { [a, b] = [b, a % b]; } return a; };
+    let L = 1;
+    for (let i = 0; i < mask.n; i++) if (mask.cls[i] === i) L = L / gcd(L, mask.k[i]) * mask.k[i];
+    const reps = [];
+    for (let i = 0; i < mask.n; i++) if (mask.cls[i] === i) reps.push(i);
+    const preKey = (a) => {
+        const parts = new Array(mask.n);
+        for (let p = 0; p < mask.n; p++) parts[p] = a.src[p] + ":" + (a.tw[p] % L);
+        return parts.join(",");
+    };
+    const postKey = (a) => reps.map(r => {
+        const c = mask.cls[a.src[r]];
+        return c + ":" + (a.tw[r] % mask.k[c]);
+    }).join(",");
+    return { preKey, postKey };
+}
+
+/**
  * @param {{puzzleText:string, ignoreText:string, preText:string, postText:string, genEsq:string}} cfg
  */
 export function buildBase(cfg) {
@@ -46,10 +71,11 @@ export function buildBase(cfg) {
     const preMoves = selectMoves(puzzle, splitMoveList(cfg.preText), "Pre-Adjust");
     const postMoves = selectMoves(puzzle, splitMoveList(cfg.postText), "Post-Adjust");
     checkNormalizes(puzzle, mask, postMoves);
-    const groupOf = (moves) => enumerateGroup(moves.map(m => puzzle.moves[m]), puzzle.ori, cfg.maxAdjust || 2000)
+    const { preKey, postKey } = adjustKeys(puzzle, mask);
+    const groupOf = (moves, keyOf) => enumerateGroup(moves.map(m => puzzle.moves[m]), puzzle.ori, cfg.maxAdjust || 2000, keyOf)
         .map(e => ({ action: e.action, seq: e.seq.map(g => moves[g]) }));
-    const preGroup = groupOf(preMoves), postGroup = groupOf(postMoves);
-    return { puzzle, mask, preMoves, postMoves, preGroup, postGroup, genWeights: parseESQ(cfg.genEsq || "") };
+    const preGroup = groupOf(preMoves, preKey), postGroup = groupOf(postMoves, postKey);
+    return { puzzle, mask, preMoves, postMoves, preGroup, postGroup, preKey, postKey, genWeights: parseESQ(cfg.genEsq || "") };
 }
 
 /** Cost of a move that may not be used in a given direction (one-way moves, see buildSubgroup). */
@@ -106,13 +132,18 @@ export function buildSubgroup(base, subgroupText, mask = base.mask) {
         targets.push({ state: st, post: q.seq, qi });
     });
     // adjust move sets in subgroup indices
-    const keysOf = (group) => new Set(group.filter(e => !isIdentity(e.action)).map(e => actionKey(e.action)));
-    const preKeys = keysOf(base.preGroup), postKeys = keysOf(base.postGroup);
+    // A move is an adjust move if it has the same effect on masked states as an element of the group. For Post-Adjust
+    // this includes a move that does nothing to masked states at all (it lies in the group of states that look solved),
+    // e.g. U when every piece U moves is equivalent to the piece it replaces: it is still one of the user's adjust moves.
+    const idPre = base.preKey(identityAction(puzzle.n)), idPost = base.postKey(identityAction(puzzle.n));
+    const preKeys = new Set(base.preGroup.map(e => base.preKey(e.action)));
+    const postKeys = new Set(base.postGroup.map(e => base.postKey(e.action)));
+    preKeys.delete(idPre);
+    if (base.postMoves.length === 0) postKeys.delete(idPost);
     const preSet = [], postSet = [];
     sub.forEach((m, i) => {
-        const key = actionKey(puzzle.moves[m]);
-        if (preKeys.has(key)) preSet.push(i);
-        if (postKeys.has(key)) postSet.push(i);
+        if (preKeys.has(base.preKey(puzzle.moves[m]))) preSet.push(i);
+        if (postKeys.has(base.postKey(puzzle.moves[m]))) postSet.push(i);
     });
     return { sub, masked, targets, preSet, postSet, rounded, names: sub.map(m => puzzle.moves[m].name) };
 }

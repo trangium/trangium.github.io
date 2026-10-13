@@ -177,7 +177,7 @@ static const u32 RUNCAP = 64;
 static bool pairAllowed(u32 a, u32 b, const u32* cost) {
     i16 pm = prodMove[(u64)a * NM + b];
     if (pm == -2) return false;
-    if (pm >= 0 && cost[pm] <= cost[a] + cost[b]) return false;
+    if (pm >= 0 && cost[pm] < BIG) return false;       // a single move does the same; its cost is irrelevant
     if ((commute[(u64)a * W + (b >> 6)] >> (b & 63)) & 1) { if (a > b) return false; }
     return true;
 }
@@ -202,18 +202,12 @@ static bool buildAuto(Auto& A, const u32* cost) {
                 tmpD[p] = (u8)t;
             }
             for (u32 p = 0; p < N; p++) { tmpA[p] = tmpC[p]; tmpB[p] = tmpD[p]; }
-            bool ok = true;
             i32 c = findMove(tmpA, tmpB);
-            if (c >= 0 && cost[c] <= k * cost[m]) ok = false;
-            if (ok) {
-                u32 j2 = o - k;                 // m^k == inv^(o-k)
-                if (j2 >= 2) {
-                    u32 im = INV[m];
-                    u64 altCost = (u64)j2 * cost[im], myCost = (u64)k * cost[m];
-                    if (altCost < myCost || (altCost == myCost && im < m)) ok = false;
-                }
+            if (c >= 0 && cost[c] < BIG) break; 
+            if (INV[m] != m && cost[INV[m]] < BIG && o - k >= 2) {
+                u32 j2 = o - k;
+                if (j2 < k || (j2 == k && INV[m] < m)) break;
             }
-            if (!ok) break;
             mr = k;
         }
         A.maxRun[m] = mr;

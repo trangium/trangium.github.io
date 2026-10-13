@@ -57,7 +57,7 @@ export function compositeExpander(puzzle, maxLength) {
     const defByName = new Map(puzzle.defs.map(d => [d.name, d]));
     if (!puzzle.defs.some(d => d.tokens)) return null;
     // R -> R', R' -> R, and U2 stays U2 (algSpeed only knows "U2"; "U2'" is not a move it can read)
-    // this will give erroneous results for puzzles like Megaminx where U2 and U2' are distinct
+    // this may give erroneous results for puzzles like Megaminx where U2 and U2' are distinct
     const invertToken = (t) => t.endsWith("'") ? t.slice(0, -1) : /\d$/.test(t) ? t : t + "'";
     const defLength = new Map();             // composite name -> expanded length of one copy (Infinity: over the limit)
     const lengthOf = (tok, depth) => {
@@ -318,12 +318,12 @@ async function runInner(input, host) {
     };
 
     // adjust-group helpers for the Scramble UO&E case: products of group elements, as move sequences
-    const productSeq = (group, cache, a, b) => {
+    const productSeq = (group, keyOf, cache, a, b) => {
         const ck = a + "," + b;
         let r = cache.get(ck);
         if (r === undefined) {
-            const key = actionKey(compose(group[a].action, group[b].action, puzzle.ori));
-            r = group.find(e => actionKey(e.action) === key).seq;
+            const key = keyOf(compose(group[a].action, group[b].action, puzzle.ori));
+            r = group.find(e => keyOf(e.action) === key).seq;
             cache.set(ck, r);
         }
         return r;
@@ -397,8 +397,8 @@ async function runInner(input, host) {
                                 const hit = gen.classMap.get(stateKey(other));
                                 if (!hit) continue;
                                 index = hit.c;
-                                preSeq = productSeq(base.preGroup, preCache, hit.pi, v.pi);
-                                postSeq = productSeq(base.postGroup, postCache, qt, hit.qi);
+                                preSeq = productSeq(base.preGroup, base.preKey, preCache, hit.pi, v.pi);
+                                postSeq = productSeq(base.postGroup, base.postKey, postCache, qt, hit.qi);
                             }
                             let alg = (preSeq.length ? "(" + seqText(preSeq) + ") " : "") + s.moves.map(m => sub.names[m]).join(" ");
                             if (input.showPost && postSeq.length) alg += " (" + seqText(postSeq) + ")";
