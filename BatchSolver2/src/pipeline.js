@@ -39,8 +39,8 @@ import { parseESQ, weightFor, stm, sqtm, moveCount, removeParens } from "./esq.j
  * @property {string} secondary  None | MCC | STM | SQTM | ESQ
  * @property {number} maxSolutions
  * @property {number[]} mcc  the ten MCC parameters
- * @property {number} [extension]  exact-storage margin K (default 4)
- * @property {number} [maxCases]  most distinct cases the Scramble may generate (default 2,000,000)
+ * @property {number} [exactLimit]  the exact (stored) part of the endtables ends when the next depth is projected to hold more states than this (default 500,000)
+ * @property {number} [maxCases]  most distinct cases the Scramble may generate (default 500,000)
  * @property {number} [maxAdjust]  most elements of a Pre-/Post-Adjust group (default 2000)
  * @property {number} [maxMccLength]  most plain moves an algorithm may expand to for MCC; longer ones get no MCC (default 200)
  * @property {number} [fpr]  @property {number} [fprLast]
@@ -347,7 +347,7 @@ async function runInner(input, host) {
         let lastStatus = 0;
         const stats = eng.buildTables({
             prune: pr.states !== undefined ? { states: pr.states } : pr.depth,
-            extension: input.extension, fpr: input.fpr, fprLast: input.fprLast,
+            exactLimit: input.exactLimit, fpr: input.fpr, fprLast: input.fprLast,
             onProgress: (what, detail = "") => {       // progress arrives very often; the page only needs a few updates per second
                 const now = Date.now();
                 if (now - lastStatus > 100 || !detail.endsWith("%")) {

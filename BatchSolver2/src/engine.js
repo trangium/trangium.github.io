@@ -54,20 +54,6 @@ export function bloomParams(n, target) {
     return { nBlocks, k: best.k, bitsPerKey: (nBlocks * BLOCK_BITS) / Math.max(n, 1) };
 }
 
-/** HyperLogLog cardinality estimate from `m` 6-bit registers. */
-export function hllEstimate(regs) {
-    const m = regs.length;
-    let sum = 0, zeros = 0;
-    for (let i = 0; i < m; i++) {
-        sum += Math.pow(2, -regs[i]);
-        if (regs[i] === 0) zeros++;
-    }
-    const alpha = 0.7213 / (1 + 1.079 / m);
-    let est = alpha * m * m / sum;
-    if (est <= 2.5 * m && zeros > 0) est = m * Math.log(m / zeros);
-    return est;
-}
-
 // ------------------------------------------------------------------ Engine ---
 
 /**
@@ -127,122 +113,142 @@ export class Engine {
     }
 
     /**
-     * Builds the endtables: exact states up to cost D-K, Bloom layers 1..D.
-     * @param {{prune:number|{states:number}, extension?:number, fpr?:number, fprLast?:number, onProgress?:(what:string, detail?:string)=>void}} opt
-     * prune: depth (cost), or {states: limit} to choose the depth from a state budget.
+     * Builds the endtables: Bloom layers 1..D, where layer i holds every state within cost i of solved.
+     *
+     * Exact phase: breadth-first search stores the states of cost 0, 1, ... L and fills layers 1..L from them. L is the
+     * first depth (at least 1) at which the projected number of states of the next depth exceeds `exactLimit`.
+     * Extension phase: layer L+j is filled by walking every move sequence of cost <= j from the exact states, and the
+     * size of a layer is projected from the two before it: n(i+1) ~ n(i)^2 / n(i-1) (counts grow roughly
+     * exponentially). The real size of a filled layer is read back from its fill ratio; if the projection was
+     * far too low the layer is rebuilt larger.
+     * @param {{prune:number|{states:number}, exactLimit?:number, fpr?:number, fprLast?:number, onProgress?:(what:string, detail?:string)=>void}} opt
+     * prune: depth (cost), or {states: limit}: use the deepest layer that is projected to hold at most `limit` states.
      */
     buildTables(opt) {
         const x = this.x;
-        const K = opt.extension === undefined ? 4 : opt.extension;
+        const exactLimit = opt.exactLimit === undefined ? 5e5 : opt.exactLimit;
         const fpr = opt.fpr === undefined ? 1e-3 : opt.fpr;
         const fprLast = opt.fprLast === undefined ? 1e-2 : opt.fprLast;
         const say = opt.onProgress || (() => {});
         const sized = typeof opt.prune === "object";
-        let D = sized ? 0 : opt.prune;
-        if (!sized && (D < 0 || D > 255 || !Number.isInteger(D))) throw new BatchError('"' + opt.prune + '" is not a valid prune depth.');
+        const budget = sized ? opt.prune.states : Infinity;
+        const want = sized ? Infinity : opt.prune;          // requested depth
+        if (!sized && (want < 0 || want > 255 || !Number.isInteger(want))) throw new BatchError('"' + opt.prune + '" is not a valid prune depth.');
+        const project = (n1, n2) => n1 * n1 / Math.max(n2, 1);   // size of the next layer from the two before it
+        const gb = (v) => (v / 1073741824).toFixed(1) + " GB";
+        const tooBig = (depth, bytes) => new BatchError("Prune depth " + depth + " would need about " + gb(bytes + x.bytes_used()) + " of memory for the endtables, but WebAssembly can address at most 4 GB. " +
+            "Use a smaller prune depth" + (depth > 1 ? " (such as " + (depth - 1) + ")" : "") + " or a larger Bloom false-positive rate.");
 
-        // ---- exact breadth-first search
-        let L = sized ? 255 : Math.max(0, D - K);
-        if (!x.bfs_init(L)) throw new BatchError("Out of memory while building the prune table.");
-        const cum = [];     // cumulative exact counts
-        let level = 0;
-        for (; level <= L; level++) {
+        // ---- exact phase
+        if (!x.bfs_init(sized ? 255 : want)) throw new BatchError("Out of memory while building the prune table.");
+        const cum = [];          // cumulative exact counts
+        let L = -1, D = -1;      // L: deepest exact level; D: deepest layer. D <= L when everything is exact
+        for (let level = 0; ; level++) {
             say("Exact states", "depth " + level);
-            let c = x.bfs_level(level, 0);
+            const c = x.bfs_level(level, 0);
             if (c === EMPTY) throw new BatchError("Out of memory while building the prune table.");
-            cum.push((cum.length ? cum[cum.length - 1] : 0) + c);
-            if (sized) {
-                const limit = opt.prune.states;
-                const r = cum.length >= 2 && cum[cum.length - 2] > 0 ? cum[cum.length - 1] / cum[cum.length - 2] : Infinity;
-                const finished = c === 0;
-                const projected = cum[cum.length - 1] * Math.pow(r, K);
-                if (finished || (level >= 1 && projected > limit) || cum[cum.length - 1] > limit) {
-                    // stop here: this level is the last exact one
-                    L = level;
-                    let j = 0;
-                    if (!finished) while (j < K && cum[cum.length - 1] * Math.pow(r, j + 1) <= limit && cum[cum.length - 1] <= limit) j++;
-                    D = L + j;
-                    // the final level is not expanded (its children would be deeper than L)
+            const n = (cum.length ? cum[cum.length - 1] : 0) + c;
+            cum.push(n);
+            if (!sized && level >= want) { L = D = want; break; }
+            if (sized && level === 255) { L = D = 255; break; }
+            if (sized && level >= 1 && n > budget) { L = level; D = level - 1; break; }
+            if (sized && level === 0 && n > budget) { L = 0; D = 0; break; }
+            const proj = level >= 1 ? project(n, cum[level - 1]) : 0;
+            if (level >= 1) {
+                if (sized && proj > budget) { L = D = level; break; }
+                if (proj > exactLimit) { L = level; break; }
+            }
+            if (x.bfs_level(level, 1) === EMPTY) throw new BatchError("Out of memory while building the prune table.");
+            if (x.bfs_total() === n) {                     // nothing lies deeper: every state is exact
+                L = level;
+                if (sized) D = level;
+                else { while (cum.length <= want) cum.push(n); L = D = want; }
+                break;
+            }
+        }
+        this.stats.exactStates = cum[Math.min(L, cum.length - 1)];
+
+        // ---- sizes and allocation of the exact layers
+        const cnt = cum.slice(0, L + 1);       // layer sizes: exact up to L, then measured
+        this.stats.layers = [];
+        let bytes = 0;
+        const room = () => MAX_WASM_BYTES - x.bytes_used() - (64 << 20);
+        const allocLayer = (i, n, target) => {
+            const p = bloomParams(n, target);
+            if (p.nBlocks * 64 > room()) throw tooBig(D > 0 ? D : i, bytes + p.nBlocks * 64);
+            if (!x.bloom_alloc(i, p.nBlocks, p.k)) throw new BatchError("Out of memory while building the endtables. Try a smaller prune depth.");
+            return p;
+        };
+        const record = (i, p, keys, prev) => {
+            if (prev) bytes -= prev.nBlocks * 64;
+            bytes += p.nBlocks * 64;
+            this.stats.layers[i - 1] = { layer: i, keys, blocks: p.nBlocks, k: p.k, bitsPerKey: p.bitsPerKey };
+        };
+        const exactTop = D >= 0 ? Math.min(D, L) : L;     // D < 0: still unknown, but then D > L
+        if (D < 0 && !sized) D = want;                    // depth mode: the exact phase ended early by switching to extension
+        // Refuse early if the projected layers cannot fit in memory.
+        if (!sized && L < D) {
+            let a = cum[L - 1], b = cum[L], total = 0;
+            for (let i = 1; i <= L; i++) total += bloomParams(cum[i], fpr).nBlocks * 64;
+            for (let i = L + 1; i <= D; i++) {
+                const n = project(b, a);
+                total += bloomParams(n, i === D ? fprLast : fpr).nBlocks * 64;
+                a = b; b = n;
+            }
+            if (total > room()) throw tooBig(D, total);
+        }
+        for (let i = 1; i <= exactTop; i++) {
+            const last = D >= 0 && i === D;
+            const p = allocLayer(i, cnt[i], last ? fprLast : fpr);
+            x.bloom_fill_exact(i);
+            record(i, p, cnt[i]);
+        }
+
+        // ---- extension phase
+        if (L >= 1 && (D < 0 || D > L)) {
+            const frontierCount = x.ext_begin(L);
+            if (frontierCount === EMPTY) throw new BatchError("Out of memory while building the endtables.");
+            const chunk = Math.max(1, Math.min(2000, Math.ceil(frontierCount / 200)));
+            for (let layer = L + 1; ; layer++) {
+                if (!sized && layer > want) break;
+                const est = project(cnt[layer - 1], cnt[layer - 2]);
+                if (sized && est > budget) { D = layer - 1; break; }
+                const last = sized ? project(est, cnt[layer - 1]) > budget : layer === want;
+                const target = last ? fprLast : fpr;
+                let n = est, p = null, nHat = 0;
+                for (let attempt = 0; attempt < 4; attempt++) {
+                    const prev = p;
+                    p = allocLayer(layer, n, target);
+                    x.bloom_fill_exact(layer);
+                    let done = 0;
+                    while (done < frontierCount) {
+                        done = x.ext_run(layer, done, chunk);
+                        say("Filling endtables", "depth " + layer + ", " + Math.floor(100 * done / Math.max(1, frontierCount)) + "%");
+                    }
+                    // read the real size back from the fraction of bits set
+                    const q = 1 - Math.pow(1 - 1 / BLOCK_BITS, p.k);
+                    const frac = x.bloom_fill(layer);
+                    const saturated = frac > 0.97;
+                    nHat = saturated ? n * 4 : -Math.log(1 - frac) / q * p.nBlocks;
+                    record(layer, p, nHat, prev);
+                    if (saturated) { n = n * 4; continue; }
+                    if (blockedFpr(nHat / p.nBlocks, p.k) > 2.5 * target) { n = nHat * 1.05; continue; }
                     break;
                 }
-            }
-            if (!sized && level === L) break;
-            c = x.bfs_level(level, 1);
-            if (c === EMPTY) throw new BatchError("Out of memory while building the prune table.");
-        }
-        if (sized && level > 255) throw new BatchError("The prune size is too large to reach a depth limit.");
-        if (sized && D > 255) D = 255;
-        const exactCum = (i) => cum[Math.min(i, cum.length - 1)];
-        this.depth = D;
-        this.exactDepth = L;
-        this.stats.exactStates = x.bfs_total();
-
-        // ---- layer sizes
-        const counts = new Array(D + 1).fill(0);
-        for (let i = 0; i <= Math.min(L, D); i++) counts[i] = exactCum(i);
-        if (D > L) {
-            const frontier = x.ext_begin(L, D);
-            if (!frontier && x.hll_ptr() === 0) throw new BatchError("Out of memory while counting states.");
-            const total = frontier;
-            let done = 0;
-            const chunk = Math.max(1, Math.min(2000, Math.ceil(total / 200)));
-            while (done < total) {
-                done = x.ext_run(1, done, chunk);
-                say("Counting states", Math.floor(100 * done / Math.max(1, total)) + "%");
-            }
-            const hllLen = 65536;
-            const regs = new Uint8Array(this.x.memory.buffer, x.hll_ptr(), (D - L + 1) * hllLen);
-            const merged = Uint8Array.from(regs.subarray(0, hllLen));
-            for (let i = L + 1; i <= D; i++) {
-                const layer = regs.subarray((i - L) * hllLen, (i - L + 1) * hllLen);
-                for (let j = 0; j < hllLen; j++) if (layer[j] > merged[j]) merged[j] = layer[j];
-                counts[i] = hllEstimate(merged);
+                cnt[layer] = nHat;
+                D = layer;
+                if (sized && last) break;
             }
             this.stats.countNodes = x.ext_nodes();
         }
-        this.stats.layerCounts = counts.slice();
-
-        // ---- allocate and fill
-        // Work out all filter sizes first: if they cannot fit in WebAssembly's 4 GB address space, say so now
-        // instead of after minutes of work.
-        const plans = [];
-        let bytes = 0;
-        for (let i = 1; i <= D; i++) {
-            const est = i <= L ? counts[i] : counts[i] * 1.04 + 64;
-            const p = bloomParams(est, i === D ? fprLast : fpr);
-            plans.push(p);
-            bytes += p.nBlocks * 64;
-        }
-        const room = MAX_WASM_BYTES - x.bytes_used() - (64 << 20);
-        if (bytes > room) {
-            const gb = (v) => (v / 1073741824).toFixed(1) + " GB";
-            throw new BatchError("Prune depth " + D + " would need about " + gb(bytes + x.bytes_used()) + " of memory for the endtables, but WebAssembly can address at most 4 GB. " +
-                "Use a smaller prune depth" + (D > 1 ? " (such as " + (D - 1) + ")" : "") + " or a larger Bloom false-positive rate.");
-        }
-        this.stats.layers = [];
-        plans.forEach((p, idx) => {
-            const i = idx + 1;
-            if (!x.bloom_alloc(i, p.nBlocks, p.k)) throw new BatchError("Out of memory while building the endtables. Try a smaller prune depth.");
-            this.stats.layers.push({ layer: i, keys: counts[i], blocks: p.nBlocks, k: p.k, bitsPerKey: p.bitsPerKey });
-        });
+        this.stats.layerCounts = cnt;
         this.stats.bloomBytes = bytes;
-        say("Filling endtables");
-        x.bloom_fill_exact();
-        if (D > L) {
-            let done = 0;
-            const frontierCount = this._frontierCount();
-            const chunk = Math.max(1, Math.min(2000, Math.ceil(frontierCount / 200)));
-            while (done < frontierCount) {
-                done = x.ext_run(2, done, chunk);
-                say("Filling endtables", Math.floor(100 * done / Math.max(1, frontierCount)) + "%");
-            }
-        }
         this.stats.memoryBytes = x.bytes_used();
+        this.depth = D;
+        this.exactDepth = L;
         this.stats.depth = D;
         return this.stats;
     }
-
-    _frontierCount() { return this.x.ext_frontier_count(); }
 
     /** Registers pre-/post-adjust move sets (arrays of move indices) and allocates the search stack. */
     prepareSearch(maxDepth, preMoves, postMoves, outWords = 1 << 18) {

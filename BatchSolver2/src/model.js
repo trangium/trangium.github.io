@@ -13,11 +13,12 @@ export function stateKey(state) {
     return String.fromCharCode.apply(null, state);
 }
 
-/** Parses the Prune field: "7" -> {depth:7}; "300k"/"5m" -> {states:...}. */
+/** Parses the Prune field: "7" -> {depth:7}; "300k"/"5m"/"1b"/"1g" -> {states:...}. */
 export function parsePrune(text) {
     const t = text.trim().toLowerCase();
     const num = parseFloat(t);
     if (!(num === num) || num < 0) throw new BatchError('"' + text + '" is not a valid prune depth.');
+    if (t.endsWith("g") || t.endsWith("b")) return { states: num * 1e9 };
     if (t.endsWith("m")) return { states: num * 1e6 };
     if (t.endsWith("k")) return { states: num * 1e3 };
     if (!Number.isInteger(num)) throw new BatchError('"' + text + '" is not a valid prune depth.');

@@ -415,8 +415,14 @@ static inline void bloomInsert(const Bloom& b, u64 x) {
 EXPORT(bloom_test) u32 bloom_test(u32 layer, const u16* st) { return bloomTest(BF[layer], mix64(hashState(st))) ? 1 : 0; }
 EXPORT(bloom_alloc) u32 bloom_alloc(u32 layer, u32 nBlocks, u32 k) {
     if (layer < 1 || layer > MAXL || k < 1 || k > 10 || nBlocks < 1) return 0;
+    // Re-allocating a layer that is still the newest allocation gives its memory back first (the heap is a bump allocator).
+    bool reused = false;
+    if (BF[layer].data && (u64)(u32)BF[layer].data + (u64)BF[layer].nBlocks * 64 == heapPtr) {
+        heapPtr = (u64)(u32)BF[layer].data; reused = true;
+    }
     BF[layer].data = newArr<u64>((u64)nBlocks * 8);
     BF[layer].nBlocks = nBlocks; BF[layer].k = k;
+    if (BF[layer].data && reused) __builtin_memset(BF[layer].data, 0, (u64)nBlocks * 64);
     if (layer > DEPTH) DEPTH = layer;
     return BF[layer].data ? 1 : 0;
 }
@@ -613,56 +619,48 @@ EXPORT(bfs_cum) f64 bfs_cum(u32 c) {
     return s;
 }
 
-// Inserts every exact state into the Bloom layers that should contain it.
-EXPORT(bloom_fill_exact) void bloom_fill_exact() {
-    for (u32 i = 0; i < nEntries; i++) {
-        u32 c = costAt(i);
-        u64 x = mix64(hashAt(i));
-        for (u32 layer = (c < 1 ? 1 : c); layer <= DEPTH; layer++) if (BF[layer].data) bloomInsert(BF[layer], x);
-    }
+static u32 exactMax = 0xFFFFFFFF;     // exact states with a larger cost are not final and are ignored
+EXPORT(set_exact_max) void set_exact_max(u32 c) { exactMax = c; }
+
+// Inserts every exact state of cost <= layer into Bloom layer `layer`.
+EXPORT(bloom_fill_exact) void bloom_fill_exact(u32 layer) {
+    if (!BF[layer].data) return;
+    u32 lim = layer < exactMax ? layer : exactMax;
+    for (u32 i = 0; i < nEntries; i++) if (costAt(i) <= lim) bloomInsert(BF[layer], mix64(hashAt(i)));
 }
 
 // ----------------------------------------------------- extension passes ---
 
 static u32 extL = 0, extD = 0;
 static u32* frontier; static u32 frontierCount;
-static u8* hll;                      // (extD - extL + 1) layers of 65536 registers; layer 0 = exact states
-static const u32 HLLN = 65536;
 static u16* extStack; static u32* extCtx; static u32* extIter; static u32* extG; static u64* extH; static u32 extCap;
 static f64 extNodes = 0;
 
-static inline void hllAdd(u8* regs, u64 x) {
-    u32 idx = (u32)(x >> 48);
-    u64 w = (x << 16) | (1ull << 15);
-    u8 rank = (u8)(__builtin_clzll(w) + 1);
-    if (regs[idx] < rank) regs[idx] = rank;
-}
-
-EXPORT(ext_begin) u32 ext_begin(u32 L, u32 D) {
-    extL = L; extD = D;
+// Starts the extension: the frontier is every exact state (cost <= L) from which a move can lead to a cost above L.
+EXPORT(ext_begin) u32 ext_begin(u32 L) {
+    extL = L; exactMax = L;
     frontierCount = 0;
     u32 lo = (L + 1 > maxBCost) ? L + 1 - maxBCost : 0;
     for (u32 i = 0; i < nEntries; i++) if (costAt(i) >= lo && costAt(i) <= L) frontierCount++;
     frontier = newArr<u32>(frontierCount + 1);
     u32 j = 0;
     for (u32 i = 0; i < nEntries; i++) if (costAt(i) >= lo && costAt(i) <= L) frontier[j++] = i;
-    extCap = D + 2;
+    extCap = 260;
     extStack = newArr<u16>((u64)extCap * N);
     extCtx = newArr<u32>(extCap); extIter = newArr<u32>(extCap); extG = newArr<u32>(extCap); extH = newArr<u64>(extCap);
-    hll = newArr<u8>((u64)(D - L + 1) * HLLN);
-    if (!frontier || !extStack || !extCtx || !extIter || !extG || !extH || !hll) return 0;
-    for (u32 i = 0; i < nEntries; i++) hllAdd(hll, mix64(hashAt(i)));
+    if (!frontier || !extStack || !extCtx || !extIter || !extG || !extH) return 0xFFFFFFFF;
     return frontierCount;
 }
-EXPORT(hll_ptr) u8* hll_ptr() { return hll; }
 EXPORT(ext_frontier_count) u32 ext_frontier_count() { return frontierCount; }
 EXPORT(ext_nodes) f64 ext_nodes() { return extNodes; }
 
-// mode 1: count (HyperLogLog)   mode 2: insert into Bloom layers
-// Processes frontier states [from, from+count). Returns the next index.
-EXPORT(ext_run) u32 ext_run(u32 mode, u32 from, u32 count) {
+// Inserts into Bloom layer `layer` every state that is reached from the frontier states [from, from+count) by a
+// (non-redundant) move sequence of total cost <= layer and has cost above L. Returns the next index.
+EXPORT(ext_run) u32 ext_run(u32 layer, u32 from, u32 count) {
+    extD = layer;
     u32 end = from + count; if (end > frontierCount) end = frontierCount;
     u16 nv[512];
+    const Bloom& bf = BF[layer];
     for (u32 fi = from; fi < end; fi++) {
         u32 f = frontier[fi];
         u32 cf = costAt(f);
@@ -679,11 +677,7 @@ EXPORT(ext_run) u32 ext_run(u32 mode, u32 from, u32 count) {
             const u16* par = extStack + (u64)d * N;
             u64 h = childHash(par, extH[d], m, nv);
             extNodes += 1;
-            if (gc > extL) {
-                u64 x = mix64(h);
-                if (mode == 1) hllAdd(hll + (u64)(gc - extL) * HLLN, x);
-                else for (u32 layer = gc; layer <= extD; layer++) if (BF[layer].data) bloomInsert(BF[layer], x);
-            }
+            if (gc > extL) bloomInsert(bf, mix64(h));
             if (gc + minBCost <= extD) {
                 writeChild(extStack + (u64)(d + 1) * N, par, m, nv);
                 extCtx[d + 1] = AB.nx[e]; extIter[d + 1] = AB.off[AB.nx[e]]; extG[d + 1] = gc; extH[d + 1] = h;
