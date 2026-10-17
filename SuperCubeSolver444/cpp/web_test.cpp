@@ -102,6 +102,45 @@ static void unit_tests() {
         Cube b; apply_letters(b, back);
         CHECK(equal_mod_rotation(b, a, false), "%s", txt.c_str());
         for (size_t i = 0; i + 1 < txt.size(); i++) CHECK(!((txt[i] == 'B' || txt[i] == 'L' || txt[i] == 'D') && txt[i + 1] == 'w'), "wide back move in %s", txt.c_str());
+        // the fewest-move form of every same-axis run is the same state exactly (not only up to a rotation), and never longer
+        int rn = 0;
+        const std::string red = reduce_same_axis_runs(txt, 0, 0, &rn);
+        CHECK(rn <= nm && same_state(txt, red), "reduce %s -> %s", txt.c_str(), red.c_str());
+        int rn2 = 0;
+        CHECK(reduce_same_axis_runs(red, 0, 0, &rn2) == red && rn2 == rn, "reduce is not idempotent: %s", red.c_str());
+    }
+    // same-axis runs: R Rw R2, U D Uw U2, L' L2, Rw2 Rw' and a cascade; padding is never touched
+    {
+        int k = 0;
+        CHECK(reduce_same_axis_runs("U L' L2 F", 0, 0, &k) == "U L F" && k == 3, "L' L2");
+        CHECK(reduce_same_axis_runs("R Rw R2", 0, 0, &k) == "R' Rw" && k == 2, "R Rw R2");
+        CHECK(reduce_same_axis_runs("U D Uw U2", 0, 0, &k) == "U' Uw D" && k == 3, "U D Uw U2");
+        CHECK(reduce_same_axis_runs("F Rw2 Rw' B", 0, 0, &k) == "F Rw B" && k == 3, "Rw2 Rw'");
+        CHECK(reduce_same_axis_runs("U R R' U'", 0, 0, &k).empty() && k == 0, "cascade");
+        CHECK(reduce_same_axis_runs("R Rw U D", 0, 0, &k) == "R Rw U D" && k == 4, "no change");
+        CHECK(reduce_same_axis_runs("Uw D R2 L2", 0, 0, &k) == "Uw D R2 L2" && k == 4, "no change 2");
+        CHECK(reduce_same_axis_runs("U U' R", 1, 0, &k) == "U U' R" && k == 3, "front padding is kept");
+        CHECK(reduce_same_axis_runs("R U U' ", 0, 1, &k) == "R U U'" && k == 3, "back padding is kept");
+        CHECK(reduce_same_axis_runs("F U U' R", 1, 1, &k) == "F R" && k == 2, "middle only");
+        // random texts with a forced start / end: those moves come out exactly as they went in, and the cube is the same
+        static const char* ALL[] = {"U", "Uw", "D", "R", "Rw", "L", "F", "Fw", "B"};
+        std::mt19937 r2(99);
+        for (int t = 0; t < 3000; t++) {
+            std::vector<std::string> tk;
+            const int len = 2 + (int)(r2() % 14);
+            for (int i = 0; i < len; i++) tk.push_back(std::string(ALL[r2() % 9]) + (r2() % 3 == 0 ? "" : (r2() % 2 ? "2" : "'")));
+            const int nf = (int)(r2() % 4), nb = (int)(r2() % 4);
+            if (nf + nb > len) continue;
+            std::string txt;
+            for (auto& x : tk) { if (!txt.empty()) txt += " "; txt += x; }
+            int kk = len;
+            const std::string red = reduce_same_axis_runs(txt, nf, nb, &kk);
+            std::istringstream is(red); std::vector<std::string> rt; std::string w; while (is >> w) rt.push_back(w);
+            bool keep = (int)rt.size() >= nf + nb;
+            for (int i = 0; keep && i < nf; i++) keep = rt[i] == tk[i];
+            for (int i = 0; keep && i < nb; i++) keep = rt[rt.size() - 1 - i] == tk[len - 1 - i];
+            CHECK(keep && (int)rt.size() == kk && same_state(txt, red), "padding %d/%d: %s -> %s", nf, nb, txt.c_str(), red.c_str());
+        }
     }
     printf("units: rotation-free output checked on 4000 random paths (%d moves), %d failures so far\n", total_moves, g_fail);
 }

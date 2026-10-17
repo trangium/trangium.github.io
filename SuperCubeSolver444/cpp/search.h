@@ -304,6 +304,8 @@ static void build_niss_variants(int fk, const State6& ns, int m, int rot, int pr
         g_niss_sw_cross++;
         if (prev < NUM_MOVES && MOVE_GROUP[prev] == MOVE_GROUP[m] && prev % 3 != 1 && !is_wide_family(prev)) g_niss_cluster_cross++;
     }
+    // m as the previous move of its word once the canonicalization rotation that followed it is applied (see after_rotation)
+    const int m_rot = rot > 0 ? after_rotation(m, rot, false) : m;
     for (int flip = 0; flip < 2; flip++) {
         for (int sw = 0; sw < 2; sw++) {
             if (flip && !(P && (trigger || sw))) continue;
@@ -313,7 +315,7 @@ static void build_niss_variants(int fk, const State6& ns, int m, int rot, int pr
             NissCtx c = c0;
             if (sw) {
                 s = invert_state6(s);
-                c.wl[c.side] = m;
+                c.wl[c.side] = m_rot;
                 c.side ^= 1;
                 c.pend = new_pend_ok ? make_pending(m) : Pending();
             } else if (flip || trigger) c.pend.active = false;
@@ -323,6 +325,13 @@ static void build_niss_variants(int fk, const State6& ns, int m, int rot, int pr
             for (auto& fc : cands) {
                 NissCtx cc = c;
                 if (fc.open_cls > 0 && cc.pend.active) cc.pend = conj_pending(cc.pend, fc.open_cls);
+                // a fork rotation goes into both words: the last move of each is renamed in the rotated frame
+                int lm_stay = m_rot;
+                if (fc.open_cls > 0) {
+                    cc.wl[0] = after_rotation(cc.wl[0], fc.open_cls, true);
+                    cc.wl[1] = after_rotation(cc.wl[1], fc.open_cls, true);
+                    lm_stay = after_rotation(m_rot, fc.open_cls, true);
+                }
                 if (g_forced.active() && (fc.open_cls > 0 || sw)) {
                     // the path this variant will have (the tokens try_variant pushes), for the words' boundary rotations
                     std::vector<int> tmp = g_path;
@@ -332,7 +341,7 @@ static void build_niss_variants(int fk, const State6& ns, int m, int rot, int pr
                     if (fc.open_cls > 0) tmp.push_back(P2_OPEN_SENTINEL_BASE + fc.open_cls);
                     refresh_virtual_wl(tmp, cc.wl);
                 }
-                out.push_back({fc.state, fc.open_cls, flip, sw, sw ? cc.wl[cc.side] : m, cc});
+                out.push_back({fc.state, fc.open_cls, flip, sw, sw ? cc.wl[cc.side] : lm_stay, cc});
             }
         }
     }

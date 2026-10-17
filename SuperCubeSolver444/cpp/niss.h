@@ -111,8 +111,75 @@ static inline Tier6State t6_leftmul(const Tier6State& t, int face_half_move) {
     return r;
 }
 
+// The name of a move after a whole-cube rotation token. A move m followed by the rotation e equals e followed by a move n (checked
+// by replaying both on probe cubes), i.e. that is how the NEXT moves, which are written in the rotated frame, see m. The canonical-order
+// pruning compares the previous move with the next one by name, so without this the last move before a rotation and the first one after
+// it can be the same physical family (Fw, [rotation], Uw2 = Fw then Bw2 = Fw' and a free rotation): a redundant pair.
+// A wide move of the D / L / B side is not one of the 27 moves, but the solver treats whole-cube rotations as free and Dw / Lw / Bw
+// are Uw / Rw / Fw up to one (the other two layers instead of these two, the rest of the cube turned along): they count as the same
+// family (the power does not matter to the pruning). So every move has a name; NUM_MOVES is kept for "no previous move".
+static int MOVE_AFTER_ROT[2][NUM_ROTATE_CLASSES][NUM_MOVES];
+static int FACE_AFTER_ROT[2][NUM_ROTATE_CLASSES][6];   // faces U D R L F B: where a face goes
+static const int FACE_FAM[6] = {0, 2, 3, 5, 6, 8};        // family of the plain face turn
+static const int WIDE_FAM_OF_FACE[6] = {1, 1, 4, 4, 7, 7};   // the wide family of a face (D / L / B: that of the opposite face)
+static inline void prev_move_parts(int id, int& face, bool& wide, int& power) {
+    static const int FAM_FACE[9] = {0, 0, 1, 2, 2, 3, 4, 4, 5};
+    static const bool FAM_WIDE[9] = {false, true, false, false, true, false, false, true, false};
+    face = FAM_FACE[id / 3]; wide = FAM_WIDE[id / 3]; power = id % 3;
+}
+static inline int prev_move_id(int face, bool wide, int power) {
+    if (!wide) return FACE_FAM[face] * 3 + power;
+    return WIDE_FAM_OF_FACE[face] * 3 + power;   // Dw / Lw / Bw -> Uw / Rw / Fw (a power of the family; only the family is used)
+}
+static inline int after_rotation(int id, int cls, bool open_token) {
+    if (id >= NUM_MOVES || cls <= 0) return id;
+    const int n = MOVE_AFTER_ROT[open_token ? 1 : 0][cls][id];
+    if (n < NUM_MOVES) return n;
+    int face, power; bool wide;
+    prev_move_parts(id, face, wide, power);
+    return prev_move_id(FACE_AFTER_ROT[open_token ? 1 : 0][cls][face], wide, power);
+}
+static void init_move_after_rot() {
+    std::mt19937 rng(20241014);
+    std::vector<Cube> probes(4);
+    for (auto& c : probes) for (int i = 0; i < 40; i++) c.apply((int)(rng() % NUM_MOVES));
+    auto same = [](const Cube& a, const Cube& b) {
+        for (int i = 0; i < 24; i++) if (a.wing[i] != b.wing[i] || a.center[i] != b.center[i] || a.corner[i] != b.corner[i]) return false;
+        return a.corner_parity == b.corner_parity;
+    };
+    for (int open = 0; open < 2; open++)
+        for (int cls = 0; cls < NUM_ROTATE_CLASSES; cls++) {
+            for (int m = 0; m < NUM_MOVES; m++) {
+                int found = NUM_MOVES;
+                if (cls == 0) found = m;
+                else {
+                    const int e = (open ? P2_OPEN_SENTINEL_BASE : ROTATION_SENTINEL_BASE) + cls;
+                    for (int n = 0; n < NUM_MOVES && found == NUM_MOVES; n++) {
+                        bool ok = true;
+                        for (const Cube& p : probes) {
+                            Cube a = p, b = p;
+                            apply_letters(a, {m, e});
+                            apply_letters(b, {e, n});
+                            if (!same(a, b)) { ok = false; break; }
+                        }
+                        if (ok) found = n;
+                    }
+                }
+                MOVE_AFTER_ROT[open][cls][m] = found;
+            }
+            // where each face goes: read it off the plain face turns (every face turn keeps a name)
+            for (int f = 0; f < 6; f++) {
+                const int n = MOVE_AFTER_ROT[open][cls][FACE_FAM[f] * 3];
+                int face, power; bool wide;
+                prev_move_parts(n < NUM_MOVES ? n : 0, face, wide, power);
+                FACE_AFTER_ROT[open][cls][f] = n < NUM_MOVES ? face : f;
+            }
+        }
+}
+
 static void init_niss_tables() {
     LapTimer lt;
+    init_move_after_rot();
     // conj of face half turns
     static const int FACE_HALVES[6] = {1, 7, 10, 16, 19, 25};
     for (int cls = 0; cls < NUM_ROTATE_CLASSES; cls++)

@@ -127,6 +127,8 @@ README.md in cpp/ now starts with a "Read this first" section: current configura
 
 PRODUCTION WEB BUILD (2026-10-04): `index.html` + `worker.js` + `solver.js/.wasm/.data` in this folder, sources `cpp/web_solver.h` + `cpp/web_main.cpp`, build `cpp/build_wasm.ps1`, tests `cpp/web_test.cpp` and `cpp/web_node_*.js`; full description (UI, modes, random-state generation, rotation-free output, numbers) in the first section of `cpp/README.md`. Dev-only files (main.cpp, selftest.h, CLI) are not part of it.
 
+Redundant wide pair across a rotation (2026-10-15, README last section): the pruning compared the previous move with the next by name across a whole-cube rotation; fixed with `after_rotation` (niss.h) and `merge_modulo_rotation` (forced.h); a D / L / B side wide move counts as the opposite wide family (rotations are free; the printed text never contains Bw / Lw / Dw). Reproduce with the website pipeline `web::run` (random state, padding `Rw' Uw' F`, not safe) and check for adjacent same-family printed moves + replay of the merge. Join pairs (`N | inverse(I)`, e.g. `L Rw2 L2`; ~0.5% of FMC scrambles) are fixed in the web output by `reduce_same_axis_runs` (web_solver.h: every run of printed moves on one axis is written with the fewest moves, padding untouched; search / nodes unchanged, scramble only shorter; README last section); the dev CLI still prints the unreduced solution. The END padding of an FMC scramble is printed in the frame of the hidden rotations (literal `Rw' Uw' F` in only ~1 of 24).
+
 The older sections below are the historical design log; file names in them (chain*.cpp) refer to
 the pre-refactor code in `archive/` and `cpp/chain1234prime.cpp`.
 

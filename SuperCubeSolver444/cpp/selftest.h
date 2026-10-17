@@ -680,6 +680,84 @@ static void test_p2_endtable(TestReport& rep, std::mt19937& rng, int trials, lon
     rep.done("phase 2 endtable: false positive rate <= 3x target", probes, rate > 3 * p2j::g_fpr ? 1 : 0);
 }
 
+// ---- forced ends and a wide move of the far side: P ends with Rw, a root rotation y2 turns Rw into Lw (not one of the 27): the pretended
+// previous move must still be a move of the R axis wide family, and Rw / Lw2 must count as merging
+static void test_forced_far_wide(TestReport& rep) {
+    long long checked = 0, bad = 0;
+    checked++;
+    if (rotation_group_elems().size() != 24) bad++;
+    int y2 = -1;
+    for (int c = 1; c < NUM_ROTATE_CLASSES; c++) if (std::string(ROTATE_CLASS_FWD_NOTATION[c]) == "y2") y2 = c;
+    int rw = -1;
+    for (int m = 0; m < NUM_MOVES; m++) if (std::string(MOVE_NAMES[m]) == "Rw") rw = m;
+    checked++;
+    if (y2 < 0 || rw < 0) { bad++; }
+    else {
+        Forced f;
+        f.prefix = {rw};
+        f.root_rot = y2;   // P, then the rotation: the search sees the layers of Rw as Lw
+        const int v = f.virtual_last(0);
+        checked++;
+        if (v >= NUM_MOVES || v / 3 != 4) bad++;   // the family Rw (id 12..14)
+        // and the exact check: "Rw" followed by "[y2] Rw2" cancels, by "[y2] R2" does not
+        checked++;
+        if (!forced_cancels({rw}, {P2_OPEN_SENTINEL_BASE + y2, rw + 1}, {})) bad++;
+        for (int m = 0; m < NUM_MOVES; m++) if (std::string(MOVE_NAMES[m]) == "R2") {
+            checked++;
+            if (forced_cancels({rw}, {P2_OPEN_SENTINEL_BASE + y2, m}, {})) bad++;
+        }
+    }
+    rep.done("forced ends: a far-side wide move merges with the opposite wide move up to a rotation", checked, bad);
+}
+
+// ---- the name of a move after a whole-cube rotation (niss.h, MOVE_AFTER_ROT): on fresh cubes, m then the rotation equals the
+// rotation then the renamed move; every face turn keeps a name (only wide moves of the D / L / B side have none)
+static void test_move_after_rot(TestReport& rep, std::mt19937& rng) {
+    long long checked = 0, bad = 0;
+    auto same_arrays = [](const Cube& a, const Cube& b) {
+        for (int i = 0; i < 24; i++) if (a.wing[i] != b.wing[i] || a.center[i] != b.center[i] || a.corner[i] != b.corner[i]) return false;
+        return true;
+    };
+    // every rotation token, and every whole-cube rotation reachable with up to two of them
+    std::vector<std::vector<int>> rots = {{}};
+    std::vector<int> toks;
+    for (int cls = 1; cls < NUM_ROTATE_CLASSES; cls++) { toks.push_back(ROTATION_SENTINEL_BASE + cls); toks.push_back(P2_OPEN_SENTINEL_BASE + cls); }
+    for (int t1 : toks) { rots.push_back({t1}); for (int t2 : toks) rots.push_back({t1, t2}); }
+    for (int trial = 0; trial < 2; trial++) {
+        Cube p;
+        for (int i = 0; i < 60; i++) p.apply((int)(rng() % NUM_MOVES));
+        for (int open = 0; open < 2; open++)
+            for (int cls = 1; cls < NUM_ROTATE_CLASSES; cls++)
+                for (int m = 0; m < NUM_MOVES; m++) {
+                    const int n = after_rotation(m, cls, open);
+                    const int e = (open ? P2_OPEN_SENTINEL_BASE : ROTATION_SENTINEL_BASE) + cls;
+                    checked++;
+                    if (n >= NUM_MOVES) { bad++; continue; }
+                    if (MOVE_AFTER_ROT[open][cls][m] < NUM_MOVES) {   // a move that keeps a name: exact
+                        Cube a = p, b = p;
+                        apply_letters(a, {m, e});
+                        apply_letters(b, {e, n});
+                        if (!same_arrays(a, b)) bad++;
+                        continue;
+                    }
+                    // the wide move of the D / L / B side: some power of the renamed family differs from it by a whole-cube rotation
+                    bool found = false;
+                    Cube a = p;
+                    apply_letters(a, {m, e});
+                    for (int k = 0; k < 3 && !found; k++)
+                        for (const auto& w : rots) {
+                            Cube b = p;
+                            std::vector<int> seq = {e, (n / 3) * 3 + k};
+                            seq.insert(seq.end(), w.begin(), w.end());
+                            apply_letters(b, seq);
+                            if (same_arrays(a, b)) { found = true; break; }
+                        }
+                    if (!found) bad++;
+                }
+    }
+    rep.done("move name after a rotation (a D / L / B side wide move counts as the opposite wide move, up to a free rotation)", checked, bad);
+}
+
 // ---- S2 -> S3' switch route (s2switch.h) ----------------------------------------------------
 // the independent ground truth: is the INVERSE of the cube in S3' (or deeper)?
 static bool inverse_in_s3prime(const State6& s) { return classify_tier(invert_state6(s)) >= 3; }
@@ -1172,6 +1250,8 @@ static bool run_selftests() {
     }
     test_p1_step(rep, rng, 1000);
     test_wing_mask(rep, rng, 1000);
+    test_move_after_rot(rep, rng);
+    test_forced_far_wide(rep);
     if (ls::g_built) {
         test_ls_basic(rep, rng, 400);
         test_ls_lazy(rep, rng, 300);

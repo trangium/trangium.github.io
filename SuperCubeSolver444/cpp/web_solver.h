@@ -13,6 +13,10 @@
 // the user's prefix and ends with the user's suffix.
 // The printed moves are rotation free (see to_rotation_free): whole-cube rotations are translated out and no wide
 // move of the B / L / D side is printed (Bw / Lw / Dw become Fw / Rw / Uw plus a rotation that is translated out).
+// Every run of consecutive printed moves on one axis is written with the fewest moves (reduce_same_axis_runs): the search never
+// compares the last move of the normal word with the first of the inverse word (where they join), so e.g. L Rw2 L2 can come out.
+// Note: the START padding is printed literally, but the END padding is printed in the frame of the hidden rotations (~24 forms,
+// literal in ~1 of 24 scrambles): every move after a rotation is renamed.
 #pragma once
 #include "random_start.h"
 
@@ -340,12 +344,88 @@ static std::string to_rotation_free(const std::vector<int>& path, int* nmoves = 
     return out;
 }
 
+// Printed moves of one axis (U / D, R / L, F / B) commute, so a run of consecutive printed moves on one axis is one vector of layer
+// turn counts mod 4 (layers 1, 2, 4 counted from the U / R / F side; layer 3 is never turned alone: Dw / Lw / Bw are not printed).
+// X = U / R / F turns layer 1, Xw layers 1 + 2, Y = D / L / B layer 4 (the other way round), so the vector (l1, l2, l4) is X^(l1-l2)
+// Xw^l2 Y^-l4 and that is the fewest-move form of the run. This catches a pair the search cannot see (the last move of the normal
+// word next to the first move of the inverse word, where N and inverse(I) meet) and anything else of the same kind, e.g. L' L2,
+// R Rw R2, U D Uw U2. The first keep_front and the last keep_back moves (the forced padding) are never touched.
+struct PrintedMove { int axis; int kind; int k; };   // kind 0 = X, 1 = Xw, 2 = Y; k = quarter turns 1..3
+static bool parse_printed_move(const std::string& t, PrintedMove& m) {
+    if (t.empty()) return false;
+    const int f = face_index(t[0]);
+    if (f < 0) return false;
+    size_t i = 1;
+    bool wide = false;
+    if (i < t.size() && t[i] == 'w') { wide = true; i++; }
+    int k = 1;
+    if (i < t.size()) { if (t[i] == '2') k = 2; else if (t[i] == '\'') k = 3; else return false; i++; }
+    if (i != t.size()) return false;
+    const bool far_side = (f == 1 || f == 3 || f == 5);   // D, L, B
+    if (wide && far_side) return false;
+    m.axis = f / 2;
+    m.kind = far_side ? 2 : (wide ? 1 : 0);
+    m.k = k;
+    return true;
+}
+static std::string reduce_same_axis_runs(const std::string& text, int keep_front, int keep_back, int* nmoves) {
+    std::vector<std::string> tok;
+    { std::istringstream is(text); std::string w; while (is >> w) tok.push_back(w); }
+    const std::vector<std::string> orig = tok;
+    std::vector<PrintedMove> pm(tok.size());
+    for (size_t i = 0; i < tok.size(); i++) if (!parse_printed_move(tok[i], pm[i])) return text;   // not plain printed moves: leave as is
+    bool changed = true;
+    while (changed) {
+        changed = false;
+        const int n = (int)tok.size();
+        std::vector<std::string> ot;
+        std::vector<PrintedMove> op;
+        for (int i = 0; i < n;) {
+            int j = i;
+            while (j < n && pm[j].axis == pm[i].axis) j++;
+            if (j - i >= 2 && i >= keep_front && j <= n - keep_back) {
+                int l1 = 0, l2 = 0, l4 = 0;
+                for (int q = i; q < j; q++) {
+                    if (pm[q].kind == 0) l1 += pm[q].k;
+                    else if (pm[q].kind == 1) { l1 += pm[q].k; l2 += pm[q].k; }
+                    else l4 -= pm[q].k;
+                }
+                const int cnt[3] = {((l1 - l2) % 4 + 4) % 4, ((l2 % 4) + 4) % 4, ((-l4) % 4 + 4) % 4};   // X, Xw, Y
+                const int fewest = (cnt[0] != 0) + (cnt[1] != 0) + (cnt[2] != 0);
+                if (fewest < j - i) {
+                    for (int kind = 0; kind < 3; kind++) {
+                        if (!cnt[kind]) continue;
+                        const int face = pm[i].axis * 2 + (kind == 2 ? 1 : 0);
+                        ot.push_back(std::string(1, FACE_CH[face]) + (kind == 1 ? "w" : "") + power_suffix(cnt[kind]));
+                        op.push_back({pm[i].axis, kind, cnt[kind]});
+                    }
+                    changed = true;
+                    i = j;
+                    continue;
+                }
+            }
+            for (int q = i; q < j; q++) { ot.push_back(tok[q]); op.push_back(pm[q]); }
+            i = j;
+        }
+        if (changed) { tok = ot; pm = op; }   // a vanished run can make its neighbours one run: go round again
+    }
+    // the forced start / end padding must come out exactly as it went in (it does by construction: a run that touches it is left alone)
+    if (tok.size() < (size_t)(keep_front + keep_back)) return text;
+    for (int i = 0; i < keep_front; i++) if (tok[i] != orig[i]) return text;
+    for (int i = 0; i < keep_back; i++) if (tok[tok.size() - 1 - i] != orig[orig.size() - 1 - i]) return text;
+    std::string out;
+    for (const std::string& t : tok) { if (!out.empty()) out += " "; out += t; }
+    if (nmoves) *nmoves = (int)tok.size();
+    return out;
+}
+
 // ------------------------------------------------------------------------------------------ solving
 struct Result {
     bool ok = false;
     std::string error;
     std::string text;          // the scramble (random state) or the solution (given position), rotation free
     int moves = 0;
+    int merged = 0;            // moves taken out by reduce_same_axis_runs (already left out of `moves`)
     long long nodes = 0;
     double ms = 0;
     bool random_state = false;
@@ -427,6 +507,14 @@ static Result run(const std::string& scramble_text, const std::string& prefix_te
 
     const std::vector<int> shown = random_state ? inverse_alg(sol) : sol;
     res.text = to_rotation_free(shown, &res.moves);
+    {   // the join of the normal and the inverse word (and anything else of that kind) can leave a mergeable run: write each run with the fewest moves
+        int nf = 0, nb = 0;
+        for (int e : pre) if (e < NUM_MOVES) nf++;
+        for (int e : suf) if (e < NUM_MOVES) nb++;
+        const int before = res.moves;
+        res.text = reduce_same_axis_runs(res.text, nf, nb, &res.moves);
+        res.merged = before - res.moves;
+    }
     // check the printed moves too: a scramble must give the random state (from the solved cube), a solution must solve the position
     {
         std::string n2;

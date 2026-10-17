@@ -567,3 +567,48 @@ nodes / 57.56; LS runs identical node for node up to Bloom false positives where
 - **`p1::build`** with `--s1-depth 7`: the last layer is streamed in chunks (no 280 MB vector of raw keys) and `BlockedBloom::add_all` prefetches 64 keys deep (was 16):
   ~1.6 s -> ~0.9-1.0 s. (35M random Bloom insertions are what is left; depth 6, the default, takes ~0.25 s.)
 - **Totals** (`all tables ready`, same machine state, 3 runs): `--ls` defaults ~1.4 s; legacy S6/S7 ending ~1.6-1.9 s; `--ls --ls-depth 9 --s1-depth 7` ~2.6-3.2 s (p1 ~1 s of it).
+
+### Redundant wide pairs across a rotation (fixed 2026-10-15)
+Symptom (website "FMC scramble"): a scramble containing e.g. `Rw2 Rw'`, which is one move `Rw`. Cause: the canonical-order pruning
+compares the previous move with the next one by NAME, and a whole-cube rotation between them (the canonicalization letter at the
+S0 -> S1 crossing, fork letters, which go into both NISS words) renames the layers. Two further facts made it worse: the printed
+text never contains Bw / Lw / Dw (`to_rotation_free` rewrites them as Fw / Rw / Uw plus a hidden rotation), and the solver treats
+rotations as free, so a wide move of the D / L / B side is the same family as the opposite wide move (`Fw` then `Bw2` = `Fw'` and a
+rotation). The pair also arose at the forced padding: `Forced::virtual_last` skipped a padding move that is none of the 27 (e.g.
+`Lw` after a rotation), and the exact goal check compared elements without allowing the rotation.
+Fix: `niss.h` `MOVE_AFTER_ROT` / `after_rotation` (the name of a move after a rotation token, found by replaying both orders; a
+D / L / B side wide move counts as the opposite wide family) is applied to the "previous move" passed down and stored per NISS word
+(`build_niss_variants`, `search.h`); `forced.h` `merge_modulo_rotation` / `move_family_mod_rotation` do the same for the padding
+boundary (pruning aid and exact check). Self-tests: `test_move_after_rot`, `test_forced_far_wide`.
+Checks (the button's own pipeline `web::run`, random state, padding `Rw' Uw' F`, not supercube-safe; a redundant pair = two adjacent
+printed moves of one family, confirmed by replaying the merge): 6 of 150 scrambles (seed 1) before, 0 after; 0 of 600 (seed 2) wide
+pairs after (the earlier sample of that seed had ~4% affected). Default pipeline, replay test over 1000 scrambles: wide pairs across a
+rotation 17 -> 0. Solution lengths unchanged (same 20 production solves: 54.80 before and after), nodes +4.6%.
+Not fixed there (a different case, plain face moves): the join of `N` and `inverse(I)`: fixed in the web output, see the next section.
+
+### Redundant runs at the join of the normal and the inverse word (fixed 2026-10-16, web output)
+Symptom: a printed run of one axis that is shorter written another way, e.g. `L Rw2 L2` (= `Rw2 L'`). It comes from the join of the
+two NISS words: the solution is `N` followed by `inverse(I)`, the search only compares each word's last move with the next move of
+the SAME word, so the last move of `N` and the first move of `inverse(I)` (and anything commuting between them) are never compared.
+In the FMC button it showed in about 0.5% of the scrambles (1 of 698 and 5 of 619 in two batches; the wide pairs of the section
+above were ~4% before that fix, 0 after).
+Fix (text level, `web_solver.h` `reduce_same_axis_runs`, called in `run` right after `to_rotation_free`): moves of one axis commute,
+so a run of consecutive printed moves on one axis is the vector of its layer turn counts mod 4; with the printed alphabet (X = U / R / F
+layer 1, Xw layers 1 + 2, Y = D / L / B layer 4; Dw / Lw / Bw are never printed) that vector is `X^(l1-l2) Xw^l2 Y^-l4` and this is the
+fewest-move form (exact, not only up to a rotation). Runs longer than that form are rewritten (order X, Xw, Y); a vanished run can make
+its neighbours one run, so it goes round until nothing changes. The start / end padding moves are never touched. The searched solution
+and all node counts are unchanged (paired run on 40 seeds: 2,047,826 nodes before and after); the scramble can only get shorter
+(`Result.merged` = moves removed). Not done in the search itself (it would mean carrying the join through every switch) and not in the
+dev CLI (`solver.exe` still prints the unreduced solution).
+Checks: `web_test --units` (reduction of 4000 random printed paths is the same cube exactly, idempotent, never longer; the examples
+`L' L2`, `R Rw R2`, `U D Uw U2`, `Rw2 Rw'`, a cascade, padding kept). The known failing seed 10320447241888191364 (`... Uw' L2 Fw2 L Rw2
+L2 D2 ...`, 54 moves) now prints `... Uw' L2 Fw2 Rw2 L' D2 ...` (53 moves). Button test (`web::run("", "Rw' Uw' F", "Rw' Uw' F", safe=false,
+random_state=true, fresh random 64-bit seed`, 8 processes x 20 min): 1650 scrambles, ~81,500 same-axis runs checked (every maximal run of
+printed moves on U/D, R/L, F/B), 0 redundant, 0 failed; second batch of 619 scrambles: 0 redundant, the reduction fired in 5 (1 move each);
+supercube-safe mode, 494 scrambles: 0 redundant. Each redundancy found by the checker is also confirmed by replay, and `run` verifies
+the reduced text against the target (the site's own equality) for every scramble.
+The forced start / end padding survives by construction (a run that touches it is never rewritten) and `reduce_same_axis_runs` also compares those moves with the input and gives the text back unchanged if they differ (`web_test --units` checks 3000 random texts with padding). `solver.wasm` was rebuilt with this (2026-10-16).
+The checker is `web_fmc_test.cpp` (build line in its first line; each process runs the button's call in a loop for `--minutes`, logs every redundant run / bad padding / reduction with its seed).
+Known property, not changed: the START padding is printed literally, but the END padding is printed in the frame of the hidden
+rotations (every move after a rotation is renamed): it reads literally `Rw' Uw' F` in only ~4% (63 of 1650, ~1 of 24) of the FMC
+scrambles; all others show one of the 24 forms of it (the checker computes them with `to_rotation_free`), e.g. `... Fw' Rw' D`.

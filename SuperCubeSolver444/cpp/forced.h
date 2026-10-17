@@ -54,6 +54,39 @@ static bool is_power_of(const Elem& x, const Elem& a) {   // x == a, a^2 or a^3
 }
 static bool same_cyclic_group(const Elem& a, const Elem& b) { return is_power_of(a, b) || is_power_of(b, a); }
 
+// The 24 whole-cube rotations as elements (the closure of the rotation tokens).
+static const std::vector<Elem>& rotation_group_elems() {
+    static std::vector<Elem> all;
+    if (all.empty()) {
+        all.push_back(elem_identity());
+        for (size_t i = 0; i < all.size(); i++)
+            for (int cls = 1; cls < NUM_ROTATE_CLASSES; cls++)
+                for (int open = 0; open < 2; open++) {
+                    const Elem n = elem_compose(rotation_elem((open ? P2_OPEN_SENTINEL_BASE : ROTATION_SENTINEL_BASE) + cls), all[i]);
+                    bool seen = false;
+                    for (const Elem& x : all) if (x == n) { seen = true; break; }
+                    if (!seen) all.push_back(n);
+                }
+    }
+    return all;
+}
+// Whole-cube rotations are free, and a wide move of the D / L / B side (Dw, Lw, Bw: not one of the 27 moves) is the opposite wide
+// move (Uw, Rw, Fw) followed by a whole-cube rotation: two such moves merge although, as cube elements, they are not powers of
+// each other. (Printed rotation free, Rw then Lw2 reads "Rw Rw2".) The wide moves of the same axis commute, so only the family
+// matters. Same layers, any power, up to a whole-cube rotation:
+static bool merge_modulo_rotation(const Elem& a, const Elem& b) {
+    if (same_cyclic_group(a, b)) return true;
+    for (const Elem& g : rotation_group_elems()) if (same_cyclic_group(a, elem_compose(b, g))) return true;
+    return false;
+}
+// The move of the 27 whose family `e` belongs to (a wide move of the D / L / B side: that of the opposite face), -1 if none.
+static int move_family_mod_rotation(const Elem& e) {
+    for (int c = 0; c < NUM_MOVES; c++) if (same_cyclic_group(move_elem(c), e)) return c;
+    for (int c : {3, 12, 21})   // Uw, Rw, Fw
+        for (const Elem& g : rotation_group_elems()) if (same_cyclic_group(move_elem(c), elem_compose(e, g))) return c;
+    return -1;
+}
+
 // Does any move of `z` merge into a move of `prefix`, or any move of `suffix` into a move of `z`? Rotation
 // letters (path entries >= NUM_MOVES) are allowed anywhere in the three words; they are treated as real
 // whole-cube rotations in between the moves.
@@ -78,7 +111,7 @@ static bool forced_cancels(const std::vector<int>& prefix, const std::vector<int
         for (int i = j - 1; i >= 0 && mv[i].seg >= want; i--) {
             if (mv[i].seg == want) {
                 // same layers, any power (U2 and U' are both powers of U, though neither is one of the other)
-                if (same_cyclic_group(mv[i].e, mv[j].e)) return true;
+                if (merge_modulo_rotation(mv[i].e, mv[j].e)) return true;
             }
             // mv[i] stands between j and anything earlier: only a commuting move lets j reach further back
             if (elem_compose(mv[i].e, mv[j].e) != elem_compose(mv[j].e, mv[i].e)) break;
@@ -137,8 +170,8 @@ struct Forced {
     // (L's leading block) is reduced to the move of highest rank on its axis: canonical order forbids every move
     // of lower or equal rank after it, which covers all the families in the block. Rotations between the block
     // and the search are pushed through the moves exactly, so a block move is first re-expressed as the move of
-    // the 27 turning those layers in the search's frame (a block move that is none of the 27, e.g. Lw, is skipped:
-    // no move of the 27 can merge into it). Those rotations are the ones closing P, the root rotation, and
+    // the 27 turning those layers in the search's frame (a block move that is none of the 27, e.g. Lw, stands for the
+    // opposite wide move, Rw: they merge up to a free whole-cube rotation). Those rotations are the ones closing P, the root rotation, and
     // `extra`: the rotation letters already sitting in the word the search is at the start of (side 0: N's
     // leading letters in order; side 1: the inverse of I's leading letters, last first -- fork letters go into
     // both words, so they can land at the boundary of Z). NUM_MOVES = nothing to pretend. Only a pruning aid --
@@ -183,8 +216,7 @@ struct Forced {
         }
         int best = NUM_MOVES;
         for (size_t bi = 0; bi < block.size(); bi++) {
-            int k = -1;
-            for (int c = 0; c < NUM_MOVES && k < 0; c++) if (same_cyclic_group(move_elem(c), block[bi])) k = c;
+            const int k = move_family_mod_rotation(block[bi]);
             if (k < 0) continue;
             if (best == NUM_MOVES || (MOVE_GROUP[k] == MOVE_GROUP[best] && MOVE_RANK[k] > MOVE_RANK[best])) best = k;
         }
