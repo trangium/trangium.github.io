@@ -267,6 +267,7 @@
                     <option value="3x3x3">3x3x3</option>
                     <option value="2x2x2-top">2x2x2 top</option>
                     <option value="2x2x2">2x2x2</option>
+                    <option value="4x4x4-top">4x4x4 top</option>
                     <option value="4x4x4">4x4x4</option>
                     <option value="5x5x5">5x5x5</option>
                     <option value="Skewb">Skewb</option>
@@ -607,7 +608,7 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
         function cubeImage(fc, setup="", yawOffset=0) {
             let imgType = document.getElementById("img-select").value;
             let cube;
-            if (imgType == "4x4x4") {
+            if (imgType === "4x4x4" || imgType === "4x4x4-top") {
                 for (let replacer of [
                 ["2R'", "r' R"], ["2R2", "r2 R2"], ["2R", "r R'"], 
                 ["2L'", "l' L"], ["2L2", "l2 L2"], ["2L", "l L'"], 
@@ -645,6 +646,10 @@ S: (Ul Mr Nd) (Ur Md Nl) (lUr rMd dNl) (mRu nDm uLn)`;
             } else if (imgType == "2x2x2-top") {
                 cube = TTk.TwistyPuzzle(2).alg(setup);
                 cube.context().projection().focalFac(-0.96).near(0.882);
+                cube.context().transform().pitch(Math.PI/2).yaw(0);
+            } else if (imgType == "4x4x4-top") {
+                cube = TTk.TwistyPuzzle(4).alg(setup);
+                cube.context().projection().focalFac(-0.905).near(0.8);
                 cube.context().transform().pitch(Math.PI/2).yaw(0);
             } else {
                 let cMap = {"3x3x3":3, "2x2x2":2, "4x4x4":4, "5x5x5":5, "Skewb":"skewb", "Pyraminx":"pyraminx", "Megaminx":"megaminx"};
