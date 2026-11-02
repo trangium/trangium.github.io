@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Megaminx Solver (prototype)</title>
+        <style>
+            textarea, input[type=text], input[type=number], select, button {
+                font-family: "courier new", courier, monospace;
+                font-size: 1rem;
+            }
+
+            .button {
+                border: none;
+                text-align: center;
+                text-decoration: none;
+                display: inline-block;
+                transition-duration: 0.4s;
+                cursor: pointer;
+                background-color: white;
+                color: black;
+                border: 0.125rem solid #000;
+            }
+
+            .top-button {
+                padding: 1rem 1.75rem;
+                margin: 0.25rem 0.125rem;
+            }
+
+            .button:hover {
+                background-color: #000;
+                color: white;
+            }
+
+            button:disabled {
+                opacity: 0.3;
+                cursor: none;
+                pointer-events: none;
+            }
+
+            input[type=checkbox], input[type=radio] {
+                transform: scale(1.3);
+            }
+
+            input[type=number] {
+                width: 6rem;
+            }
+
+            #title {
+                font-size: 1.6rem;
+                margin-bottom: 1.25rem;
+            }
+
+            /* the three dots of "Solving..." are separate spans: the font would otherwise merge adjacent periods into an ellipsis */
+            .dot {
+                display: inline-block;
+                margin-right: 0.12em;
+            }
+
+            #results {
+                margin-top: 1rem;
+            }
+
+            /* the moves sit in a grid of equally wide columns, ten per row: keep the spaces, scroll sideways on a narrow screen */
+            .alg {
+                white-space: pre;
+                overflow-x: auto;
+                font-weight: normal;
+                margin: 0.25rem 0 0.25rem 0;
+            }
+
+            .alg.message {
+                white-space: pre-wrap;
+                word-break: break-word;
+            }
+
+            .result {
+                margin-bottom: 1.25rem;
+            }
+
+            .result a {
+                color: black;
+                font-weight: normal;
+            }
+
+            details {
+                margin-top: 1rem;
+            }
+
+            summary {
+                cursor: pointer;
+            }
+
+            table {
+                border-collapse: collapse;
+                margin-top: 0.5rem;
+                font-weight: normal;
+            }
+
+            th, td {
+                border: 0.0625rem solid #000;
+                padding: 0.25rem 0.75rem;
+                text-align: right;
+            }
+
+            th:first-child {
+                text-align: left;
+            }
+
+            .total th, .total td {
+                font-weight: bold;
+            }
+
+        </style>
+    </head>
+
+    <body>
+        <div style="font-family:courier new;font-size:18px">
+            <strong>
+                <div id="title">Megaminx Solver (prototype)</div>
+
+                <input type="radio" name="mode" id="mode-random" value="random" checked /><label for="mode-random"> Random state scramble</label><br>
+                <input type="radio" name="mode" id="mode-given" value="given" /><label for="mode-given"> Solve given position</label><br><br>
+
+                <div id="random-area">
+                    Number of scrambles: <input type="number" id="count" min="1" step="1" value="7" /><br>
+                </div>
+
+                <div id="given-area" hidden>
+                    Scramble<br>
+                    <textarea id="scramble" rows="4" cols="72" spellcheck="false"></textarea><br><br>
+                </div>
+
+                Beam width: <input type="number" id="beam" min="1" step="1" value="2048" /> (smaller = faster, larger = shorter solutions)<br>
+                <div id="beam-warnings"></div><br>
+
+                <button style="font-family:courier new;font-size:18px" class="button top-button" id="run"><strong>Run</strong></button>
+
+                <div id="status"></div>
+
+                <details id="stats" hidden>
+                    <summary>Statistics</summary>
+                    <table>
+                        <thead><tr><th id="stats-n"></th><th>avg moves</th><th>avg time</th><th>avg MLP passes</th></tr></thead>
+                        <tbody id="stats-body"></tbody>
+                    </table>
+                </details>
+
+                <div id="results"></div>
+            </strong>
+        </div>
+
+        <script>
+            const $ = (id) => document.getElementById(id);
+            const worker = new Worker('worker.js');
+
+            // status text followed by `dots` (0..3) separate periods
+            function setStatus(text, dots) {
+                const el = $('status');
+                el.textContent = text;
+                for (let i = 0; i < (dots || 0); i++) {
+                    const d = document.createElement('span');
+                    d.className = 'dot';
+                    d.textContent = '.';
+                    el.appendChild(d);
+                }
+            }
+            let busy = false, timer = null, dotIndex = 0;
+
+            function setBusy(b) {
+                busy = b;
+                $('run').disabled = b;
+            }
+
+            function startDots(label) {
+                stopDots();
+                dotIndex = 0;
+                setStatus(label, 0);
+                timer = setInterval(() => { dotIndex = (dotIndex + 1) % 4; setStatus(label, dotIndex); }, 400);
+            }
+
+            function stopDots() {
+                if (timer !== null) { clearInterval(timer); timer = null; }
+            }
+
+            // spaces -> '+', a prime -> %27 (the form Twizzle's URLs use)
+            function enc(alg) {
+                return alg.trim().split(/\s+/).join('+').replace(/'/g, '%27');
+            }
+
+            // ---- statistics: sums over the solves so far, shown as averages
+            let sums = null;
+            const ROWS = ['Phase 1', 'Phase 2', 'Phase 3', 'Total'];
+
+            function resetStats() {
+                sums = { n: 0, moves: [0, 0, 0], time: [0, 0, 0], mlp: [0, 0, 0] };
+                $('stats').hidden = true;
+                $('stats-body').textContent = '';
+            }
+
+            function addStats(d) {
+                sums.n++;
+                [d.a, d.b, d.c].forEach((v, i) => { sums.moves[i] += v; });
+                [d.t1, d.t2, d.t3].forEach((v, i) => { sums.time[i] += v; });
+                [0, d.mlp2, d.mlp3].forEach((v, i) => { sums.mlp[i] += v; });
+                const n = sums.n, body = $('stats-body'), add = (a) => a.reduce((s, v) => s + v, 0);
+                body.textContent = '';
+                for (let r = 0; r < 4; r++) {
+                    const tot = r === 3, pick = (a) => (tot ? add(a) : a[r]) / n;
+                    const tr = document.createElement('tr');
+                    if (tot) tr.className = 'total';
+                    const cells = [ROWS[r], pick(sums.moves).toFixed(2), pick(sums.time).toFixed(3) + 's', Math.round(pick(sums.mlp)).toLocaleString('en-US')];
+                    cells.forEach((text, c) => {
+                        const cell = document.createElement(c === 0 ? 'th' : 'td');
+                        cell.textContent = text;
+                        tr.appendChild(cell);
+                    });
+                    body.appendChild(tr);
+                }
+                $('stats-n').textContent = n + '-solve avg';
+                $('stats').hidden = false;
+            }
+
+            // the moves in columns of equal width, ten per row
+            function grid(alg) {
+                const moves = alg.trim().split(/\s+/), rows = [];
+                for (let i = 0; i < moves.length; i += 10) rows.push(moves.slice(i, i + 10).map((m) => m.padEnd(4)).join(' ').trimEnd());
+                return rows.join('\n');
+            }
+
+            // ---- one block per solve, added as soon as it is done
+            function showResult(d) {
+                const box = document.createElement('div');
+                box.className = 'result';
+                const head = document.createElement('div');
+                const alg = document.createElement('div');
+                alg.className = 'alg';
+                box.appendChild(head);
+                box.appendChild(alg);
+                if (!d.ok) {
+                    head.textContent = (d.mode === 'random' ? 'Scramble' + (d.total > 1 ? ' ' + d.index : '') : 'Solution') + ':';
+                    alg.className = 'alg message';
+                    alg.textContent = d.error;
+                } else {
+                    addStats(d);
+                    const random = d.mode === 'random', text = random ? d.inverse : d.word;
+                    head.textContent = (random ? 'Scramble' + (d.total > 1 ? ' ' + d.index : '') : 'Solution') + ':';
+                    // shown with "flip"; the Twizzle link below keeps the x2 that Twizzle understands
+                    alg.textContent = text ? grid(text.split(' ').map((m) => (m === 'x2' ? 'flip' : m)).join(' ')) : '(already solved)';
+                    const a = document.createElement('a');
+                    // a random state has no setup: the scramble is the algorithm itself
+                    a.href = 'https://alpha.twizzle.net/edit/?puzzle=megaminx' + (random ? '' : '&setup-alg=' + enc(d.scramble)) + '&alg=' + enc(text);
+                    a.target = '_blank';
+                    a.rel = 'noopener';
+                    a.textContent = 'Open in Twizzle';
+                    box.appendChild(a);
+                }
+                $('results').appendChild(box);
+            }
+
+            worker.onmessage = (e) => {
+                const d = e.data;
+                if (d.type === 'idle') {
+                    stopDots();
+                    $('status').textContent = '';
+                    setBusy(false);
+                } else if (d.type === 'solving') {
+                    startDots(d.total > 1 ? 'Solving ' + d.index + ' of ' + d.total : 'Solving');
+                } else if (d.type === 'result') {
+                    showResult(d);
+                } else if (d.type === 'error') {
+                    stopDots();
+                    setBusy(false);
+                    $('status').textContent = '';
+                    const m = document.createElement('div');
+                    m.textContent = d.message;
+                    $('results').appendChild(m);
+                }
+            };
+
+            worker.onerror = (e) => {
+                stopDots();
+                setBusy(false);
+                $('status').textContent = '';
+                $('results').textContent = 'The solver could not be loaded' + (e && e.message ? ': ' + e.message : '.');
+            };
+
+            function updateMode() {
+                const random = $('mode-random').checked;
+                $('random-area').hidden = !random;
+                $('given-area').hidden = random;
+            }
+            $('mode-random').addEventListener('change', updateMode);
+            $('mode-given').addEventListener('change', updateMode);
+
+            // a whole number of at least 1 (a blank or non-numeric field becomes 1)
+            function atLeastOne(id) {
+                const n = parseInt($(id).value, 10);
+                const c = isNaN(n) ? 1 : Math.max(1, n);
+                $(id).value = c;
+                return c;
+            }
+            const clampCount = () => atLeastOne('count');
+            $('count').addEventListener('change', clampCount);
+
+            // the beam width is not limited, only warned about
+            function updateBeamWarnings() {
+                const n = parseInt($('beam').value, 10), b = isNaN(n) ? 1 : n;
+                const lines = [];
+                if (b < 256) lines.push('Warning: beam widths less than 256 may fail to solve some scrambles.');
+                if (b > 16384) lines.push('Warning: beam widths above 16,384 may be very slow or run out of memory.');
+                $('beam-warnings').textContent = '';
+                lines.forEach((t) => { const p = document.createElement('div'); p.textContent = t; $('beam-warnings').appendChild(p); });
+            }
+            $('beam').addEventListener('input', updateBeamWarnings);
+            $('beam').addEventListener('change', () => { atLeastOne('beam'); updateBeamWarnings(); });
+
+            function problem(text) {
+                $('results').textContent = text;
+                $('stats').hidden = true;
+            }
+
+            $('run').addEventListener('click', () => {
+                if (busy) return;
+                const random = $('mode-random').checked, count = clampCount(), scramble = $('scramble').value.trim();
+                const beam = atLeastOne('beam'), beams = [beam, beam, beam];
+                updateBeamWarnings();
+                if (!random && scramble === '') return problem('Enter a scramble, or choose a random state scramble.');
+                setBusy(true);
+                $('results').textContent = '';
+                resetStats();
+                worker.postMessage(random ? { type: 'run', mode: 'random', count: count, beams: beams } : { type: 'run', mode: 'given', scramble: scramble, beams: beams });
+            });
+
+            setBusy(true);
+            startDots('Loading networks');
+            worker.postMessage({ type: 'prepare' });
+            updateMode();
+            updateBeamWarnings();
+            resetStats();
+        </script>
+    </body>
+
+</html>
