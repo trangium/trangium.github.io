@@ -5,7 +5,7 @@
 // Messages to the page:    {type:'solving', index, total}   then   {type:'result', index, total, ok, ...}   for every solve (as soon as it is done), finally {type:'idle'};   {type:'error', message}
 // A result has: ok, error | a b c (moves per phase, x2 not counted), t1 t2 t3 (seconds), mlp2 mlp3 (full-network states evaluated; phase 1 uses no network), word (solution with x2), inverse (the same word inverted: a scramble of the random state).
 // bump VERSION whenever solver.js / solver.wasm / solver.data / randomstate.js are rebuilt: it keeps browsers from mixing a cached old file with a new one
-const VERSION = '12';
+const VERSION = '21';
 importScripts('solver.js?v=' + VERSION, 'randomstate.js?v=' + VERSION);
 
 let M = null;
